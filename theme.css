@@ -80,3 +80,101 @@
 :root[data-theme-mode=light] .team-thread .team-message small {
   color:#4d5967;
 }
+
+/* Agent HQ iMessage-style coworker chats */
+.ios-chat-shell{
+ display:flex!important; flex-direction:column; height:100dvh; min-height:0!important;
+ overflow:hidden; max-width:700px!important;
+ padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)!important;
+ background-color:#f7f8fa; color:#1c1c1e;
+}
+.ios-chat-header{
+ flex:0 0 auto; display:grid; grid-template-columns:minmax(85px,1fr) auto minmax(44px,1fr);
+ align-items:center; gap:7px; margin:0!important; padding:9px 14px 10px;
+ border-bottom:1px solid rgba(85,85,90,.17);
+ background:rgba(250,250,252,.93); backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);
+}
+.ios-back,.ios-refresh{padding:7px 2px;background:transparent!important;color:#007aff!important;font-weight:500;border:0;min-height:44px}
+.ios-back{font-size:27px;text-align:left;white-space:nowrap}
+.ios-back span{font-size:15px;vertical-align:2px}
+.ios-refresh{text-align:right;font-size:24px}
+.ios-contact{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:100px;max-width:185px}
+.ios-contact-avatar{display:grid;place-items:center;flex:none;background:linear-gradient(150deg,#a6badf,#738dbd);
+ color:white;width:40px;height:40px;border-radius:50%;font-size:19px;font-weight:750;border:1px solid rgba(255,255,255,.6)}
+.ios-contact-name{text-align:center;font-size:14px;font-weight:650;line-height:1.15}
+.ios-contact-name small{display:block;font-size:10px;font-weight:400;opacity:.7;margin-top:3px;max-width:170px;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
+.ios-thread{display:flex;flex:1 1 auto;flex-direction:column;min-height:0;min-width:0}
+.ios-chat-list{flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;padding:16px 14px 22px;scrollbar-width:none;
+ background:rgba(255,255,255,.73);-webkit-overflow-scrolling:touch}
+.ios-chat-list::-webkit-scrollbar{display:none}
+.ios-date{text-align:center;color:#84868d;font-size:11px;font-weight:600;letter-spacing:.15px;margin:20px 0 14px}
+.ios-message-row{display:flex;margin:3px 0 8px;width:100%}
+.ios-message-row.outgoing{justify-content:flex-end}
+.ios-message-row.incoming{justify-content:flex-start}
+.ios-message-bubble{position:relative;max-width:min(83%,485px);padding:11px 33px 11px 15px;border-radius:21px;
+ line-height:1.37;overflow-wrap:anywhere;word-break:normal;white-space:pre-wrap;
+ font-size:16px;letter-spacing:-.1px;box-shadow:none!important}
+.ios-message-bubble.theirs{background:#e6e7ea;color:#151516;border-bottom-left-radius:6px}
+.ios-message-bubble.mine{background:#30b957;color:#fff;border-bottom-right-radius:6px}
+.ios-message-text{display:block}
+.ios-message-source{display:block;font-size:10px;opacity:.75;margin-bottom:4px}
+.ios-message-delete{position:absolute;top:4px;right:4px;width:26px;height:26px;padding:0!important;
+ border:0;border-radius:50%;background:rgba(0,0,0,.07)!important;color:inherit!important;font-size:20px;line-height:1;
+ display:grid;place-items:center;opacity:.78}
+.ios-message-bubble.mine .ios-message-delete{background:rgba(255,255,255,.22)!important}
+.ios-message-delete:focus-visible{outline:2px solid currentColor;opacity:1}
+.ios-empty-chat{margin:auto;text-align:center;font-size:14px;color:#83858c;padding:25px 15px}
+.ios-typing{align-self:flex-start;display:flex;align-items:center;gap:4px;margin:7px 15px 5px;border-radius:17px;background:#e7e7eb;
+ padding:10px 13px;min-height:30px}
+.ios-typing span{width:6px;height:6px;border-radius:50%;background:#888;animation:ios-typing-bounce 1.2s infinite}
+.ios-typing span:nth-child(2){animation-delay:.15s}.ios-typing span:nth-child(3){animation-delay:.3s}
+@keyframes ios-typing-bounce{50%{opacity:.3;transform:translateY(-2px)}}
+.ios-composer{margin:0!important;position:relative!important;bottom:auto!important;flex:0 0 auto;
+ display:flex!important;align-items:flex-end!important;gap:9px!important;padding:10px 13px 9px!important;
+ border-top:1px solid rgba(105,105,110,.15);background:rgba(251,251,253,.97)!important;
+ backdrop-filter:blur(15px);-webkit-backdrop-filter:blur(15px)}
+.ios-composer #draft{box-sizing:border-box;flex:1 1 auto;min-width:0;min-height:42px;height:42px;max-height:130px;
+ border:1px solid #cdd0d5!important;background:#fff!important;color:#202126!important;
+ padding:10px 15px!important;border-radius:21px!important;line-height:1.3;font-size:16px;
+ resize:none;box-shadow:none;outline:none}
+.ios-composer #draft:focus{border-color:#9ba5ad!important}
+.ios-composer #draft::placeholder{color:#9a9ca3;opacity:1}
+.ios-send{border:0;display:grid;place-items:center;flex:0 0 42px;width:42px;height:42px;border-radius:50%;
+ background:#2db85a!important;color:#fff!important;font-size:28px;font-weight:750;line-height:1;padding:0!important}
+.ios-send:disabled{opacity:.4}
+.ios-chat-feedback{padding:0 15px;font-size:12px;line-height:1.4;color:#b3283a;background:rgba(251,251,253,.96)}
+.assignment-list-item{display:flex;align-items:center;position:relative;gap:5px;border-bottom:1px solid rgba(140,140,150,.17)}
+.assignment-list-item .row{border:0;flex:1;min-width:0}
+.assignment-list-item .tiny-delete{flex:none;width:32px;height:32px;border-radius:50%;font-size:21px;
+ font-weight:400;background:rgba(128,130,135,.12);color:#787980;padding:0;line-height:1}
+.assignment-list-item .tiny-delete:focus-visible{outline:3px solid #007aff}
+.messages-assignments{margin:22px 0}
+.messages-assignments h2{font-size:16px;padding:0 8px}
+@media(prefers-color-scheme:dark){
+ :root:not([data-theme-mode=light]) .ios-chat-shell{color:#f7f7fa;background-color:#141417}
+ :root:not([data-theme-mode=light]) .ios-chat-header{background:rgba(30,30,33,.96);border-color:#414146}
+ :root:not([data-theme-mode=light]) .ios-chat-list{background:rgba(15,15,18,.78)}
+ :root:not([data-theme-mode=light]) .ios-message-bubble.theirs{background:#38393e;color:#fafaff}
+ :root:not([data-theme-mode=light]) .ios-message-bubble.mine{background:#21894a;color:#fff}
+ :root:not([data-theme-mode=light]) .ios-composer{background:rgba(29,29,31,.97)!important;border-color:#444}
+ :root:not([data-theme-mode=light]) .ios-composer #draft{background:#323238!important;color:#fff!important;border-color:#55565f!important}
+ :root:not([data-theme-mode=light]) .ios-typing{background:#38393e}
+ :root:not([data-theme-mode=light]) .ios-chat-feedback{background:#1d1d1f;color:#ff9ba5}
+}
+:root[data-theme-mode=dark] .ios-chat-shell{color:#f7f7fa;background-color:#141417}
+:root[data-theme-mode=dark] .ios-chat-header{background:rgba(30,30,33,.96);border-color:#414146}
+:root[data-theme-mode=dark] .ios-chat-list{background:rgba(15,15,18,.78)}
+:root[data-theme-mode=dark] .ios-message-bubble.theirs{background:#38393e;color:#fafaff}
+:root[data-theme-mode=dark] .ios-message-bubble.mine{background:#21894a;color:#fff}
+:root[data-theme-mode=dark] .ios-composer{background:rgba(29,29,31,.97)!important;border-color:#444}
+:root[data-theme-mode=dark] .ios-composer #draft{background:#323238!important;color:#fff!important;border-color:#55565f!important}
+:root[data-theme-mode=dark] .ios-typing{background:#38393e}
+:root[data-theme-mode=dark] .ios-chat-feedback{background:#1d1d1f;color:#ff9ba5}
+:root[data-theme-mode=light] .ios-chat-shell{color:#1c1c1e;background-color:#f7f8fa}
+:root[data-theme-mode=light] .ios-chat-header{background:rgba(250,250,252,.93);border-color:rgba(85,85,90,.17)}
+:root[data-theme-mode=light] .ios-chat-list{background:rgba(255,255,255,.73)}
+:root[data-theme-mode=light] .ios-message-bubble.theirs{background:#e6e7ea;color:#151516}
+:root[data-theme-mode=light] .ios-message-bubble.mine{background:#30b957;color:#fff}
+:root[data-theme-mode=light] .ios-composer{background:rgba(251,251,253,.97)!important;border-color:rgba(105,105,110,.15)}
+:root[data-theme-mode=light] .ios-composer #draft{background:#fff!important;color:#202126!important;border-color:#cdd0d5!important}
+@media(prefers-reduced-motion:reduce){.ios-typing span{animation:none}}
