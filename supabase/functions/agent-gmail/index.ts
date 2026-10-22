@@ -141,8 +141,11 @@ async function callback(req:Request){
   },{onConflict:"owner_id"});
   if(error)throw Error("Could not securely store the Google connection");
   // Keep inboxes separate if the signed-in owner switches Gmail accounts.
-  if(previouslyConnected?.gmail_address&&previouslyConnected.gmail_address!==address)
+  if(previouslyConnected?.gmail_address&&previouslyConnected.gmail_address!==address){
    await db.from("agent_email_items").delete().eq("owner_id",owner);
+   // Switching mailbox invalidates ALL earlier per-worker Gmail approvals.
+   await db.from("agent_gmail_worker_grants").delete().eq("owner_id",owner);
+  }
   return redirect("connected");
  }catch{return redirect("error")}
 }
@@ -264,7 +267,8 @@ async function disconnect(req:Request,db:DB,owner:string){
  const {error:a}=await db.from("agent_email_items").delete().eq("owner_id",owner);
  const {error:b}=await db.from("agent_gmail_oauth_states").delete().eq("owner_id",owner);
  const {error:c}=await db.from("agent_gmail_connections").delete().eq("owner_id",owner);
- if(a||b||c)throw Error("The Gmail connection could not be fully disconnected");
+ const {error:d}=await db.from("agent_gmail_worker_grants").delete().eq("owner_id",owner);
+ if(a||b||c||d)throw Error("The Gmail connection could not be fully disconnected");
  return respond(req,{disconnected:true,message:"Saved email summaries, drafts and local credentials removed. Revoke Agent HQ in your Google account too."});
 }
 Deno.serve(async(req:Request)=>{
