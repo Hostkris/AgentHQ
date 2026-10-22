@@ -226,6 +226,9 @@ function recentOfficeHandoff(){
  return null;
 }
 function officeWorkerState(id){
+ const handoff=recentOfficeHandoff();
+ if(handoff&&(handoff.from===id||handoff.to===id))
+  return {emoji:handoff.from===id?"📄➡️":"🤝📄",short:handoff.from===id?"Handing off":"Receiving",detail:handoff.step,kind:"handoff"};
  const activeTasks=[...coordSteps.values()].flat().filter(step=>step.employee_id===id);
  const running=activeTasks.find(step=>step.status==="running");
  if(running)return {emoji:"✍️",short:"Drafting",detail:running.title,kind:"working"};
@@ -240,10 +243,11 @@ function officeWorkerState(id){
  return {emoji:"☕",short:"Available",detail:"No active task",kind:"idle"};
 }
 function renderOffice(){
+ const handoff=recentOfficeHandoff();
  const people=staff.map((person,index)=>{
  const [id,,name,role]=person,state=officeWorkerState(id);
  return '<div class="office-station office-'+state.kind+'">'+
-  '<div class="office-emoji-bubble" aria-label="'+escapeHTML(state.short)+'">'+state.emoji+'</div>'+
+  '<div class="office-emoji-bubble" title="'+escapeHTML(state.detail)+'" aria-label="'+escapeHTML(state.short)+'">'+state.emoji+'</div>'+
   '<button type="button" class="office-employee" data-chat="'+id+'" aria-label="Open '+escapeHTML(name)+' messages">'+
    '<span class="office-sprite" data-rpg-worker="'+id+'"></span><strong>'+escapeHTML(name)+'</strong>'+
    '</button>'+
