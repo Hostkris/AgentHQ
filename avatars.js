@@ -24,11 +24,11 @@ function image(id){
  else if(style==="long"||style==="bob"){pixels+=r(5,3,14,5,hair)+r(4,7,3,12,hair)+r(17,7,3,12,hair)+(style==="long"?r(4,17,3,4,hair)+r(17,17,3,4,hair):"")}
  else if(style==="curly"||style==="wavy"){pixels+=r(5,3,14,5,hair)+r(3,6,4,4,hair)+r(17,5,4,5,hair)+r(7,2,3,3,hair)+r(13,2,4,3,hair)}
  else pixels+=r(5,3,14,6,hair)+r(5,8,3,2,hair)+r(16,8,3,2,hair);
- pixels+=r(8,11,2,2,"#282331")+r(14,11,2,2,"#282331")+r(10,15,4,1,"#934c49");
+ pixels+='<g class="rpg-eye-pixels">'+r(8,11,2,2,"#282331")+r(14,11,2,2,"#282331")+'</g>'+'<g class="rpg-eyelids">'+r(8,11,2,2,skin)+r(14,11,2,2,skin)+'</g>'+'<g class="rpg-mouth-pixels">'+r(10,15,4,1,"#934c49")+'</g>';
  if(detail==="glasses")pixels+=r(7,10,5,4,"#262b38")+r(12,11,2,1,"#262b38")+r(14,10,4,4,"#262b38")+r(8,11,3,2,"#cfdfed")+r(15,11,2,2,"#cfdfed");
  if(detail==="beard")pixels+=r(8,15,2,3,hair)+r(14,15,2,3,hair)+r(10,17,4,2,hair);
  pixels+=r(5,21,3,3,"#ffffff35")+r(16,21,3,3,"#ffffff22");
- return '<svg class="rpg-portrait-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" shape-rendering="crispEdges" role="img" aria-label="Pixel-art portrait">'+pixels+'</svg>';
+ return '<svg class="rpg-portrait-svg" style="--rpg-delay:-'+(index*.41)+'s" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" shape-rendering="crispEdges" role="img" aria-label="Pixel-art portrait">'+pixels+'</svg>';
 }
 window.agentHQPortrait=image;
 function update(){
