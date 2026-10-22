@@ -187,6 +187,26 @@ Deno.serve(async(req:Request)=>{
       " specifically to "+r.reason+"? Yes or no? Approval is recorded, but browsing isn't enabled.";
     }
    }
+   if(!replyText&&waiting?.status==="waiting_for_permission"&&!decision){
+    if(body.length<10){
+     replyText="Please send me the source information or details I can safely work from, then I'll ask before resuming.";
+    }else{
+     const {data:updated,error}=await db.from("agent_task_steps")
+      .update({status:"queued",updated_at:new Date().toISOString()})
+      .eq("id",waiting.id).eq("owner_id",owner).eq("status","waiting_for_permission")
+      .select("id").maybeSingle();
+     if(error||!updated)throw Error("Couldn't save the source information for the assignment");
+     await db.from("agent_team_messages").insert({
+      owner_id:owner,assignment_id:waiting.assignment_id,sender_kind:"owner",
+      sender_id:"owner",message_type:"reply",body
+     });
+     await db.from("agent_team_assignments").update({
+      coordination_status:"ready",status:"in_progress",updated_at:new Date().toISOString()
+     }).eq("id",waiting.assignment_id).eq("owner_id",owner);
+     await state("confirm_resume","",waiting.assignment_id);
+     replyText="Thanks for that information. I can draft from what you shared without opening the website. Want me to resume the team now? Yes or no?";
+    }
+   }
    if(!replyText&&waiting?.status==="waiting_for_owner"){
     // The answer to a worker question is saved in the very same Messages conversation.
     const {data:updated,error}=await db.from("agent_task_steps")
