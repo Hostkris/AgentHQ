@@ -1,4 +1,34 @@
-const staff=[["alex","👔","Alex","General Manager"],["maya","📣","Maya","Marketing"],["jordan","🎬","Jordan","Scripts & Content"],["riley","🔎","Riley","Research"],["taylor","📧","Taylor","Communications"],["casey","📱","Casey","Social Media"],["morgan","🛍️","Morgan","Shopify"],["avery","📊","Avery","Business Analysis"],["jamie","📅","Jamie","Scheduling"],["quinn","💡","Quinn","Growth & Partnerships"]];const app=document.querySelector("#app");let screen="home",active=null;const drafts=new Map();const messages=new Map();const sendFeedback=new Map();const sendingAgents=new Set();let chatNotice="Loading saved text messages…",chatFingerprint="";const businessActions=[];
+const staff=[["alex","👔","Alex","General Manager"],["maya","📣","Maya","Marketing"],["jordan","🎬","Jordan","Scripts & Content"],["riley","🔎","Riley","Research"],["taylor","📧","Taylor","Communications"],["casey","📱","Casey","Social Media"],["morgan","🛍️","Morgan","Shopify"],["avery","📊","Avery","Business Analysis"],["jamie","📅","Jamie","Scheduling"],["quinn","💡","Quinn","Growth & Partnerships"]];const app=document.querySelector("#app");let screen=(typeof location!=="undefined"&&new URLSearchParams(location.search).has("meta"))?"operations":"home",active=null;const drafts=new Map();const messages=new Map();const sendFeedback=new Map();const sendingAgents=new Set();let chatNotice="Loading saved text messages…",chatFingerprint="";let metaState={configured:false,connected:false,accounts:[],message:"Checking Meta Ads…"};
+let metaSelected="",metaPeriod="last_7d",metaReport=null,metaBusy=false,metaNotice="";
+window.agentHQMetaStatus=data=>{
+ const next=JSON.stringify(data);
+ if(JSON.stringify(metaState)===next)return;
+ metaState={...data,accounts:Array.isArray(data.accounts)?data.accounts:[]};
+ if(!metaState.accounts.some(a=>a.account_id===metaSelected)){
+  metaSelected=metaState.accounts[0]?.account_id||"";
+  metaReport=null;
+ }
+ if(!metaState.connected)metaReport=null;
+ if(screen==="operations"&&!metaBusy)renderWithoutInterruptingDraft();
+};
+window.agentHQMetaError=message=>{
+ metaNotice=message;
+ if(screen==="operations")renderWithoutInterruptingDraft();
+};
+const metaCallbackNote=()=>{
+ if(typeof location==="undefined")return "";
+ const status=new URLSearchParams(location.search).get("meta");
+ return ({
+  connected:"Meta authorized the read-only connection. Select your ad account to fetch a report.",
+  accounts:"Meta sign-in succeeded, but ad account discovery needs attention. Tap Refresh accounts.",
+  cancelled:"Meta authorization was cancelled; your ad account was not connected.",
+  permission:"Meta did not grant ads_read. Reconnect and approve read-only advertising access.",
+  invalid:"The Meta authorization link expired or was already used. Please reconnect.",
+  setup:"Meta developer app configuration is incomplete.",
+  error:"Meta could not finish the connection. Check the app ID, secret and redirect URI."
+ })[status]||"";
+};
+const businessActions=[];
 let businessActionsNotice="Loading business action requests…";
 window.agentHQOperationsSync=(rows,notice)=>{
  if(JSON.stringify(businessActions)===JSON.stringify(rows)&&businessActionsNotice===notice)return;
