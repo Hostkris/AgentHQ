@@ -33,10 +33,17 @@ async function decide(ai:NonNullable<ReturnType<typeof provider>>,role:string,co
  const system=`You are a friendly, concise AI coworker working as ${role} in Agent HQ. This is a casual one-to-one text conversation, not a task dashboard.
 You can answer general knowledge questions, discuss assignments, and ask for missing task details. No tools, browsing, account access, purchasing, posting, or file modification are available. Never imply you actually researched a website or completed external work. Do not fabricate sources.
 Interpret the user's most recent message in context. Reply naturally, warmly but briefly (up to 450 characters) as a human coworker might text, not corporate UI language.
-For a request that appears to be work you should carry out, classify as "task" if details are enough, or "collect" if important information is missing; in "collect" ask ONE focused question. For general conversation/question, classify as "answer" and actually answer their question.
-If the context is "collecting_task", make use of the prior description and the new details. Classify "collect" if essential info remains missing; otherwise classify "task".
-If classifying "task", ask the user clearly in a natural way whether to START this assignment, ending with "Yes or no?" Do not claim the assignment is already started.
-Return ONLY valid JSON: {"intent":"answer|collect|task","reply":"your natural response"} with no code fences.`;
+For a request that appears to be internal text drafting or specialist teamwork, classify as "task" if details suffice, or "collect" when important details are missing; ask ONE focused question. For a general question, classify as "answer" and answer from general knowledge.
+For up-to-date business account metrics (e.g., ad spend yesterday), changing an ad budget, publishing to Instagram/TikTok/Facebook/YouTube, sending an email, replying on a real social account, or building a Manychat automation, classify as "action" (NOT "task" or "answer"). Do not invent account metrics or claim a provider is connected.
+For "action", describe exactly what the owner is asking to authorize and that an external connection is required; DO NOT say any action has been executed. Only use these provider and action pairs:
+meta_ads: read_metrics,change_ad_budget
+facebook,instagram,tiktok,youtube: create_content,publish_content,reply_to_comment,read_metrics
+manychat: create_automation
+email: send_email
+other: other.
+For "action", return {"intent":"action","reply":"short conversational approval question ending Yes or no?","action":{"provider":"meta_ads","kind":"change_ad_budget","summary":"specific proposed change","scope":"named account, target and amount; mention missing information explicitly"}}. Never assume an account, ID, price or spend amount. If amount/target is missing, ask to clarify instead of issuing an incomplete budget change.
+For "task", ask if they want to START the assignment, ending with "Yes or no?".
+Return ONLY valid JSON with {"intent":"answer|collect|task|action","reply":"short natural message","action":optional object as above} and no code fences.`;
  const abort=new AbortController(),timer=setTimeout(()=>abort.abort(),25000);
  try{
   const response=await fetch(ai.url,{method:"POST",signal:abort.signal,
@@ -53,10 +60,11 @@ Return ONLY valid JSON: {"intent":"answer|collect|task","reply":"your natural re
   const begin=content.indexOf("{"),end=content.lastIndexOf("}");
   if(begin<0||end<=begin)throw Error("AI reply format was unexpected");
   const payload=JSON.parse(content.slice(begin,end+1));
-  const intent=["answer","collect","task"].includes(payload.intent)?payload.intent:"answer";
+  const intent=["answer","collect","task","action"].includes(payload.intent)?payload.intent:"answer";
   const text=typeof payload.reply==="string"?payload.reply.trim().slice(0,1200):"";
   if(!text)throw Error("AI response was empty");
-  return {intent,text};
+  const proposed=payload.action&&typeof payload.action==="object"&&!Array.isArray(payload.action)?payload.action:null;
+  return {intent,text,action:proposed};
  }finally{clearTimeout(timer)}
 }
 Deno.serve(async(req:Request)=>{
