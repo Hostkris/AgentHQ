@@ -1,13 +1,12 @@
 import { agentCloud } from './agent-cloud-auth.js';
 const panel=document.createElement('section');
 panel.id='agent-cloud-panel';
-panel.className='card';
-panel.innerHTML='<h2>Agent HQ secure sign-in</h2><p id="cloud-status">Checking session…</p><form id="cloud-form"><input id="cloud-email" type="email" required placeholder="Email address" autocomplete="email"><input id="cloud-password" type="password" required minlength="6" placeholder="Password" autocomplete="current-password"><button class="primary" type="submit">Sign in</button></form><button id="cloud-set-password" class="back" type="button" hidden>Set or change password</button><button id="cloud-logout" class="back" type="button" hidden>Sign out</button><p class="notice">Already signed in with an email link? Set your password here first.</p>';
+panel.style.cssText='padding:12px;text-align:center';
+panel.innerHTML='<p>Agent HQ secure sign-in</p><form id="cloud-form"><input id="cloud-email" type="email" required placeholder="Email address" autocomplete="email"><button>Send sign-in link</button></form><button id="cloud-logout" hidden>Sign out</button><p id="cloud-status">Checking session…</p>';
+document.querySelector('#app').before(panel);
 const status=panel.querySelector('#cloud-status'),form=panel.querySelector('#cloud-form'),logout=panel.querySelector('#cloud-logout');
-function mount(){const shell=document.querySelector('.shell');if(!shell||document.querySelector('h1')?.textContent!=='Settings')return; if(panel.parentElement!==shell)shell.append(panel)}
-async function refresh(){const {data,error}=await agentCloud.auth.getUser();const user=data?.user;form.hidden=!!user;logout.hidden=!user;panel.querySelector('#cloud-set-password').hidden=!user;status.textContent=error?'Session check failed: '+error.message:user?'Signed in as '+user.email:'Enter your email and password to sign in.';mount()}
-form.addEventListener('submit',async e=>{e.preventDefault();status.textContent='Signing in…';const email=panel.querySelector('#cloud-email').value.trim(),password=panel.querySelector('#cloud-password').value;const {error}=await agentCloud.auth.signInWithPassword({email,password});panel.querySelector('#cloud-password').value='';status.textContent=error?error.message:'Signed in successfully.';if(!error)refresh()});
-panel.querySelector('#cloud-set-password').addEventListener('click',async()=>{const password=prompt('Create a password for your Agent HQ account (at least 6 characters):');if(password===null)return;if(password.length<6){status.textContent='Password must be at least 6 characters.';return}const {error}=await agentCloud.auth.updateUser({password});status.textContent=error?'Password not changed: '+error.message:'Password saved. You can now sign in with your email and password on another device.'});
-logout.addEventListener('click',async()=>{await agentCloud.auth.signOut();refresh()});
-new MutationObserver(mount).observe(document.getElementById('app'),{childList:true,subtree:true});
-agentCloud.auth.onAuthStateChange(()=>setTimeout(refresh,0));refresh();
+async function refresh(){const {data}=await agentCloud.auth.getUser();const user=data?.user;form.hidden=!!user;logout.hidden=!user;status.textContent=user?'Signed in as '+user.email:'Sign in to sync messages securely.';window.dispatchEvent(new Event('agent-hq-auth'));}
+form.addEventListener('submit',async e=>{e.preventDefault();status.textContent='Sending sign-in link…';const email=panel.querySelector('#cloud-email').value.trim();const {error}=await agentCloud.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin+location.pathname}});status.textContent=error?error.message:'Check your email for the sign-in link.';});
+logout.addEventListener('click',async()=>{await agentCloud.auth.signOut();refresh();});
+agentCloud.auth.onAuthStateChange(()=>setTimeout(refresh,0));
+refresh();
