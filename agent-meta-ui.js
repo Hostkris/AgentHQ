@@ -96,7 +96,11 @@
  }
  function update(data){
   state={...data,accounts:Array.isArray(data.accounts)?data.accounts:[]};
-  if(!state.accounts.some(x=>x.account_id===selected)){
+  if(state.preferred_account_id&&state.accounts.some(x=>x.account_id===state.preferred_account_id)&&
+    selected!==state.preferred_account_id){
+   selected=state.preferred_account_id;
+   report=null;
+  }else if(!state.accounts.some(x=>x.account_id===selected)){
    selected=state.accounts[0]?.account_id||"";
    report=null;
   }
@@ -125,12 +129,17 @@
   try{await perform(action)}catch(err){message=err?.message||"Meta request failed"}
   finally{busy=false;mount()}
  });
- app.addEventListener("change",event=>{
+ app.addEventListener("change",async event=>{
   const select=event.target.closest("[data-meta-select]");
   if(!select||busy)return;
-  if(select.dataset.metaSelect==="account"){selected=select.value;report=null}
-  if(select.dataset.metaSelect==="period"){period=select.value;report=null}
-  mount();
+  if(select.dataset.metaSelect==="account"){
+   selected=select.value;report=null;
+   busy=true;message="Saving your reporting account…";mount();
+   try{await window.agentHQMetaCloud.chooseAccount(selected);message="Reporting account selected."}
+   catch(error){message=error.message||"Account selection failed"}
+   finally{busy=false;mount()}
+  }
+  if(select.dataset.metaSelect==="period"){period=select.value;report=null;mount()}
  });
  const observer=new MutationObserver(()=>mount());
  observer.observe(app,{childList:true,subtree:true});
