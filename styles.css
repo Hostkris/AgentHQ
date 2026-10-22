@@ -61,3 +61,16 @@ textarea.form-field{min-height:88px;resize:vertical}
 :root[data-theme-mode=light] .handoff-step small{color:#586477}
 :root[data-theme-mode=light] .progress-track{background:#d6dce3}
 :root[data-theme-mode=light] .chat-actions .assign-task-button{background:#165c70;color:#fff}
+
+/* Contextual official-provider connection controls inside individual Messages. */
+.ios-connect-bubble{max-width:min(92%,520px);width:100%;padding:0!important;background:transparent!important;box-shadow:none!important;overflow:visible!important}
+.ios-chat-connect{border:1px solid rgba(93,113,138,.35);background:var(--surface,#f5f7fa);color:var(--text,#1b2630);border-radius:18px;padding:15px;display:flex;flex-direction:column;gap:9px;font-size:13px;line-height:1.45;overflow-wrap:anywhere}
+.ios-chat-connect strong{font-size:14px}
+.ios-chat-connect p{margin:0;white-space:normal;line-height:1.45}
+.ios-chat-connect button{display:block;width:100%;min-height:43px;text-align:center;border:1px solid #0a6fe3;border-radius:12px;background:#0a6fe3;color:white;padding:10px;font-weight:650;white-space:normal;cursor:pointer}
+.ios-chat-connect button.secondary{background:transparent;color:#246db8;border-color:rgba(36,109,184,.45)}
+.ios-chat-connect button:disabled{opacity:.5;cursor:wait}
+.ios-connection-feedback{font-size:12px}
+:root[data-theme-mode=dark] .ios-chat-connect{background:#202a36;color:#f4f7fb;border-color:#526070}
+:root[data-theme-mode=dark] .ios-chat-connect button.secondary{color:#a5d1ff;border-color:#607995}
+@media(prefers-color-scheme:dark){:root:not([data-theme-mode=light]) .ios-chat-connect{background:#202a36;color:#f4f7fb;border-color:#526070}:root:not([data-theme-mode=light]) .ios-chat-connect button.secondary{color:#a5d1ff;border-color:#607995}}
