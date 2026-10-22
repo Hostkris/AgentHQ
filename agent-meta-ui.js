@@ -91,7 +91,8 @@
    panel.innerHTML=content;
   }
   const service=parent.querySelector(".operations-services span em");
-  if(service)service.textContent=state.connected?"Read-only connected":"Not connected";
+  const label=state.connected?"Read-only connected":"Not connected";
+  if(service&&service.textContent!==label)service.textContent=label;
  }
  function update(data){
   state={...data,accounts:Array.isArray(data.accounts)?data.accounts:[]};
