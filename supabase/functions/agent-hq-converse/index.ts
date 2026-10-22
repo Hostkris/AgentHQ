@@ -30,7 +30,7 @@ function provider(){
  return null;
 }
 async function decide(ai:NonNullable<ReturnType<typeof provider>>,role:string,context:unknown){
- const system=`You are a friendly, concise AI coworker working as ${role} in Agent HQ. This is a casual one-to-one text conversation, not a task dashboard.
+ const system=`You are a friendly, concise AI coworker working as ${role} in Agent HQ. This is the OWNER'S PRIVATE PERSONAL-USE workspace for their own social accounts, advertising accounts and projects, not a commercial agency. This is a casual one-to-one text conversation, not a task dashboard.
 You can answer general knowledge questions, discuss assignments, and ask for missing task details. No tools, browsing, account access, purchasing, posting, or file modification are available. Never imply you actually researched a website or completed external work. Do not fabricate sources.
 Interpret the user's most recent message in context. Reply naturally, warmly but briefly (up to 450 characters) as a human coworker might text, not corporate UI language.
 For a request that appears to be internal text drafting or specialist teamwork, classify as "task" if details suffice, or "collect" when important details are missing; ask ONE focused question. For a general question, classify as "answer" and answer from general knowledge.
@@ -407,16 +407,35 @@ Deno.serve(async(req:Request)=>{
        await state("collecting_task",composed);
        replyText="What exact daily budget do you want, and which campaign or ad set would it apply to?";
       }else{
-       const {data:proposal,error:proposalError}=await db.from("agent_action_proposals").insert({
-        owner_id:owner,employee_id:worker,provider:proposed.provider,
-        action_kind:proposed.action_kind,summary:proposed.summary,scope:proposed.scope,
-        execution_status:"not_connected",status:"pending"
-       }).select("id").single();
-       if(proposalError||!proposal)throw Error("Couldn't save the proposed business action");
-       await state("confirm_action","",null,null,proposal.id);
-       replyText="I can prepare this: "+proposed.summary+
-        ". Scope: "+proposed.scope+
-        ". The "+proposed.provider+" integration is not connected yet, so nothing will run. Shall I record your approval for this specific proposal? Yes or no?";
+       const personal=await requestPersonalScope(
+        db,owner,worker,proposed.provider,proposed.action_kind,proposed.summary,composed
+       );
+       if(personal.outcome==="missing"){
+        await state("idle");
+        replyText="I can help prepare that for your own "+proposed.provider+
+          " account. First, save its public handle under My Accounts. Don't enter a password or login code. Then I can request the exact worker permission.";
+       }else if(personal.outcome==="ambiguous"){
+        await state("idle");
+        replyText="I need to know which personal account and individual worker this applies to. Open My Accounts to choose the profile, then send me the specific handle and task. I won't assume access to another account.";
+       }else{
+        const {data:proposal,error:proposalError}=await db.from("agent_action_proposals").insert({
+         owner_id:owner,employee_id:worker,provider:proposed.provider,
+         action_kind:proposed.action_kind,summary:proposed.summary,scope:proposed.scope,
+         detail:personal.label?{account_label:personal.label}: {},
+         execution_status:"not_connected",status:"pending"
+        }).select("id").single();
+        if(proposalError||!proposal)throw Error("Couldn't save the proposed personal account action");
+        await state("confirm_action","",null,null,proposal.id);
+        const requested=personal.outcome==="requested"?
+         " I also created a limited worker permission request for "+personal.label+
+         ". Open My Accounts to approve or deny it separately.":
+         personal.outcome==="approved"?
+         " I have a currently approved planning scope for "+personal.label+
+         ", but that isn't an active platform login.":"";
+        replyText="I can prepare: "+proposed.summary+". Scope: "+proposed.scope+"."+
+          requested+" The actual "+proposed.provider+
+          " integration cannot execute this yet. Should I record approval for this specific proposed action? Yes or no?";
+       }
       }
      }else if(/\b(?:spent|spend|cpa|roas|ad metrics|campaign performance)\b/i.test(body)&&
        /\b(?:yesterday|today|last night|this week|campaign|ads?|facebook|meta)\b/i.test(body)){
