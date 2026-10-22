@@ -24,14 +24,14 @@ window.agentHQWorkerRuns=rows=>{if(JSON.stringify(rows)===JSON.stringify(workerH
 window.agentHQWorkerError=message=>{workerFeedback=message;if(["team","assignments"].includes(screen))renderWithoutInterruptingDraft()};
 
 const coordSteps=new Map(),coordProgress=new Map(),answerDrafts=new Map(),answeringAssignments=new Set();
-let coordNotice="Loading worker handoffs…";
+let coordNotice="Loading worker handoffs…",coordFingerprint="";
 window.agentHQCoordSync=(rows,notice)=>{
- const before=JSON.stringify([...coordSteps.values()].flat());
+ const next=JSON.stringify(rows);
+ if(next===coordFingerprint&&notice===coordNotice)return;
+ coordFingerprint=next;coordNotice=notice;
  coordSteps.clear();
  for(const step of rows)coordSteps.set(step.assignment_id,[...(coordSteps.get(step.assignment_id)||[]),step]);
  for(const steps of coordSteps.values())steps.sort((a,b)=>a.step_number-b.step_number);
- if(before===JSON.stringify(rows)&&coordNotice===notice)return;
- coordNotice=notice;
  if(["chat","team","assignments","messages"].includes(screen))renderWithoutInterruptingDraft();
 };
 window.agentHQCoordError=message=>{coordNotice=message;if(["chat","team","assignments"].includes(screen))renderWithoutInterruptingDraft()};
