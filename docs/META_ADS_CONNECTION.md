@@ -66,14 +66,29 @@ Optional: `META_GRAPH_VERSION` may be set to a supported Graph API version
 If Meta reports no ad account, check the app's permissions and your Ads Manager access,
 then tap **Refresh accounts**. You can disconnect Agent HQ locally at any time.
 
-## 4. Ask Avery for a live answer
+## 4. Approve one employee for one advertising account
+
+Connecting your Meta account does **not** automatically authorize any AI employee.
+In **Operations → Meta Ads reporting**:
+
+1. Select the advertising account the worker should read.
+2. Under **Employee permission**, choose **Avery — Business Analysis** (or another employee).
+3. Tap **Allow read-only access for 24 hours** and confirm the exact worker and account.
+4. To end access sooner, tap **Revoke employee access** for the same account and worker.
+
+The permission is account-specific, expires after 24 hours, and allows only
+read-only insights. Selecting another advertising account requires another grant.
+Company HQ does not automatically inherit individual-worker permissions.
+
+## 5. Ask Avery for a live answer
 
 Open Avery in Messages and send:
 
 > What did we spend yesterday on Meta Ads?
 
-When a valid, owner-scoped read-only Meta connection and selected ad account
-exist, the server fetches the numbers directly from Meta before Avery replies.
+When a valid read-only Meta connection, the selected ad account, and a live
+per-worker read-only grant all exist, the server fetches the numbers directly
+from Meta before Avery replies.
 Avery should report actual spend, clicks, impressions, cost per click and CTR
 with a source and retrieval time. If no account is connected, Avery must say so
 instead of inventing results.
@@ -88,6 +103,7 @@ instead of inventing results.
 - The Meta OAuth callback is public so Meta can return to it; all other
   actions require a validated Agent HQ Supabase user session.
 - All ad-account selection and insights checks are restricted to the signed-in owner.
+- Each AI worker requires a separate, revocable 24-hour grant for the selected ad account. The server verifies that grant on every worker report.
 - The integration uses only `ads_read` and Graph API GET endpoints.
 - Clicking **Disconnect** removes Agent HQ's local encrypted token and stored
   account metadata. To separately revoke Meta's authorization, do so in your
