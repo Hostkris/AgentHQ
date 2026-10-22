@@ -1,0 +1,26 @@
+/* Optional native browser voice features; minimal chat controls */
+.ios-chat-header:has(.voice-read-last){
+ grid-template-columns:minmax(80px,1fr) auto 32px 32px;
+ gap:5px;
+}
+.voice-read-last,.voice-dictate{
+ display:grid;place-items:center;flex:none;
+ background:transparent;border:0;cursor:pointer;
+ min-width:34px;min-height:38px;padding:0;font-size:19px;
+}
+.voice-read-last{color:#217a9a;border-radius:50%;font-size:18px}
+.voice-dictate{font-size:20px}
+.voice-dictate.recording{
+ background:rgba(219,63,73,.14);
+ border-radius:50%;
+ animation:dictation-pulse 1.2s ease-in-out infinite;
+}
+@keyframes dictation-pulse{50%{box-shadow:0 0 0 5px rgba(219,63,73,.10)}}
+.voice-read-last:focus-visible,.voice-dictate:focus-visible{
+ outline:3px solid #218ab4;outline-offset:2px;
+}
+@media(max-width:380px){
+ .ios-chat-header:has(.voice-read-last){grid-template-columns:minmax(54px,1fr) auto 30px 30px}
+ .ios-chat-header:has(.voice-read-last) .ios-back span{display:none}
+}
+@media(prefers-reduced-motion:reduce){.voice-dictate.recording{animation:none}}
