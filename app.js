@@ -532,7 +532,7 @@ if(screen==="research"){document.querySelector("#research-form").addEventListene
      window.agentHQCoordError?.("AI team paused: "+error.message);
     });
    }
-   await Promise.allSettled([window.agentHQTeamCloud?.refresh(),window.agentHQCoordCloud?.refresh(),window.agentHQCloudApprovals?.refresh()]);
+   await Promise.allSettled([window.agentHQTeamCloud?.refresh(),window.agentHQCoordCloud?.refresh(),window.agentHQCloudApprovals?.refresh(),window.agentHQPersonalCloud?.refresh()]);
   }catch(error){
    messages.set(worker,(messages.get(worker)||[]).filter(msg=>msg.id!==optimisticId));
    drafts.set(worker,value);
