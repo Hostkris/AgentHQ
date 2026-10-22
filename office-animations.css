@@ -1,0 +1,34 @@
+/* Agent HQ motion and translucent dashboard layer */
+.rpg-portrait-svg{animation:rpg-breathe 4.4s ease-in-out infinite;animation-delay:var(--rpg-delay,0s);transform-origin:50% 75%}
+.rpg-eyelids{opacity:0;animation:rpg-blink 5.7s steps(1,end) infinite;animation-delay:var(--rpg-delay,0s)}
+.rpg-mouth-pixels{animation:rpg-expression 6.4s steps(1,end) infinite;animation-delay:var(--rpg-delay,0s)}
+@keyframes rpg-breathe{0%,100%{transform:translateY(0)}50%{transform:translateY(-.4px) scale(1.012)}}
+@keyframes rpg-blink{0%,44%,48%,72%,76%,100%{opacity:0}45%,47%,73%,75%{opacity:1}}
+@keyframes rpg-expression{0%,65%,72%,100%{transform:translateY(0)}66%,71%{transform:translateY(-.3px)}}
+.office-sprite{animation:office-sway 4.7s ease-in-out infinite;transform-origin:50% 95%}
+.office-station:nth-child(3n+1) .office-sprite{animation-delay:-1.3s}
+.office-station:nth-child(3n+2) .office-sprite{animation-delay:-2.8s}
+@keyframes office-sway{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-2px) rotate(.7deg)}}
+.office-emoji-bubble{min-width:39px;width:auto;padding:0 5px;white-space:nowrap;animation:thought-float 2.9s ease-in-out infinite}
+.office-station:nth-child(odd) .office-emoji-bubble{animation-delay:-1.2s}
+.office-station:nth-child(3n) .office-emoji-bubble{animation-delay:-2.1s}
+@keyframes thought-float{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-5px) scale(1.065)}}
+.office-handoff .office-emoji-bubble{background:#ffefb9;border-color:#fff3d6;box-shadow:0 0 0 2px rgba(223,174,73,.25),0 5px 15px rgba(0,0,0,.13);animation:handoff-wiggle 1.4s ease-in-out infinite}
+@keyframes handoff-wiggle{0%,100%{transform:translateX(0) rotate(-4deg)}50%{transform:translateX(4px) rotate(5deg)}}
+.office-handoff-banner{display:flex;align-items:center;justify-content:center;gap:13px;padding:10px 14px;margin:13px 0;border-radius:16px;background:rgba(255,247,211,.88);border:1px solid rgba(206,161,62,.35);color:#443719;font-size:13px;font-weight:700;box-shadow:0 6px 18px rgba(0,0,0,.06)}
+.office-handoff-banner small{display:block;font-size:10px;font-weight:500;margin-top:4px}
+.handoff-paper{font-size:24px;white-space:nowrap;animation:paper-pass 1.75s ease-in-out infinite}
+@keyframes paper-pass{0%,100%{transform:translateX(-5px) rotate(-8deg)}50%{transform:translateX(7px) rotate(6deg)}}
+.home-shell .header-brand{display:inline-block;max-width:60vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:10px 16px;border:1px solid rgba(255,255,255,.44);border-radius:16px;background:rgba(255,255,255,.51);color:#182d3c;box-shadow:0 6px 19px rgba(23,29,45,.09);backdrop-filter:blur(13px);-webkit-backdrop-filter:blur(13px)}
+.home-dashboard .tile{background:rgba(255,255,255,.61)!important;border-color:rgba(255,255,255,.57);backdrop-filter:blur(11px);-webkit-backdrop-filter:blur(11px)}
+@media(prefers-color-scheme:dark){
+ :root:not([data-theme-mode=light]) .home-shell .header-brand{background:rgba(31,34,40,.54);color:#fafbfd;border-color:rgba(255,255,255,.15)}
+ :root:not([data-theme-mode=light]) .home-dashboard .tile{background:rgba(38,40,47,.65)!important}
+ :root:not([data-theme-mode=light]) .office-handoff-banner{background:rgba(86,70,43,.9);color:#fff3dd;border-color:rgba(244,209,139,.4)}
+}
+:root[data-theme-mode=dark] .home-shell .header-brand{background:rgba(31,34,40,.54);color:#fafbfd;border-color:rgba(255,255,255,.15)}
+:root[data-theme-mode=dark] .home-dashboard .tile{background:rgba(38,40,47,.65)!important}
+:root[data-theme-mode=dark] .office-handoff-banner{background:rgba(86,70,43,.9);color:#fff3dd;border-color:rgba(244,209,139,.4)}
+:root[data-theme-mode=light] .home-shell .header-brand{background:rgba(255,255,255,.51);color:#182d3c}
+:root[data-theme-mode=light] .home-dashboard .tile{background:rgba(255,255,255,.61)!important}
+@media(prefers-reduced-motion:reduce){.rpg-portrait-svg,.rpg-eyelids,.rpg-mouth-pixels,.office-sprite,.office-emoji-bubble,.handoff-paper{animation:none!important}}
