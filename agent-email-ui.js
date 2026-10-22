@@ -64,13 +64,17 @@
   if(callback)content+='<p class="email-callback">'+escape(callback)+'</p>';
   if(!status.auth_error&&status.email)content+='<div class="email-connected-as">📮 '+escape(status.email)+'</div>';
   if(missing){
-   content+='<section class="email-setup"><h3>Connect your own Gmail</h3>'+
-    '<p>Configure your Google OAuth app with the Gmail API. Add these <strong>secret names</strong> in the Agent-HQ Supabase project—never enter their values here:</p>'+
-    '<div class="email-secret-names">'+status.missing.map(escape).join(" · ")+'</div>'+
-    '<div class="email-redirect"><strong>Authorized redirect URI</strong>'+
+   content+='<section class="email-setup"><h3>🔧 One-time Gmail setup</h3>'+
+    '<p>The Connect Gmail button cannot open Google sign-in yet. The app owner must finish these steps once; this is not a problem with your iPhone or Maya.</p>'+
+    '<p><strong>Step 1 — Google.</strong> Enable Gmail API, set up Google Auth Platform, and create an OAuth client of type <strong>Web application</strong>.</p>'+
+    '<a href="https://console.cloud.google.com/auth/clients" target="_blank" rel="noopener noreferrer">Open Google OAuth setup ↗</a>'+
+    '<div class="email-redirect"><strong>Copy this exact Authorized redirect URI into your Google OAuth client:</strong>'+
     '<code>https://slekcezduwnygywiiitp.supabase.co/functions/v1/agent-gmail?op=callback</code></div>'+
-    '<a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer">Google Cloud OAuth credentials ↗</a>'+
-    '<a href="https://github.com/Hostkris/AgentHQ/blob/main/docs/GMAIL_EMAIL_ASSISTANT.md" target="_blank" rel="noopener noreferrer">Full setup instructions ↗</a>'+
+    '<p><strong>Step 2 — Save credentials privately.</strong> Add the following missing names under Supabase <strong>Edge Functions → Secrets</strong>. Do not enter their values here or in chat.</p>'+
+    '<div class="email-secret-names">'+status.missing.map(escape).join(" · ")+'</div>'+
+    '<a href="https://supabase.com/dashboard/project/slekcezduwnygywiiitp/functions/secrets" target="_blank" rel="noopener noreferrer">Open secure Agent HQ settings ↗</a>'+
+    '<a href="https://github.com/Hostkris/AgentHQ/blob/main/docs/GMAIL_EMAIL_ASSISTANT.md" target="_blank" rel="noopener noreferrer">Detailed setup guide ↗</a>'+
+    '<p><strong>Step 3 — Try again.</strong> Return here, tap Check setup, then Connect Gmail once setup is complete.</p>'+
     '<button type="button" class="email-primary" data-email-action="refresh">↻ Check setup</button></section>';
   }else if(!connected){
    content+='<section class="email-setup"><h3>Review, prioritize and prepare replies</h3>'+
