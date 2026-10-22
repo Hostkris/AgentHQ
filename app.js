@@ -477,7 +477,11 @@ function render(){const isChat=screen==="chat";const title=isChat?(active==="hq"
  const showHQ=!inbox||hasConversation("hq");
  const headquarters=showHQ&&"company headquarters".includes(q.toLowerCase())?`<button class="row" data-chat="hq"><span class="avatar">🏢</span><span><strong>Company Headquarters</strong><small>All 10 employees</small></span></button>`:"";
  const staffRows=shown.map(x=>`<button class="row" data-chat="${x[0]}"><span class="avatar">${x[1]}</span><span><strong>${x[2]}</strong><small>${escapeHTML(x[3])}${inbox?getConversationPreview(x[0]):""}</small></span></button>`).join("");
- document.querySelector("#contact-list").innerHTML=headquarters+staffRows||(inbox?'<p class="muted">No individual conversations yet. Start one from Contacts.</p>':'<p class="muted">No employees match that search.</p>');
+ const customRows=studioBots.filter(b=>b.status==="active"&&
+   (!inbox||studioMessaged.has(b.id))&&[b.name,b.role].join(" ").toLowerCase().includes(q.toLowerCase()))
+  .map(b=>'<button class="row" data-studio-worker="'+escapeHTML(b.id)+'"><span class="avatar studio-contact-avatar">'+escapeHTML(b.avatar_emoji)+'</span>'+
+   '<span><strong>'+escapeHTML(b.name)+'</strong><small>'+escapeHTML(b.role)+'</small></span></button>').join("");
+ document.querySelector("#contact-list").innerHTML=headquarters+staffRows+customRows||(inbox?'<p class="muted">No individual conversations yet. Start one from Contacts.</p>':'<p class="muted">No employees match that search.</p>');
  };show();document.querySelector("#search").addEventListener("input",e=>show(e.target.value));
  if(screen==="messages"&&document.querySelector("#sync-msgs"))document.querySelector("#sync-msgs").addEventListener("click",async e=>{const button=e.currentTarget;button.disabled=true;button.textContent="↻ Syncing…";try{await Promise.all([window.agentHQCloudApprovals?.refresh(),window.agentHQChatCloud?.refresh(),window.agentHQTeamCloud?.refresh()])}catch(err){window.agentHQChatCloudNotice("Sync failed: "+err.message)}finally{button.disabled=false;if(button.isConnected)button.textContent="↻ Sync saved messages"}})
 }
@@ -596,6 +600,14 @@ if(screen==="research"){document.querySelector("#research-form").addEventListene
  finally{personalBusy=false;if(screen==="accounts")render()}
 });
 app.addEventListener("click",async e=>{
+ const customOpen=e.target.closest("[data-studio-worker]");
+ if(customOpen){
+  const id=customOpen.dataset.studioWorker;
+  if(!studioBots.some(b=>b.id===id&&b.status==="active"))return;
+  screen="studio";render();
+  window.agentHQBotStudioUI?.openBot(id);
+  return;
+ }
  const personalDecision=e.target.closest("[data-personal-decision]");
  const personalRevoke=e.target.closest("[data-personal-revoke]");
  const personalDelete=e.target.closest("[data-personal-delete]");
