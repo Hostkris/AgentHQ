@@ -4,7 +4,7 @@
  const app=document.getElementById("app");
  if(!app)return;
  let state={configured:false,connected:false,accounts:[],message:"Checking Meta Ads…"};
- let selected="",period="last_7d",report=null,busy=false,message="";
+ let selected="",period="last_7d",worker="avery",report=null,busy=false,message="";
  const callbackText={
   connected:"Meta authorized the read-only connection. Select an ad account and retrieve a report.",
   accounts:"Meta authorized your login but account discovery needs attention. Tap Refresh accounts.",
@@ -51,6 +51,25 @@
    '<button type="button" class="meta-secondary" data-meta="accounts"'+disabled+'>↻ Refresh accounts</button>'+
    '<button type="button" class="meta-danger" data-meta="disconnect"'+disabled+'>Disconnect</button></div>'+
    (!account?'<p>Meta did not list an accessible ad account. Confirm your Meta ad-account access and refresh accounts.</p>':"");
+   if(account){
+    const staff=[["avery","Avery — Business Analysis"],["alex","Alex — General Manager"],
+     ["maya","Maya — Marketing"],["riley","Riley — Research"],
+     ["jordan","Jordan — Content"],["casey","Casey — Social Media"],
+     ["taylor","Taylor — Communications"],["morgan","Morgan — Shopify"],
+     ["jamie","Jamie — Scheduling"],["quinn","Quinn — Growth"]];
+    const grant=(state.worker_grants||[]).find(x=>x.employee_id===worker&&x.account_id===selected&&
+      !x.revoked_at&&Date.parse(x.expires_at)>Date.now());
+    content+='<section class="meta-worker-grants"><h4>Employee permission</h4>'+
+     '<p>Only approved employees can read this advertising account through Messages. Approval expires automatically after 24 hours and can be revoked sooner.</p>'+
+     '<label>Which employee?<select data-meta-select="worker" aria-label="Employee for Meta Ads reporting"'+disabled+'>'+
+     staff.map(x=>'<option value="'+x[0]+'"'+(worker===x[0]?" selected":"")+'>'+html(x[1])+'</option>').join("")+
+     '</select></label>'+
+     '<p class="meta-grant-status">'+(grant?'✅ Approved until '+html(new Date(grant.expires_at).toLocaleString()):
+      '🔒 No access granted to this employee')+'</p>'+
+     (grant?'<button type="button" class="meta-danger" data-meta="revoke"'+disabled+'>Revoke employee access</button>':
+      '<button type="button" class="meta-secondary" data-meta="grant"'+disabled+'>Allow read-only access for 24 hours</button>')+
+     '</section>';
+   }
    if(report?.source==="meta_marketing_api_live"&&report.account?.id===selected){
     const m=report.overview||{},campaigns=report.campaigns||[];
     content+='<div class="meta-report"><h4>'+html(report.account.name)+'</h4>'+
@@ -116,6 +135,16 @@
   if(action==="connect"){message="Opening Meta's authorization page…";mount();await cloud.connect()}
   if(action==="accounts"){const result=await cloud.reloadAccounts();report=null;message="Found "+result.accounts.length+" advertising account(s)."}
   if(action==="report"){const result=await cloud.report(selected,period);report=result;message="Live Meta report retrieved."}
+  if(action==="grant"){
+   if(!window.confirm("Allow "+worker+" to read reporting metrics for "+selected+" for 24 hours? No budget changes or posting allowed."))return;
+   await cloud.grantWorker(worker,selected);
+   message="Read-only employee access approved for 24 hours.";
+  }
+  if(action==="revoke"){
+   if(!window.confirm("Revoke "+worker+"'s access to this Meta account now?"))return;
+   await cloud.revokeWorker(worker,selected);
+   message="Employee reporting access revoked.";
+  }
   if(action==="disconnect"){
    if(!window.confirm("Disconnect Meta Ads? This deletes the local encrypted access token and account list from Agent HQ."))return;
    await cloud.disconnect();report=null;message="Meta Ads disconnected locally.";
@@ -140,6 +169,7 @@
    finally{busy=false;mount()}
   }
   if(select.dataset.metaSelect==="period"){period=select.value;report=null;mount()}
+  if(select.dataset.metaSelect==="worker"){worker=select.value;mount()}
  });
  const observer=new MutationObserver(()=>mount());
  observer.observe(app,{childList:true,subtree:true});
