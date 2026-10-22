@@ -226,7 +226,7 @@ async function liveGmailAnswer(db:ReturnType<typeof createClient>,owner:string,w
   return "["+m.priority+"] "+sender+": "+subject+(m.draft_state==="ready"?" — reply draft ready":"");
  }).join("; ");
  const stale=Date.now()-last>15*60000?" These are SAVED results, not a fresh inbox check. Tap Check inbox now for a new review.":"";
- return "From the last Gmail check ("+new Date(last).toLocaleString("en-US")+"): "+
+ return "Among "+items.length+" recently saved Gmail messages (last checked "+new Date(last).toLocaleString("en-US",{timeZone:"America/New_York",timeZoneName:"short"})+"): "+
   counts.urgent+" urgent, "+counts.high+" high, "+counts.medium+" medium, "+counts.low+" low. "+
   "Top items: "+brief+"."+stale+" I didn't send, delete, or open any email.";
 }
