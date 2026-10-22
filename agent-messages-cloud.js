@@ -27,12 +27,15 @@ async function send(employeeId,body) {
   if(!employees.has(employeeId))throw Error('Invalid employee.');
   body=String(body||'').trim();
   if(!body||body.length>20000)throw Error('Enter a message under 20,000 characters.');
-  const user=await getUser();
-  const {data:chat,error:chatError}=await agentCloud.from('agent_conversations').upsert({owner_id:user.id,employee_id:employeeId},{onConflict:'owner_id,employee_id'}).select('id').single();
-  if(chatError)throw Error(chatError.message);
-  const {error}=await agentCloud.from('agent_messages').insert({owner_id:user.id,conversation_id:chat.id,sender:'owner',body});
-  if(error)throw Error(error.message);
-  await refresh();
+  await getUser();
+  // The server validates ownership and inserts the conversation and text atomically.
+  const {data:id,error}=await agentCloud.rpc('send_agent_owner_message',{
+    p_employee_id:employeeId,
+    p_body:body
+  });
+  if(error)throw Error('Could not save your message: '+error.message);
+  if(!id)throw Error('The server did not confirm the saved message.');
+  return {id,employeeId,text:body,sender:'owner'};
 }
 window.agentHQChatCloud={refresh,send};
 const load=()=>refresh().catch(error=>window.agentHQChatCloudNotice?.('Message sync failed: '+error.message));
