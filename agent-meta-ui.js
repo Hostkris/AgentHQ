@@ -33,7 +33,7 @@
    content='<p>Finish configuring your Meta developer app. These are <strong>secret names</strong> to add to the Agent-HQ Supabase project:</p>'+
     '<p class="meta-secret-names">'+state.missing.map(html).join(" · ")+'</p>'+
     '<p>Keep the secret values private. When they are saved, check setup again.</p>'+
-    '<p><a href="https://developers.facebook.com/apps/" target="_blank" rel="noopener noreferrer">Open Meta for Developers ↗</a></p>'+
+    '<p><a href="https://developers.facebook.com/apps/" target="_blank" rel="noopener noreferrer">Open Meta for Developers ↗</a> · <a href="https://github.com/Hostkris/AgentHQ/blob/main/docs/META_ADS_CONNECTION.md" target="_blank" rel="noopener noreferrer">Step-by-step setup guide ↗</a></p>'+
     '<div class="meta-redirect"><strong>Valid OAuth Redirect URI</strong><code>https://slekcezduwnygywiiitp.supabase.co/functions/v1/agent-meta-ads?op=callback</code></div>'+
     '<button type="button" class="meta-btn" data-meta="refresh"'+disabled+'>↻ Check setup</button>';
   }else if(!connected){
