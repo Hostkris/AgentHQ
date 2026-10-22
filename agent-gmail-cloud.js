@@ -33,6 +33,10 @@ async function refresh(){
   return;
  }
  if(current!==generation)return;
+ const {data:grants,error:grantError}=await agentCloud.from("agent_gmail_worker_grants")
+  .select("employee_id,scope,expires_at,revoked_at").limit(20);
+ if(current!==generation)return;
+ window.agentHQGmailChatStatus?.(state,grantError?[]:(grants||[]));
  const {data:emails,error}=await agentCloud.from("agent_email_items")
   .select("gmail_message_id,thread_id,from_name,from_email,reply_to,subject,snippet,received_at,is_unread,priority,priority_reason,priority_manual,needs_reply,draft_body,draft_state,sent_at,last_checked_at")
   .order("received_at",{ascending:false}).limit(100);
@@ -94,12 +98,27 @@ async function send(id,reviewedBody){
  await refresh();
  return result;
 }
+const STAFF_IDS=new Set(['alex','maya','jordan','riley','taylor','casey','morgan','avery','jamie','quinn']);
+async function grantWorker(employeeId){
+ if(!STAFF_IDS.has(employeeId))throw Error("Select one specific AI worker");
+ await user();
+ const {data,error}=await agentCloud.rpc("grant_agent_gmail_worker_read",{p_employee_id:employeeId});
+ if(error||data!==true)throw Error(error?.message||"Gmail worker access was not approved");
+ await refresh();return true;
+}
+async function revokeWorker(employeeId){
+ if(!STAFF_IDS.has(employeeId))throw Error("Select one specific AI worker");
+ await user();
+ const {data,error}=await agentCloud.rpc("revoke_agent_gmail_worker_read",{p_employee_id:employeeId});
+ if(error||data!==true)throw Error(error?.message||"Gmail worker access was not revoked");
+ await refresh();return true;
+}
 async function disconnect(){
  const result=await invoke("disconnect");
  await refresh();
  return result;
 }
-window.agentHQEmailCloud={refresh,connect,check,original,setAI,priority,saveDraft,send,disconnect};
+window.agentHQEmailCloud={refresh,connect,check,original,setAI,priority,saveDraft,send,disconnect,grantWorker,revokeWorker};
 const reload=()=>refresh().catch(error=>window.agentHQEmailError?.(error.message));
 agentCloud.auth.onAuthStateChange(()=>setTimeout(reload,0));
 window.addEventListener("focus",reload);
