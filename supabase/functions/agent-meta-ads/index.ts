@@ -80,11 +80,14 @@ async function status(db:ReturnType<typeof admin>,owner:string,req:Request){
  const {data:accounts,error}=await db.from("agent_meta_ad_accounts")
   .select("account_id,name,currency,timezone_name,account_status,last_seen_at").eq("owner_id",owner).order("name");
  if(error)throw Error("Cannot load advertising accounts");
+ const {data:grants,error:grantError}=await db.from("agent_meta_worker_grants")
+  .select("employee_id,account_id,granted_at,expires_at,revoked_at").eq("owner_id",owner);
+ if(grantError)throw Error("Cannot load the employee reporting permissions");
  return json(req,{configured:true,connected:record.status==="active"&&!expired,
   reconnect_required:record.status!=="active"||expired,
   read_only:true,granted_scope:"ads_read",token_expires_at:record.token_expires_at,
   preferred_account_id:record.preferred_account_id||null,
-  accounts:accounts||[],message:expired?"Meta session expired — reconnect to continue":
+  accounts:accounts||[],worker_grants:grants||[],message:expired?"Meta session expired — reconnect to continue":
    record.status==="active"?"Meta Ads connected for read-only reporting":"Meta session needs reconnection"});
 }
 async function report(db:ReturnType<typeof admin>,owner:string,req:Request,input:Record<string,unknown>){
