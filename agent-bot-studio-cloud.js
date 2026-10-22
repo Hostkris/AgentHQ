@@ -37,9 +37,13 @@ async function refresh(){
  if(serial!==generation)return [];
  if(messageError){window.agentHQBotStudioError?.('Could not sync worker conversations: '+messageError.message);return bots}
  const messaged=[...new Set((messages||[]).map(row=>row.bot_id))];
- const key=JSON.stringify({bots,messaged});
+ const {data:handoffs,error:handoffError}=await agentCloud.from('agent_custom_bot_handoffs')
+  .select('id,source_bot_id,target_bot_id,brief,created_at').order('created_at',{ascending:false}).limit(40);
+ if(serial!==generation)return [];
+ if(handoffError){window.agentHQBotStudioError?.('Could not sync worker handoffs: '+handoffError.message);return bots}
+ const key=JSON.stringify({bots,messaged,handoffs:handoffs||[]});
  if(key!==lastBotHash){
-  lastBotHash=key;window.agentHQBotStudioSync?.(bots,'Your AI workers are saved under your Agent HQ sign-in.',messaged);
+  lastBotHash=key;window.agentHQBotStudioSync?.(bots,'Your AI workers are saved under your Agent HQ sign-in.',messaged,handoffs||[]);
  }
  return bots;
 }
@@ -63,13 +67,18 @@ async function save(spec,templateKey=''){
 async function activate(id){const r=await invoke('activate',{bot_id:id});await refresh();return r}
 async function archive(id){const r=await invoke('archive',{bot_id:id});await refresh();return r}
 async function remove(id){const r=await invoke('delete',{bot_id:id});await refresh();return r}
+async function handoff(fromId,toId,reason){
+ const result=await invoke('handoff',{source_bot_id:fromId,target_bot_id:toId,reason});
+ await refresh();
+ return result;
+}
 async function send(id,message){
  const result=await invoke('chat',{bot_id:id,message});
  const transcript=await history(id);
  await refresh();
  return {result,history:transcript};
 }
-window.agentHQBotStudioCloud={refresh,history,design,save,activate,archive,remove,send};
+window.agentHQBotStudioCloud={refresh,history,design,save,activate,archive,remove,handoff,send};
 const background=()=>refresh().catch(error=>window.agentHQBotStudioError?.(error.message));
 agentCloud.auth.onAuthStateChange(()=>setTimeout(background,0));
 window.addEventListener('focus',background);
