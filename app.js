@@ -6,7 +6,7 @@ window.agentHQTeamSync=(assignments,notes,notice)=>{
   teamAssignments.clear();teamNotes.clear();
   for(const a of assignments)teamAssignments.set(a.id,a);
   for(const n of notes){if(!teamAssignments.has(n.assignment_id))continue;teamNotes.set(n.assignment_id,[...(teamNotes.get(n.assignment_id)||[]),n])}
-  if(["team","assignments","messages","chat"].includes(screen))renderWithoutInterruptingDraft()
+  if(["team","assignments","messages","chat","office","home"].includes(screen))renderWithoutInterruptingDraft()
 };
 window.agentHQTeamError=(message)=>{teamNotice=message;if(["team","assignments","messages"].includes(screen))renderWithoutInterruptingDraft()};
 const teamMemberNames=ids=>(ids||[]).map(id=>staff.find(s=>s[0]===id)?.[2]||id).join(", ");
@@ -32,7 +32,7 @@ window.agentHQCoordSync=(rows,notice)=>{
  coordSteps.clear();
  for(const step of rows)coordSteps.set(step.assignment_id,[...(coordSteps.get(step.assignment_id)||[]),step]);
  for(const steps of coordSteps.values())steps.sort((a,b)=>a.step_number-b.step_number);
- if(["chat","team","assignments","messages"].includes(screen))renderWithoutInterruptingDraft();
+ if(["chat","team","assignments","messages","office","home"].includes(screen))renderWithoutInterruptingDraft();
 };
 window.agentHQCoordError=message=>{coordNotice=message;if(["chat","team","assignments"].includes(screen))renderWithoutInterruptingDraft()};
 window.agentHQCoordProgress=data=>{
@@ -212,7 +212,45 @@ function renderIPhoneChat(){
   '<div id="send-feedback" class="ios-chat-feedback" role="status" aria-live="polite">'+(errors?escapeHTML(status):"")+'</div>'+
  '</div>';
 }
-function render(){const isChat=screen==="chat";const title=isChat?(active==="hq"?"Company Headquarters":staff.find(x=>x[0]===active)?.[2]):screen==="team"?(teamAssignments.get(teamActive)?.title||"Team discussion"):({home:"Agent HQ",contacts:"Contacts",messages:"Messages",assignments:"Assignments",approvals:"Approvals",research:"Research",browser:"Browser",reminders:"Reminders",settings:"Settings"})[screen];let body="";if(screen==="home")body=`<p class="muted">Your private virtual company</p><div class="grid">${button("Messages","messages","💬")}${button("Contacts","contacts","👥")}${button("Company HQ","hq","🏢")}${button("Assignments","assignments","📋")}${button("Research","research","🔎")}${button("Browser","browser","🌐")}${button("Approvals","approvals","✅")}${button("Reminders","reminders","📅")}${button("Settings","settings","⚙️")}</div>`;else if(screen==="browser")body=`<section class="card"><p class="muted">Agent HQ Browser</p><form id="agent-browser-form" style="display:flex;gap:8px;flex-wrap:wrap"><input id="agent-browser-input" type="text" aria-label="Search or website" placeholder="Search the web or enter a URL" required style="flex:1;min-width:180px;padding:12px;border:1px solid #d2d2d7;border-radius:12px"><button class="primary" type="submit">Go</button></form><p class="notice" id="agent-browser-status">Searches and websites open in a new tab. Agent browsing and account access are not connected yet.</p><p class="notice">To test the permission message workflow, select an employee and create a simulated risky-site request.</p><select id="test-agent" aria-label="Employee">${staff.map(s=>`<option value="${s[0]}">${s[2]}</option>`).join("")}</select> <button type="button" id="test-risk">Test approval request</button></section>`;else if(screen==="research")body=`<section class="card"><strong>Agent research safety check</strong><p class="notice">This is a local workflow test. No AI employee or remote browsing engine is connected.</p><form id="research-form"><label for="research-agent">Employee</label><select id="research-agent">${staff.map(s=>`<option value="${s[0]}">${s[2]}</option>`).join("")}</select><label for="research-url">Website to review</label><input id="research-url" type="url" required placeholder="https://example.com" style="width:100%;padding:12px;margin:8px 0"><button class="primary" type="submit">Request research access</button></form><p id="research-status" class="notice">No external website will open automatically.</p></section>`;else if(screen==="approvals")body=`<p class="notice">${escapeHTML(approvalNotice)} These records do not grant real browsing access.</p><div class="card"><strong>Pending requests: ${pendingCount()}</strong><p class="muted">Open the employee's individual message to approve or deny.</p></div>${[...approvalRequests.values()].filter(r=>r.status==="pending").map(r=>`<button class="row" data-chat="${escapeHTML(r.agentId)}"><span class="avatar">⚠️</span><span><strong>${escapeHTML(staff.find(s=>s[0]===r.agentId)?.[2]||r.agentId)}</strong><small>${escapeHTML(r.website)}</small></span></button>`).join("")}<h2>Saved decisions</h2><p class="muted">Approved and denied requests remain visible in the employee conversation.</p>${[...approvalRequests.values()].filter(r=>r.status!=="pending").reverse().slice(0,25).map(r=>`<button class="row" data-chat="${escapeHTML(r.agentId)}"><span class="avatar">${r.status==="approved"?"✅":r.status==="denied"?"⛔":"🕒"}</span><span><strong>${escapeHTML(staff.find(s=>s[0]===r.agentId)?.[2]||r.agentId)} · ${escapeHTML(r.status)}</strong><small>${escapeHTML(r.website)}</small></span></button>`).join("")}`;else if(screen==="assignments")body=renderAssignments();else if(screen==="team")body=renderTeamThread();else if(screen==="contacts"||screen==="messages")body=`<input id="search" aria-label="Search workers" placeholder="Search" style="width:100%;padding:12px;border:1px solid #d2d2d7;border-radius:14px"><div id="contact-list"></div>`;else if(isChat)body=renderIPhoneChat();else body=`<div class="card"><strong>Planned feature</strong><p class="muted">This screen will be connected in a later development phase. No live service is connected yet.</p></div>`;if(isChat){
+function officeWorkerState(id){
+ const activeTasks=[...coordSteps.values()].flat().filter(step=>step.employee_id===id);
+ const running=activeTasks.find(step=>step.status==="running");
+ if(running)return {emoji:"✍️",short:"Drafting",detail:running.title,kind:"working"};
+ const waiting=activeTasks.find(step=>["waiting_for_owner","waiting_for_permission"].includes(step.status));
+ if(waiting)return {emoji:waiting.status==="waiting_for_permission"?"🔐":"❓",short:"Waiting",detail:waiting.title,kind:"waiting"};
+ const related=[...teamAssignments.values()].filter(a=>(a.employee_ids||[]).includes(id)&&a.status!=="completed");
+ const queued=activeTasks.find(step=>step.status==="queued");
+ if(queued)return {emoji:"📋",short:"Queued",detail:queued.title,kind:"queued"};
+ if(related.length)return {emoji:"📋",short:"Assigned",detail:related[0].title,kind:"queued"};
+ const last=activeTasks.find(step=>step.status==="completed");
+ if(last)return {emoji:"✅",short:"Done",detail:last.title,kind:"done"};
+ return {emoji:"☕",short:"Available",detail:"No active task",kind:"idle"};
+}
+function renderOffice(){
+ const people=staff.map((person,index)=>{
+ const [id,,name,role]=person,state=officeWorkerState(id);
+ return '<div class="office-station office-'+state.kind+'">'+
+  '<div class="office-emoji-bubble" aria-label="'+escapeHTML(state.short)+'">'+state.emoji+'</div>'+
+  '<button type="button" class="office-employee" data-chat="'+id+'" aria-label="Open '+escapeHTML(name)+' messages">'+
+   '<span class="office-sprite" data-rpg-worker="'+id+'"></span><strong>'+escapeHTML(name)+'</strong>'+
+   '</button>'+
+  '<div class="office-workstation"><span class="office-screen"><span></span></span><span class="office-chair"></span></div>'+
+  '<span class="office-status">'+escapeHTML(state.short)+'</span>'+
+ '</div>';
+ }).join("");
+ const working=staff.filter(person=>officeWorkerState(person[0]).kind==="working").length;
+ const waiting=staff.filter(person=>officeWorkerState(person[0]).kind==="waiting").length;
+ return '<section class="office-screen-page"><div class="office-banner"><div><strong>Office floor</strong><p>Live assignment status · tap a person to message</p></div>'+
+ '<button type="button" class="back" data-nav="assignments">Assignments ↗</button></div>'+
+ '<div class="office-summary"><span>✍️ '+working+' drafting</span><span>❓ '+waiting+' waiting</span><span>👥 '+staff.length+' staff</span></div>'+
+ '<div class="office-floor">'+people+'</div>'+
+ '<p class="office-legend">✍️ Drafting · 📋 Assigned · ❓ Needs you · 🔐 Permission · ✅ Done · ☕ Available</p>'+
+ '<p class="notice">Bubbles reflect saved assignment activity. Available workers are not running tasks in the background.</p></section>';
+}
+function render(){const isChat=screen==="chat";const title=isChat?(active==="hq"?"Company Headquarters":staff.find(x=>x[0]===active)?.[2]):screen==="team"?(teamAssignments.get(teamActive)?.title||"Team discussion"):({home:"Agent HQ",office:"Office",contacts:"Contacts",messages:"Messages",assignments:"Assignments",approvals:"Approvals",research:"Research",browser:"Browser",reminders:"Reminders",settings:"Settings"})[screen];let body="";if(screen==="home")body=`<div class="home-intro"><p class="home-subtitle">Your private virtual company</p><p class="home-kicker">Your team, all in one place.</p></div>
+ <div class="home-dashboard">
+ ${button("Office","office","🏢")}${button("Messages","messages","💬")}${button("Contacts","contacts","👥")}${button("Assignments","assignments","📋")}${button("Company HQ","hq","🧑‍💼")}${button("Approvals","approvals","🔐")}${button("Research","research","🔎")}${button("Browser","browser","🌐")}${button("Reminders","reminders","📅")}${button("Settings","settings","⚙️")}
+ </div>`;else if(screen==="office")body=renderOffice();else if(screen==="browser")body=`<section class="card"><p class="muted">Agent HQ Browser</p><form id="agent-browser-form" style="display:flex;gap:8px;flex-wrap:wrap"><input id="agent-browser-input" type="text" aria-label="Search or website" placeholder="Search the web or enter a URL" required style="flex:1;min-width:180px;padding:12px;border:1px solid #d2d2d7;border-radius:12px"><button class="primary" type="submit">Go</button></form><p class="notice" id="agent-browser-status">Searches and websites open in a new tab. Agent browsing and account access are not connected yet.</p><p class="notice">To test the permission message workflow, select an employee and create a simulated risky-site request.</p><select id="test-agent" aria-label="Employee">${staff.map(s=>`<option value="${s[0]}">${s[2]}</option>`).join("")}</select> <button type="button" id="test-risk">Test approval request</button></section>`;else if(screen==="research")body=`<section class="card"><strong>Agent research safety check</strong><p class="notice">This is a local workflow test. No AI employee or remote browsing engine is connected.</p><form id="research-form"><label for="research-agent">Employee</label><select id="research-agent">${staff.map(s=>`<option value="${s[0]}">${s[2]}</option>`).join("")}</select><label for="research-url">Website to review</label><input id="research-url" type="url" required placeholder="https://example.com" style="width:100%;padding:12px;margin:8px 0"><button class="primary" type="submit">Request research access</button></form><p id="research-status" class="notice">No external website will open automatically.</p></section>`;else if(screen==="approvals")body=`<p class="notice">${escapeHTML(approvalNotice)} These records do not grant real browsing access.</p><div class="card"><strong>Pending requests: ${pendingCount()}</strong><p class="muted">Open the employee's individual message to approve or deny.</p></div>${[...approvalRequests.values()].filter(r=>r.status==="pending").map(r=>`<button class="row" data-chat="${escapeHTML(r.agentId)}"><span class="avatar">⚠️</span><span><strong>${escapeHTML(staff.find(s=>s[0]===r.agentId)?.[2]||r.agentId)}</strong><small>${escapeHTML(r.website)}</small></span></button>`).join("")}<h2>Saved decisions</h2><p class="muted">Approved and denied requests remain visible in the employee conversation.</p>${[...approvalRequests.values()].filter(r=>r.status!=="pending").reverse().slice(0,25).map(r=>`<button class="row" data-chat="${escapeHTML(r.agentId)}"><span class="avatar">${r.status==="approved"?"✅":r.status==="denied"?"⛔":"🕒"}</span><span><strong>${escapeHTML(staff.find(s=>s[0]===r.agentId)?.[2]||r.agentId)} · ${escapeHTML(r.status)}</strong><small>${escapeHTML(r.website)}</small></span></button>`).join("")}`;else if(screen==="assignments")body=renderAssignments();else if(screen==="team")body=renderTeamThread();else if(screen==="contacts"||screen==="messages")body=`<input id="search" aria-label="Search workers" placeholder="Search" style="width:100%;padding:12px;border:1px solid #d2d2d7;border-radius:14px"><div id="contact-list"></div>`;else if(isChat)body=renderIPhoneChat();else body=`<div class="card"><strong>Planned feature</strong><p class="muted">This screen will be connected in a later development phase. No live service is connected yet.</p></div>`;if(isChat){
  const person=staff.find(row=>row[0]===active);
  const name=active==="hq"?"Company HQ":(person?.[2]||"Worker");
  const role=active==="hq"?"AI team":(person?.[3]||"AI coworker");
@@ -224,7 +262,7 @@ function render(){const isChat=screen==="chat";const title=isChat?(active==="hq"
  '<button class="ios-refresh" type="button" id="refresh" aria-label="Refresh messages">↻</button>'+
  '</header>'+body+'</main>';
  }else{
- app.innerHTML=`<main class="shell"><header>${screen!=="home"?`<button class="back" data-nav="${screen==="team"?"assignments":"home"}" aria-label="Go back">‹ Back</button>`:"<span>● ● ●</span>"}<span>Agent HQ</span></header><h1>${escapeHTML(title||"Agent HQ")}</h1>${body}</main>`;
+ app.innerHTML=`<main class="shell ${screen==="home"?"home-shell":screen==="office"?"office-shell":""}"><header>${screen!=="home"?`<button class="back" data-nav="${screen==="team"?"assignments":"home"}" aria-label="Go back">‹ Back</button>`:`<button type="button" class="home-brand" data-nav="office" aria-label="Open office">✦ Office</button>`}<span class="header-brand">Agent HQ</span></header><h1>${escapeHTML(title||"Agent HQ")}</h1>${body}</main>`;
  }if(screen==="contacts"||screen==="messages"){const show=(q="")=>{
  const inbox=screen==="messages";
  const hasConversation=id=>(messages.get(id)||[]).some(m=>m.type==="text"&&String(m.text||"").trim().length>0);
