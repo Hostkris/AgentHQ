@@ -86,7 +86,7 @@ function validatedAction(candidate:unknown){
  if(summary.length<5||scope.length<5)return null;
  return {provider,action_kind:kind,summary,scope};
 }
-async function liveMetaAnswer(db:ReturnType<typeof createClient>,owner:string,userJwt:string,question:string){
+async function liveMetaAnswer(db:ReturnType<typeof createClient>,owner:string,userJwt:string,employeeId:string,question:string){
  const mentionsAds=/\b(meta|facebook|instagram|ads?|campaigns?|adsets?)\b/i.test(question);
  const requestsMetrics=/\b(spent|spend|spending|performance|results|report|metrics|impressions|clicks|cpc|ctr|roas|costs?)\b/i.test(question);
  const intendsChange=/\b(change|increase|decrease|raise|lower|set|update|pause|stop|publish|send|create)\b/i.test(question);
@@ -104,6 +104,14 @@ async function liveMetaAnswer(db:ReturnType<typeof createClient>,owner:string,us
  if(!target){
   return list.length>1?"You have multiple Meta ad accounts. Which should I report on? First select the reporting account in Operations → Meta Ads, then ask me again.":
    "Meta is connected, but I don't see an accessible ad account yet. Open Operations and tap Refresh accounts.";
+ }
+ if(employeeId==="hq")return "Choose a named employee in Contacts for Meta reporting. I can't give Company HQ unrestricted access to your advertising data.";
+ const {data:workerPermission,error:permissionError}=await db.from("agent_meta_worker_grants")
+  .select("expires_at,revoked_at").eq("owner_id",owner)
+  .eq("employee_id",employeeId).eq("account_id",target.account_id).maybeSingle();
+ if(permissionError)return "I couldn't verify my reporting permission. Please try again after checking Operations.";
+ if(!workerPermission||workerPermission.revoked_at||Date.parse(workerPermission.expires_at)<=Date.now()){
+  return "Meta Ads is connected, but I don't have permission to read "+target.name+" yet. In Operations → Meta Ads reporting, select this account and grant me read-only reporting access for 24 hours. I won't access the data without your approval.";
  }
  const period=/\byesterday\b|\blast night\b/i.test(question)?"yesterday":
   /\b30\s*days\b|\blast month\b|\bmonthly\b/i.test(question)?"last_30d":"last_7d";
@@ -332,7 +340,7 @@ Deno.serve(async(req:Request)=>{
     replyText="Thanks, that helps. Should I resume this assignment with the team now? Yes or no?";
    }
    if(!replyText){
-    const actual=stage==="idle"?await liveMetaAnswer(db,owner,token,body):null;
+    const actual=stage==="idle"?await liveMetaAnswer(db,owner,token,worker,body):null;
     if(actual){await state("idle");replyText=actual}
    }
    if(!replyText){
