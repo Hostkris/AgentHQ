@@ -86,6 +86,61 @@ function validatedAction(candidate:unknown){
  if(summary.length<5||scope.length<5)return null;
  return {provider,action_kind:kind,summary,scope};
 }
+async function liveMetaAnswer(db:ReturnType<typeof createClient>,owner:string,userJwt:string,question:string){
+ const mentionsAds=/\b(meta|facebook|instagram|ads?|campaigns?|adsets?)\b/i.test(question);
+ const requestsMetrics=/\b(spent|spend|spending|performance|results|report|metrics|impressions|clicks|cpc|ctr|roas|costs?)\b/i.test(question);
+ const intendsChange=/\b(change|increase|decrease|raise|lower|set|update|pause|stop|publish|send|create)\b/i.test(question);
+ if(!mentionsAds||!requestsMetrics||intendsChange)return null;
+ const {data:conn}=await db.from("agent_meta_ads_connections")
+  .select("status,preferred_account_id,token_expires_at").eq("owner_id",owner).maybeSingle();
+ if(!conn||conn.status!=="active"||Date.parse(conn.token_expires_at)<=Date.now()){
+  return "I can check actual Meta advertising results once your account is connected. Open Agent HQ → Operations → Meta Ads reporting and authorize read-only access. I won't guess at your spending.";
+ }
+ const {data:accounts,error}=await db.from("agent_meta_ad_accounts")
+  .select("account_id,name,currency").eq("owner_id",owner);
+ if(error)return "I couldn't load your Meta account list. Please open Operations and refresh your advertising accounts.";
+ const list=accounts||[];
+ const target=list.find(a=>a.account_id===conn.preferred_account_id)||(list.length===1?list[0]:null);
+ if(!target){
+  return list.length>1?"You have multiple Meta ad accounts. Which should I report on? First select the reporting account in Operations → Meta Ads, then ask me again.":
+   "Meta is connected, but I don't see an accessible ad account yet. Open Operations and tap Refresh accounts.";
+ }
+ const period=/\byesterday\b|\blast night\b/i.test(question)?"yesterday":
+  /\b30\s*days\b|\blast month\b|\bmonthly\b/i.test(question)?"last_30d":"last_7d";
+ const url=env("SUPABASE_URL")+"/functions/v1/agent-meta-ads";
+ const abort=new AbortController(),timer=setTimeout(()=>abort.abort(),18000);
+ try{
+  const result=await fetch(url,{method:"POST",signal:abort.signal,
+   headers:{"Authorization":"Bearer "+userJwt,"Content-Type":"application/json",
+    ...(env("SUPABASE_ANON_KEY")?{"apikey":env("SUPABASE_ANON_KEY")}:{})},
+   body:JSON.stringify({action:"report",account_id:target.account_id,period})
+  });
+  const payload=await result.json().catch(()=>null);
+  if(!result.ok||payload?.source!=="meta_marketing_api_live"){
+   return "Meta couldn't provide a verified report right now. "+String(payload?.error||"Check permissions and try again.").slice(0,160)+
+   " No spending figures were guessed.";
+  }
+  const m=payload.overview||{},currency=payload.account?.currency||target.currency||"USD";
+  const number=(v:unknown)=>Number.isFinite(Number(v))?Number(v):0;
+  const price=(v:unknown)=>{
+   try{return new Intl.NumberFormat("en-US",{style:"currency",currency}).format(number(v))}
+   catch{return number(v).toFixed(2)+" "+currency}
+  };
+  const clicks=number(m.clicks).toLocaleString("en-US");
+  const impressions=number(m.impressions).toLocaleString("en-US");
+  const range=period==="yesterday"?"yesterday":period==="last_30d"?"the last 30 days":"the last 7 days";
+  const top=(payload.campaigns||[]).slice(0,2);
+  let answer="I checked Meta's live report for "+target.name+" ("+range+"). Spend: "+
+   price(m.spend)+". "+clicks+" clicks, "+impressions+" impressions. CPC: "+
+   price(m.cpc)+"; CTR: "+number(m.ctr).toFixed(2)+"%.";
+  if(top.length)answer+=" The highest-spend campaign was "+top[0].name+" ("+price(top[0].spend)+").";
+  answer+=" Source: Meta Marketing API, retrieved "+new Date(payload.received_at).toLocaleString("en-US")+
+   ". This is read-only; I haven't changed any ads.";
+  return answer.slice(0,1500);
+ }catch{
+  return "Meta's read-only report didn't finish. Please try again or open Operations to check the connection. I won't invent any results.";
+ }finally{clearTimeout(timer)}
+}
 Deno.serve(async(req:Request)=>{
  if(req.method==="OPTIONS")return new Response(null,{status:204,headers:cors(req)});
  const origin=req.headers.get("origin");
@@ -275,6 +330,10 @@ Deno.serve(async(req:Request)=>{
     }).eq("id",waiting.assignment_id).eq("owner_id",owner);
     await state("confirm_resume","",waiting.assignment_id);
     replyText="Thanks, that helps. Should I resume this assignment with the team now? Yes or no?";
+   }
+   if(!replyText){
+    const actual=stage==="idle"?await liveMetaAnswer(db,owner,token,body):null;
+    if(actual){await state("idle");replyText=actual}
    }
    if(!replyText){
     const old=pending;
