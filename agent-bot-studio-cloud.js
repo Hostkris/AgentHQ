@@ -23,7 +23,10 @@ async function invoke(action,extra={}){
 async function refresh(){
  const serial=++generation;
  try{await getUser()}catch(error){
-  if(serial===generation)window.agentHQBotStudioSync?.([],error.message,[]);
+  if(serial===generation){
+   lastBotHash="";
+   window.agentHQBotStudioSync?.([],error.message,[],[]);
+  }
   return [];
  }
  const {data,error}=await agentCloud.from('agent_custom_bots')
