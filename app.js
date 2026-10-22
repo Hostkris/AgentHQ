@@ -43,14 +43,15 @@ window.agentHQPersonalError=message=>{
  personalFeedback="Could not sync your accounts: "+String(message);
  if(screen==="accounts"&&!personalBusy)renderWithoutInterruptingDraft();
 };
-const studioBots=[],studioMessaged=new Set();
-window.agentHQBotStudioSync=(rows,notice,messaged=[])=>{
- const key=JSON.stringify({rows,messaged});
+const studioBots=[],studioMessaged=new Set(),studioHandoffs=[];
+window.agentHQBotStudioSync=(rows,notice,messaged=[],handoffs=[])=>{
+ const key=JSON.stringify({rows,messaged,handoffs});
  if(window.agentHQBotStudioSnapshotKey===key)return;
  window.agentHQBotStudioSnapshotKey=key;
  window.agentHQBotStudioSnapshot={rows,messaged,notice};
  studioBots.splice(0,studioBots.length,...(rows||[]));
  studioMessaged.clear();for(const id of messaged||[])studioMessaged.add(id);
+ studioHandoffs.splice(0,studioHandoffs.length,...(handoffs||[]));
  window.agentHQBotStudioUI?.sync(rows||[],notice||"");
  if(["contacts","messages","office","home"].includes(screen))renderWithoutInterruptingDraft();
 };
@@ -319,14 +320,16 @@ function officeWorkerState(id){
 }
 function renderOffice(){
  const handoff=recentOfficeHandoff();
+ const customHandoff=studioHandoffs.find(x=>Date.now()-Date.parse(x.created_at)<120000&&Date.now()-Date.parse(x.created_at)>=-60000);
  const activeStudioWorkers=studioBots.filter(bot=>bot.status==="active");
- const extraDesks=activeStudioWorkers.map(bot=>
-  '<div class="office-station office-idle office-custom"><div class="office-emoji-bubble" aria-label="Available for chat">💬</div>'+
+ const extraDesks=activeStudioWorkers.map(bot=>{
+  const sending=customHandoff?.source_bot_id===bot.id,receiving=customHandoff?.target_bot_id===bot.id;
+  return '<div class="office-station '+(sending||receiving?"office-handoff":"office-idle")+' office-custom"><div class="office-emoji-bubble" aria-label="'+(sending?"Handing off":receiving?"Receiving paperwork":"Chat ready")+'">'+(sending?"📄➡️":receiving?"🤝📄":"💬")+'</div>'+
   '<button type="button" class="office-employee" data-studio-worker="'+escapeHTML(bot.id)+'" aria-label="Message custom worker '+escapeHTML(bot.name)+'">'+
   '<span class="office-sprite studio-office-sprite">'+escapeHTML(bot.avatar_emoji)+'</span><strong>'+escapeHTML(bot.name)+'</strong></button>'+
   '<div class="office-workstation"><span class="office-screen"><span></span></span><span class="office-chair"></span></div>'+
-  '<span class="office-status">Chat ready</span></div>'
- ).join("");
+  '<span class="office-status">'+(sending?"Handing off":receiving?"Receiving":"Chat ready")+'</span></div>';
+ }).join("");
  const people=staff.map((person,index)=>{
  const [id,,name,role]=person,state=officeWorkerState(id);
  return '<div class="office-station office-'+state.kind+'">'+
@@ -344,6 +347,10 @@ function renderOffice(){
  '<button type="button" class="back" data-nav="assignments">Assignments ↗</button></div>'+
  '<div class="office-summary"><span>✍️ '+working+' drafting</span><span>❓ '+waiting+' waiting</span><span>👥 '+(staff.length+activeStudioWorkers.length)+' staff</span></div>'+
  (handoff?'<div class="office-handoff-banner" role="status"><span class="handoff-paper">📄➡️🤝</span><span>'+escapeHTML(workerLabel(handoff.from))+' → '+escapeHTML(workerLabel(handoff.to))+'<small>'+escapeHTML(handoff.step)+'</small></span></div>':"")+
+ (customHandoff?'<div class="office-handoff-banner" role="status"><span class="handoff-paper">📄➡️🤝</span><span>'+
+   escapeHTML(studioBots.find(x=>x.id===customHandoff.source_bot_id)?.name||"Coworker")+' → '+
+   escapeHTML(studioBots.find(x=>x.id===customHandoff.target_bot_id)?.name||"Coworker")+
+   '<small>Saved paperwork handoff · no outside actions</small></span></div>':"")+
  '<div class="office-floor">'+people+extraDesks+'</div>'+
  '<p class="office-legend">✍️ Drafting · 📋 Assigned · ❓ Needs you · 🔐 Permission · ✅ Done · ☕ Available</p>'+
  '<p class="notice">Bubbles reflect saved assignment activity. Available workers are not running tasks in the background.</p></section>';
