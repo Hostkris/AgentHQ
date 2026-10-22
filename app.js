@@ -716,9 +716,14 @@ app.addEventListener("click",async e=>{
     const result=await gmail.check(); // explicit button initiates live Gmail API review
     if(result?.error)throw Error(result.error);
     if(!window.agentHQChatCloud?.converse)throw Error("Worker Messages is not ready");
-    await window.agentHQChatCloud.converse(worker,
-     "Please summarize the Gmail priority summaries from the inbox check I just approved. Rank urgent to low and note any drafts ready to review. Do not send anything.");
-    sendFeedback.set(worker,"Gmail checked. Worker response saved in this conversation; Email Center has the editable replies.");
+    try{
+     await window.agentHQChatCloud.converse(worker,
+      "Please summarize the Gmail priority summaries from the inbox check I just approved. Rank urgent to low and note any drafts ready to review. Do not send anything.");
+     sendFeedback.set(worker,"Gmail checked. Worker response saved in this conversation; Email Center has the editable replies.");
+    }catch(summaryError){
+     sendFeedback.set(worker,"Gmail inbox check succeeded, but the worker summary was unavailable: "+
+      (summaryError?.message||"Please try asking the worker again."));
+    }
    }
   }catch(err){
    sendFeedback.set(worker,"Account action did not complete: "+(err?.message||"Unknown error"));
