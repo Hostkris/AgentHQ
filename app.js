@@ -35,7 +35,7 @@ function renderAIConnectionGuide(){
  </section>`;
 }
 function renderAssignments(){
-  return `${renderAIConnectionGuide()}<p class="notice">${escapeHTML(teamNotice)} Team notes are saved. ${workerConnection.ready?"AI workers can contribute drafts when you run them manually.":"Connect an AI provider below to start manual worker drafting."}</p>
+  return `${renderAIConnectionGuide()}<p class="notice">${escapeHTML(teamNotice)} Create and save an assignment to use the worker’s Draft next step button. ${workerConnection.ready?"Your AI provider is verified. The worker runs only when you tap its button.":"You can save an assignment now, but the AI provider must be verified before a worker can draft."}</p>
   <section class="card"><h2>New team assignment</h2>
    <form id="team-create-form">
    <label for="team-title">Assignment title</label><input id="team-title" maxlength="160" required placeholder="Example: Plan a product launch" class="form-field">
