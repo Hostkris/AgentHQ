@@ -148,7 +148,31 @@ Deno.serve(async(req:Request)=>{
   return tasks?.[0]||null;
  };
  try{
-  if(stage==="confirm_task"){
+  if(stage==="confirm_action"){
+   const {data:proposal,error:lookupError}=pendingAction?
+    await db.from("agent_action_proposals")
+     .select("id,status,summary,scope,provider,action_kind")
+     .eq("id",pendingAction).eq("owner_id",owner).eq("employee_id",worker).maybeSingle():
+    {data:null,error:null};
+   if(lookupError||!proposal||proposal.status!=="pending"){
+    await state("idle");
+    replyText="That action request is no longer pending. Nothing was executed.";
+   }else if(decision){
+    const {data:changed,error}=await db.from("agent_action_proposals")
+     .update({status:decision==="yes"?"approved":"denied",decided_at:new Date().toISOString()})
+     .eq("id",proposal.id).eq("owner_id",owner).eq("employee_id",worker).eq("status","pending")
+     .select("id").maybeSingle();
+    if(error||!changed)throw Error("Your decision could not be saved. Check Operations and try again.");
+    await state("idle");
+    replyText=decision==="yes"?
+     "Approved as a proposal: "+proposal.summary+
+      ". The "+proposal.provider+" account is NOT connected, so I have NOT made any changes. You can review it under Operations.":
+     "Okay, I declined that proposed action. Nothing was changed.";
+   }else{
+    replyText="To confirm, may I record approval for this proposed "+proposal.provider+" action: "+
+      proposal.summary+"? Yes or no? This will not connect the account or execute the change.";
+   }
+  }else if(stage==="confirm_task"){
    if(decision==="yes"){
     if(pending.length<5)throw Error("Assignment details are missing");
     const trimmed=pending.slice(0,10000);
