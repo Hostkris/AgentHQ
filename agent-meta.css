@@ -61,3 +61,22 @@
 :root[data-theme-mode=dark] .meta-redirect{border-color:#66788a}
 :root[data-theme-mode=dark] .meta-secondary{color:#e1f3fd;background:#315062}
 :root[data-theme-mode=dark] .meta-danger{color:#ffe3e3;background:#67383b}
+
+/* Explicit per-worker read-only permissions */
+.meta-worker-grants{display:grid;gap:10px;padding:13px 12px;
+ background:rgba(77,134,154,.09);border:1px solid rgba(99,141,156,.28);border-radius:13px}
+.meta-worker-grants h4{margin:0;font-size:14px}
+.meta-worker-grants p{font-size:12px;line-height:1.5;margin:0}
+.meta-worker-grants label{font-size:12px;display:grid;gap:6px;font-weight:650}
+.meta-worker-grants select{width:100%;max-width:100%;box-sizing:border-box;
+ padding:11px;color:#203845;background:#fff;border-radius:11px;border:1px solid #b9cad4}
+.meta-worker-grants .meta-grant-status{color:#306c71;font-weight:650}
+.meta-worker-grants button{width:100%}
+:root[data-theme-mode=dark] .meta-worker-grants,
+:root:not([data-theme-mode=light]) .meta-worker-grants{border-color:rgba(136,177,197,.35)}
+:root[data-theme-mode=dark] .meta-worker-grants select{color:#fff;background:#303c48;border-color:#6d7e8c}
+:root[data-theme-mode=dark] .meta-worker-grants .meta-grant-status{color:#ace6d4}
+@media(prefers-color-scheme:dark){
+ :root:not([data-theme-mode=light]) .meta-worker-grants select{color:#fff;background:#303c48;border-color:#6d7e8c}
+ :root:not([data-theme-mode=light]) .meta-worker-grants .meta-grant-status{color:#ace6d4}
+}
