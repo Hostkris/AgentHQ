@@ -129,16 +129,18 @@ export async function access(db:ReturnType<typeof admin>,owner:string){
 export async function adAccounts(db:ReturnType<typeof admin>,owner:string,token:string){
  const payload=await metaGET("me/adaccounts",token,{fields:"id,name,currency,timezone_name,account_status",limit:"100"});
  const accounts=(Array.isArray(payload?.data)?payload.data:[]).map(cleanAccount).filter(Boolean);
- // Refresh account metadata only after Meta's authoritative response.
- // Drop no-longer-visible accounts to avoid showing stale options.
- const {error:clearError}=await db.from("agent_meta_ad_accounts").delete().eq("owner_id",owner);
- if(clearError)throw Error("Could not refresh your advertising account list");
+ // Update known accounts without deleting their worker grants on every refresh.
+ // Prune only Meta accounts absent from the latest authoritative listing.
+ const refreshAt=stamp();
  if(accounts.length){
   const {error}=await db.from("agent_meta_ad_accounts").upsert(accounts.map((a:any)=>({
-   owner_id:owner,...a,last_seen_at:stamp()
+   owner_id:owner,...a,last_seen_at:refreshAt
   })),{onConflict:"owner_id,account_id"});
   if(error)throw Error("Could not securely save your advertising account list");
  }
+ const {error:pruneError}=await db.from("agent_meta_ad_accounts")
+  .delete().eq("owner_id",owner).lt("last_seen_at",refreshAt);
+ if(pruneError)throw Error("Could not reconcile your advertising account list");
  const {data:stored}=await db.from("agent_meta_ads_connections").select("preferred_account_id").eq("owner_id",owner).maybeSingle();
  if(stored&&(!stored.preferred_account_id||!accounts.some((a:any)=>a.account_id===stored.preferred_account_id))){
   const preferred=accounts.length===1?accounts[0].account_id:null;
