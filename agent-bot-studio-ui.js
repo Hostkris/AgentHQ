@@ -110,7 +110,7 @@
      '<button class="studio-primary" type="button" data-studio-tab="builder">＋ Create worker</button></div>';
    html+=bots.length?'<div class="studio-worker-list">'+bots.map(b=>{
     const active=b.status==="active",archived=b.status==="archived";
-    return '<article class="studio-worker"><div class="studio-worker-summary"><span class="studio-worker-avatar">'+E(b.avatar_emoji)+'</span>'+
+    return '<article class="studio-worker"><div class="studio-worker-summary"><span class="studio-worker-avatar" data-rpg-worker="'+E(b.id)+'"></span>'+
      '<div><strong>'+E(b.name)+'</strong><small>'+E(b.role)+'</small><span class="studio-worker-status">'+E(b.status)+'</span></div></div>'+
      '<p>'+E(b.mission)+'</p><div class="studio-actions">'+
      (active?'<button type="button" data-studio-chat="'+E(b.id)+'" class="studio-primary">Message worker</button>':
@@ -124,7 +124,7 @@
    if(!bot)return html+'<p class="studio-empty">Choose a worker from My workers.</p>';
    const history=chats.get(bot.id)||[];
    html+='<section class="studio-chat"><header><button type="button" data-studio-tab="library">‹ Workers</button>'+
-     '<span class="studio-chat-face">'+E(bot.avatar_emoji)+'</span><div><strong>'+E(bot.name)+'</strong><small>'+E(bot.role)+'</small></div></header>'+
+     '<span class="studio-chat-face" data-rpg-worker="'+E(bot.id)+'"></span><div><strong>'+E(bot.name)+'</strong><small>'+E(bot.role)+'</small></div></header>'+
      '<div class="studio-chat-bubbles">'+
      (!history.length?'<div class="studio-chat-tip">'+E(bot.starting_message||"What can I help you with?")+'</div>':
       history.map(m=>'<div class="studio-chat-row '+(m.sender==="owner"?"mine":"theirs")+(m.sender==="handoff"?" handoff":"")+'"><div class="studio-chat-bubble">'+
