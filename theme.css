@@ -26,3 +26,57 @@
 :root[data-theme-mode=light] .theme-panel{background:var(--accent-soft);color:#1d1d1f}
 :root[data-theme-mode=light] input,:root[data-theme-mode=light] textarea{background:#fff;color:#1d1d1f}
 :root[data-theme-mode=light] #agent-cloud-panel{background:#fff!important;color:#1d1d1f!important}
+
+
+/* Agent HQ team discussion: readable worker drafts in every appearance mode */
+/* Give the text its own foreground color: never inherit white from the page
+   when the device is light but Agent HQ's manual Night mode is selected. */
+.team-thread .team-message {
+  background:#ececf0;
+  color:#19232e;
+}
+.team-thread .team-message-mine {
+  background:#dcecff;
+  color:#183a5b;
+}
+.team-thread .team-message small {color:#4d5967}
+.team-thread .team-message strong,
+.team-thread .team-message p {color:inherit}
+
+/* Both the iPhone's automatic dark mode and Agent HQ's manual Night mode. */
+@media (prefers-color-scheme:dark) {
+  :root:not([data-theme-mode=light]) .team-thread .team-message {
+    background:#30323b;
+    color:#f7f8fc;
+  }
+  :root:not([data-theme-mode=light]) .team-thread .team-message-mine {
+    background:#254967;
+    color:#f7f8fc;
+  }
+  :root:not([data-theme-mode=light]) .team-thread .team-message small {
+    color:#d4d9e4;
+  }
+}
+:root[data-theme-mode=dark] .team-thread .team-message {
+  background:#30323b;
+  color:#f7f8fc;
+}
+:root[data-theme-mode=dark] .team-thread .team-message-mine {
+  background:#254967;
+  color:#f7f8fc;
+}
+:root[data-theme-mode=dark] .team-thread .team-message small {
+  color:#d4d9e4;
+}
+/* Explicit Light mode overrides device dark-mode preferences. */
+:root[data-theme-mode=light] .team-thread .team-message {
+  background:#ececf0;
+  color:#19232e;
+}
+:root[data-theme-mode=light] .team-thread .team-message-mine {
+  background:#dcecff;
+  color:#183a5b;
+}
+:root[data-theme-mode=light] .team-thread .team-message small {
+  color:#4d5967;
+}
