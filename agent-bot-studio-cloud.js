@@ -23,7 +23,7 @@ async function invoke(action,extra={}){
 async function refresh(){
  const serial=++generation;
  try{await getUser()}catch(error){
-  if(serial===generation)window.agentHQBotStudioSync?.([],error.message);
+  if(serial===generation)window.agentHQBotStudioSync?.([],error.message,[]);
   return [];
  }
  const {data,error}=await agentCloud.from('agent_custom_bots')
@@ -32,9 +32,14 @@ async function refresh(){
  if(serial!==generation)return [];
  if(error){window.agentHQBotStudioError?.(error.message);return []}
  const bots=data||[];
- const key=JSON.stringify(bots);
+ const {data:messages,error:messageError}=await agentCloud.from('agent_custom_bot_messages')
+  .select('bot_id').order('created_at',{ascending:false}).limit(500);
+ if(serial!==generation)return [];
+ if(messageError){window.agentHQBotStudioError?.('Could not sync worker conversations: '+messageError.message);return bots}
+ const messaged=[...new Set((messages||[]).map(row=>row.bot_id))];
+ const key=JSON.stringify({bots,messaged});
  if(key!==lastBotHash){
-  lastBotHash=key;window.agentHQBotStudioSync?.(bots,'Your AI workers are saved under your Agent HQ sign-in.');
+  lastBotHash=key;window.agentHQBotStudioSync?.(bots,'Your AI workers are saved under your Agent HQ sign-in.',messaged);
  }
  return bots;
 }
