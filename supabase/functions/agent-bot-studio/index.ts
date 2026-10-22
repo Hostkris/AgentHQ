@@ -153,6 +153,39 @@ Only JSON, no markdown fences.`;
    if(error)throw Error("Could not update this worker");
    return result(req,{status:mode,bot_id:id});
   }
+  if(action==="handoff"){
+   const fromId=String(body.source_bot_id||""),toId=String(body.target_bot_id||"");
+   const note=safe(body.reason,900);
+   if(!UUID.test(fromId)||!UUID.test(toId)||fromId===toId)
+    return result(req,{error:"Choose a different active coworker to receive the handoff."},400);
+   if(note.length<10)return result(req,{error:"Describe why this work needs handing off."},400);
+   const source=await loadBot(db,owner,fromId),target=await loadBot(db,owner,toId);
+   if(source.status!=="active"||target.status!=="active")
+    return result(req,{error:"Both coworkers must be active before handing off work."},409);
+   const {data:recent,error:recentError}=await db.from("agent_custom_bot_messages")
+    .select("sender,body").eq("owner_id",owner).eq("bot_id",fromId)
+    .order("created_at",{ascending:false}).limit(10);
+   if(recentError)throw Error("Could not load the current worker's discussion");
+   const system=`Create a faithful, short written handoff note for a coworker.
+Sender: ${source.name}, a ${source.role}. Recipient: ${target.name}, a ${target.role}.
+Summarize the owner's requested task, what is known from the conversation, and what the next coworker should draft or ask.
+DO NOT invent research, claim external work was completed, access websites, send emails, or promise that anything automatically runs.
+The handoff is only a saved note approved by the owner. Output plain text, 40–220 words. Avoid sensitive secrets.`;
+   const generated=await complete(system,JSON.stringify({
+    owner_instruction:note,conversation:(recent||[]).reverse().map((r:any)=>({
+     speaker:r.sender,body:safe(r.body,1000)
+    }))
+   }),440,false);
+   const brief=safe(generated,2450);
+   if(brief.length<15)throw Error("The coworker handoff note was too short to save");
+   const {data:id,error}=await db.rpc("record_agent_custom_bot_handoff",{
+    p_owner:owner,p_source:fromId,p_target:toId,p_brief:brief
+   });
+   if(error||!id)throw Error("The handoff could not be recorded; no transfer was confirmed.");
+   return result(req,{handoff_id:id,from:source.name,to:target.name,brief,
+    delivered:true,external_execution:false,
+    message:"Written handoff delivered to "+target.name+". The recipient can continue when you message them."});
+  }
   if(action==="chat"){
    const id=String(body.bot_id||""),message=safe(body.message,4500);
    if(!message)return result(req,{error:"Type a message for this worker"},400);
