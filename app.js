@@ -235,7 +235,7 @@ function render(){const isChat=screen==="chat";const title=isChat?(active==="hq"
  const staffRows=shown.map(x=>`<button class="row" data-chat="${x[0]}"><span class="avatar">${x[1]}</span><span><strong>${x[2]}</strong><small>${escapeHTML(x[3])}${inbox?getConversationPreview(x[0]):""}</small></span></button>`).join("");
  document.querySelector("#contact-list").innerHTML=headquarters+staffRows||(inbox?'<p class="muted">No individual conversations yet. Start one from Contacts.</p>':'<p class="muted">No employees match that search.</p>');
  };show();document.querySelector("#search").addEventListener("input",e=>show(e.target.value));
- if(screen==="messages")document.querySelector("#sync-msgs").addEventListener("click",async e=>{const button=e.currentTarget;button.disabled=true;button.textContent="↻ Syncing…";try{await Promise.all([window.agentHQCloudApprovals?.refresh(),window.agentHQChatCloud?.refresh(),window.agentHQTeamCloud?.refresh()])}catch(err){window.agentHQChatCloudNotice("Sync failed: "+err.message)}finally{button.disabled=false;if(button.isConnected)button.textContent="↻ Sync saved messages"}})
+ if(screen==="messages"&&document.querySelector("#sync-msgs"))document.querySelector("#sync-msgs").addEventListener("click",async e=>{const button=e.currentTarget;button.disabled=true;button.textContent="↻ Syncing…";try{await Promise.all([window.agentHQCloudApprovals?.refresh(),window.agentHQChatCloud?.refresh(),window.agentHQTeamCloud?.refresh()])}catch(err){window.agentHQChatCloudNotice("Sync failed: "+err.message)}finally{button.disabled=false;if(button.isConnected)button.textContent="↻ Sync saved messages"}})
 }
 if(screen==="assignments"){
  document.querySelector("#team-create-form").addEventListener("submit",async e=>{
