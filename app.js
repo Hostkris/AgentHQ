@@ -326,6 +326,81 @@ function renderOffice(){
  '<p class="office-legend">✍️ Drafting · 📋 Assigned · ❓ Needs you · 🔐 Permission · ✅ Done · ☕ Available</p>'+
  '<p class="notice">Bubbles reflect saved assignment activity. Available workers are not running tasks in the background.</p></section>';
 }
+const PERSONAL_PLATFORMS=[
+ ["instagram","Instagram","📸"],["facebook","Facebook","📘"],["tiktok","TikTok","🎵"],
+ ["youtube","YouTube","▶️"],["threads","Threads","🧵"],["pinterest","Pinterest","📌"],
+ ["x","X / Twitter","𝕏"],["snapchat","Snapchat","👻"],
+ ["google_ads","Google Ads","📊"],["tiktok_ads","TikTok Ads","📈"],
+ ["pinterest_ads","Pinterest Ads","📣"]
+];
+const PERSONAL_SCOPES=[
+ ["draft_posts","Draft posts"],["draft_replies","Draft replies"],["plan_content","Plan content"],
+ ["read_account_data","Request account analytics"],["publish_content","Request publishing"],
+ ["manage_messages","Request inbox management"]
+];
+function personalPermissionState(p){
+ if(p.status==="approved"&&new Date(p.expires_at).getTime()<=Date.now())return "expired";
+ if(p.status==="requested"&&new Date(p.expires_at).getTime()<=Date.now())return "expired";
+ return p.status;
+}
+function renderPersonalAccounts(){
+ const names=Object.fromEntries(PERSONAL_PLATFORMS.map(row=>[row[0],row[1]]));
+ const icons=Object.fromEntries(PERSONAL_PLATFORMS.map(row=>[row[0],row[2]]));
+ const capabilities=Object.fromEntries(PERSONAL_SCOPES.map(row=>[row[0],row[1]]));
+ const option=(value,label,selected)=>'<option value="'+escapeHTML(value)+'"'+(selected?" selected":"")+'>'+escapeHTML(label)+'</option>';
+ const workerOptions=staff.map(row=>option(row[0],row[2],row[0]==="maya")).join("");
+ const scopeOptions=PERSONAL_SCOPES.map(row=>option(row[0],row[1],row[0]==="draft_posts")).join("");
+ const countActive=personalPermissions.filter(p=>personalPermissionState(p)==="approved").length;
+ const rows=personalAccounts.map(account=>{
+  const grants=personalPermissions.filter(p=>p.account_id===account.id);
+  const item=grants.map(p=>{
+   const status=personalPermissionState(p);
+   const person=staff.find(row=>row[0]===p.employee_id)?.[2]||p.employee_id;
+   const action=status==="requested"?
+    '<div class="personal-permission-actions">'+
+    '<button type="button" data-personal-decision="'+escapeHTML(p.id)+'" data-personal-approve="yes">Approve plan</button>'+
+    '<button type="button" data-personal-decision="'+escapeHTML(p.id)+'" data-personal-approve="no">Deny</button></div>':
+    status==="approved"?
+    '<button type="button" class="personal-danger" data-personal-revoke="'+escapeHTML(p.id)+'">Revoke now</button>':"";
+   return '<div class="personal-permission"><div><strong>'+escapeHTML(person)+'</strong> · '+escapeHTML(capabilities[p.capability]||p.capability)+'</div>'+
+    '<span class="personal-permission-status personal-status-'+escapeHTML(status)+'">'+escapeHTML(status==="requested"?"Awaiting your decision":status==="approved"?"Approved for planning only":status)+"</span>"+
+    '<p>'+escapeHTML(p.purpose)+'</p>'+
+    (status==="approved"?'<small>Expires '+escapeHTML(new Date(p.expires_at).toLocaleString())+'</small>':"")+
+    '<small>External account actions remain disabled.</small>'+action+'</div>';
+  }).join("");
+  return '<article class="personal-account"><div class="personal-account-head"><div class="personal-account-icon">'+(icons[account.platform]||"🔐")+'</div>'+
+   '<div class="personal-account-title"><strong>'+escapeHTML(account.label)+'</strong><small>'+escapeHTML(names[account.platform]||account.platform)+' · '+escapeHTML(account.handle)+'</small></div>'+
+   '<button class="personal-remove" type="button" data-personal-delete="'+escapeHTML(account.id)+'" title="Remove saved profile label" aria-label="Remove '+escapeHTML(account.label)+'">×</button></div>'+
+   '<div class="personal-account-status">○ Account label only · Not connected</div>'+
+   '<details class="personal-worker-details"><summary>Worker permissions'+(grants.length?' ('+grants.length+')':"")+'</summary>'+
+   (item||'<p class="personal-muted">No worker permission plans yet.</p>')+
+   '<form class="personal-request-form" data-personal-request="'+escapeHTML(account.id)+'">'+
+   '<label>Worker<select name="worker" required>'+workerOptions+'</select></label>'+
+   '<label>Task scope<select name="scope" required>'+scopeOptions+'</select></label>'+
+   '<label>Why does this worker need the scope?<textarea name="purpose" required minlength="5" maxlength="500" placeholder="For example, draft captions for this Instagram account."></textarea></label>'+
+   '<button type="submit" class="personal-primary">Prepare permission request</button>'+
+   '<p class="personal-muted">You will approve or deny this request separately. No account login or external action occurs.</p>'+
+   '</form></details></article>';
+ }).join("");
+ return '<section class="personal-workspace">'+
+  '<div class="personal-intro"><h2>My accounts</h2><p>Your own social profiles and advertising accounts, organized for personal use. You control exactly which AI worker may plan what.</p>'+
+  '<div class="personal-privacy">🔒 Account labels and approvals are only visible under your Agent HQ sign-in. The GitHub Pages frontend itself remains public.</div></div>'+
+  '<section class="personal-ad-card"><div><strong>📊 My Meta Ads</strong><p>'+escapeHTML(metaState.connected?"Read-only Meta connection active":"Not connected — available after your authorization")+'</p></div>'+
+  '<button type="button" data-nav="operations">Manage Meta Ads ↗</button></section>'+
+  '<div class="personal-connection-banner">Social account profiles below are saved labels, <strong>not authenticated connections</strong>. Never enter passwords, login codes, or access tokens here.</div>'+
+  '<details class="personal-add-section"><summary>＋ Add my social or advertising profile</summary>'+
+  '<form id="personal-add-form" class="personal-add-form">'+
+  '<label>Platform<select name="platform" required>'+PERSONAL_PLATFORMS.map(row=>option(row[0],row[1],row[0]==="instagram")).join("")+'</select></label>'+
+  '<label>Profile nickname<input name="label" required maxlength="80" placeholder="My personal page"></label>'+
+  '<label>Public handle or account label<input name="handle" required maxlength="120" placeholder="@myprofile — never a password"></label>'+
+  '<button type="submit" class="personal-primary">Save profile label</button>'+
+  '</form></details>'+
+  '<div class="personal-section-heading"><h3>Saved profiles <span>'+personalAccounts.length+'</span></h3><small>'+countActive+' active planning approvals</small></div>'+
+  (rows||'<div class="personal-empty">No profiles saved yet. Add a social handle or advertising account label to organize permissions for your workers.</div>')+
+  '<p class="personal-feedback" role="status">'+escapeHTML(personalFeedback||personalNotice)+'</p>'+
+  '<p class="personal-footer">Worker permissions are scoped, expire after 24 hours when approved, and can be revoked. They do not open accounts, read private messages, publish content or change ads. Those actions require actual provider connections and separate consent.</p>'+
+ '</section>';
+}
 function renderOperations(){
  const providerNames={meta_ads:"Meta Ads",facebook:"Facebook",instagram:"Instagram",tiktok:"TikTok",manychat:"Manychat",email:"Email",youtube:"YouTube",other:"Other"};
  const actionNames={read_metrics:"Account reporting",change_ad_budget:"Advertising budget",create_content:"Content draft",
