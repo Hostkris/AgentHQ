@@ -57,7 +57,7 @@ async function callback(req:Request){
    owner_id:owner,meta_user_id:String(profile.id).slice(0,128),
    encrypted_access_token:protectedToken.cipher,token_iv:protectedToken.iv,
    token_expires_at:new Date(Date.now()+lifespan*1000).toISOString(),
-   granted_scopes:scopes,status:"active",updated_at:stamp()
+   granted_scopes:scopes,status:"active",preferred_account_id:null,updated_at:stamp()
   },{onConflict:"owner_id"});
   if(saveError)throw Error("Failed to store the encrypted connection");
   try{await adAccounts(db,owner,token)}catch{
@@ -83,6 +83,7 @@ async function status(db:ReturnType<typeof admin>,owner:string,req:Request){
  return json(req,{configured:true,connected:record.status==="active"&&!expired,
   reconnect_required:record.status!=="active"||expired,
   read_only:true,granted_scope:"ads_read",token_expires_at:record.token_expires_at,
+  preferred_account_id:record.preferred_account_id||null,
   accounts:accounts||[],message:expired?"Meta session expired — reconnect to continue":
    record.status==="active"?"Meta Ads connected for read-only reporting":"Meta session needs reconnection"});
 }
@@ -146,6 +147,18 @@ Deno.serve(async(req:Request)=>{
     const token=await access(db,owner);
     const result=await adAccounts(db,owner,token);
     return json(req,{...result,read_only:true});
+   }
+   case "select_account":{
+    const requested=String(input.account_id||"");
+    if(!accountPattern.test(requested))return json(req,{error:"Select a valid advertising account"},400);
+    await access(db,owner);
+    const {data:account,error:lookupError}=await db.from("agent_meta_ad_accounts")
+      .select("account_id").eq("owner_id",owner).eq("account_id",requested).maybeSingle();
+    if(lookupError||!account)return json(req,{error:"The selected account is not available under your Meta connection"},403);
+    const {error:saveError}=await db.from("agent_meta_ads_connections")
+      .update({preferred_account_id:requested,updated_at:stamp()}).eq("owner_id",owner);
+    if(saveError)throw Error("Could not save your preferred account");
+    return json(req,{selected_account_id:requested,read_only:true});
    }
    case "report":return report(db,owner,req,input);
    case "disconnect":return disconnect(db,owner,req);
