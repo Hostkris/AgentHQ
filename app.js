@@ -573,6 +573,50 @@ if(screen==="research"){document.querySelector("#research-form").addEventListene
  finally{personalBusy=false;if(screen==="accounts")render()}
 });
 app.addEventListener("click",async e=>{
+ const personalDecision=e.target.closest("[data-personal-decision]");
+ const personalRevoke=e.target.closest("[data-personal-revoke]");
+ const personalDelete=e.target.closest("[data-personal-delete]");
+ if(personalDecision||personalRevoke||personalDelete){
+  if(personalBusy)return;
+  const cloud=window.agentHQPersonalCloud;
+  if(!cloud){personalFeedback="Account permissions are loading. Refresh Agent HQ.";render();return}
+  let agreed=false;
+  if(personalDelete){
+   const account=personalAccounts.find(a=>a.id===personalDelete.dataset.personalDelete);
+   if(!account)return;
+   agreed=window.confirm('Remove "'+account.label+'" from Agent HQ and discard all related worker permission plans? This does not delete the external profile.');
+  }else{
+   const id=personalDecision?.dataset.personalDecision||personalRevoke?.dataset.personalRevoke;
+   const grant=personalPermissions.find(p=>p.id===id);
+   if(!grant)return;
+   const account=personalAccounts.find(a=>a.id===grant.account_id);
+   const workerName=staff.find(x=>x[0]===grant.employee_id)?.[2]||grant.employee_id;
+   if(personalDecision){
+    agreed=window.confirm((personalDecision.dataset.personalApprove==="yes"?"Approve":"Deny")+
+     ' '+workerName+' for "'+(account?.label||"this profile")+
+     '"? This is a planning permission only; it does not connect the account or enable outside actions.');
+   }else{
+    agreed=window.confirm("Revoke "+workerName+"'s approval for this profile now?");
+   }
+  }
+  if(!agreed)return;
+  personalBusy=true;personalFeedback="Saving your permission decision…";
+  try{
+   if(personalDelete){
+    await cloud.removeAccount(personalDelete.dataset.personalDelete);
+    personalFeedback="Account label and associated permission plans removed.";
+   }else if(personalDecision){
+    await cloud.decidePermission(personalDecision.dataset.personalDecision,
+      personalDecision.dataset.personalApprove==="yes");
+    personalFeedback="Your approval decision was saved. No external actions have been enabled.";
+   }else{
+    await cloud.revokePermission(personalRevoke.dataset.personalRevoke);
+    personalFeedback="Worker permission revoked.";
+   }
+  }catch(error){personalFeedback="Could not update permission: "+error.message}
+  finally{personalBusy=false;if(screen==="accounts")render()}
+  return;
+ }
  const operationShortcut=e.target.closest("[data-op-prompt]");
  if(operationShortcut){
   const employee=operationShortcut.dataset.opWorker;
