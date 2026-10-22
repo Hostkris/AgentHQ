@@ -1,4 +1,25 @@
-const staff=[["alex","👔","Alex","General Manager"],["maya","📣","Maya","Marketing"],["jordan","🎬","Jordan","Scripts & Content"],["riley","🔎","Riley","Research"],["taylor","📧","Taylor","Communications"],["casey","📱","Casey","Social Media"],["morgan","🛍️","Morgan","Shopify"],["avery","📊","Avery","Business Analysis"],["jamie","📅","Jamie","Scheduling"],["quinn","💡","Quinn","Growth & Partnerships"]];const app=document.querySelector("#app");let screen=typeof location!=="undefined"&&new URLSearchParams(location.search).has("gmail")?"email":typeof location!=="undefined"&&new URLSearchParams(location.search).has("meta")?"operations":"home",active=null;const drafts=new Map();const messages=new Map();const sendFeedback=new Map();const sendingAgents=new Set();let chatNotice="Loading saved text messages…",chatFingerprint="";let metaState={configured:false,connected:false,accounts:[],message:"Checking Meta Ads…"};
+const staff=[["alex","👔","Alex","General Manager"],["maya","📣","Maya","Marketing"],["jordan","🎬","Jordan","Scripts & Content"],["riley","🔎","Riley","Research"],["taylor","📧","Taylor","Communications"],["casey","📱","Casey","Social Media"],["morgan","🛍️","Morgan","Shopify"],["avery","📊","Avery","Business Analysis"],["jamie","📅","Jamie","Scheduling"],["quinn","💡","Quinn","Growth & Partnerships"]];const app=document.querySelector("#app");const oauthReturnWorker=(()=>{
+ try{
+  const callback=new URLSearchParams(location.search);
+  const saved=sessionStorage.getItem("agenthq_gmail_chat_return");
+  const valid=['alex','maya','jordan','riley','taylor','casey','morgan','avery','jamie','quinn'];
+  if(callback.has("gmail")&&valid.includes(saved)){
+   sessionStorage.removeItem("agenthq_gmail_chat_return");return saved;
+  }
+ }catch{}
+ return null;
+})();
+let screen=oauthReturnWorker?"chat":typeof location!=="undefined"&&new URLSearchParams(location.search).has("gmail")?"email":typeof location!=="undefined"&&new URLSearchParams(location.search).has("meta")?"operations":"home",active=oauthReturnWorker;const drafts=new Map();const messages=new Map();const sendFeedback=new Map();const sendingAgents=new Set();
+let chatGmailStatus={connected:false,configured:false,message:"Checking Gmail authorization…"};
+let chatGmailGrants=[];
+let chatConnectorBusy=false;
+window.agentHQGmailChatStatus=(status,grants)=>{
+ const next=JSON.stringify({status,grants});
+ if(JSON.stringify({status:chatGmailStatus,grants:chatGmailGrants})===next)return;
+ chatGmailStatus=status||{};
+ chatGmailGrants=Array.isArray(grants)?grants:[];
+ if(screen==="chat"&&!chatConnectorBusy)renderWithoutInterruptingDraft();
+};let chatNotice="Loading saved text messages…",chatFingerprint="";let metaState={configured:false,connected:false,accounts:[],message:"Checking Meta Ads…"};
 let metaSelected="",metaPeriod="last_7d",metaReport=null,metaBusy=false,metaNotice="";
 window.agentHQMetaStatus=data=>{
  const next=JSON.stringify(data);
@@ -245,6 +266,55 @@ function renderWorkerTeamLinks(employeeId){
  }).join("")}</section>`;
 }
 
+// Provider authorization choices in the actual worker conversation, not a fake login form.
+// A chat button can initiate supported OAuth; it never receives a password or OAuth token.
+function renderChatConnectorCard(items){
+ const latest=[...items].reverse().find(m=>m.sender==="owner"&&m.type==="text");
+ const request=String(latest?.text||"");
+ const email=/\b(gmail|inbox|emails?|e-mail)\b/i.test(request)&&
+   /\b(check|review|scan|read|sort|prioriti[sz]e|rank|summari[sz]e|organize|organise|respond|reply|connect|access)\b/i.test(request);
+ const icloud=/\b(icloud|apple mail)\b/i.test(request)&&
+   /\b(mail|emails?|inbox|connect|access|check|review|login|sign.?in)\b/i.test(request);
+ const facebook=/\b(facebook|instagram)\b/i.test(request)&&
+   /\b(connect|access|login|sign.?in|post|publish|check|read|manage|account)\b/i.test(request);
+ const metaAds=/\b(meta ads|facebook ads|advertising account|ad account|ad spend)\b/i.test(request);
+ if(!email&&!icloud&&!facebook&&!metaAds)return "";
+ const name=staff.find(row=>row[0]===active)?.[2]||"this worker";
+ let result='<section class="ios-chat-connect" aria-label="Connect an account"><strong>🔐 Account access request</strong>'+
+  '<p>Choose a service to authorize. Signing in grants the app only the permissions shown by the provider; each worker still needs your separate approval.</p>';
+ if(email){
+  const connected=chatGmailStatus.connected===true;
+  const grant=chatGmailGrants.find(g=>g.employee_id===active);
+  const approved=connected&&grant&&grant.scope==="priority_summaries"&&!grant.revoked_at&&Date.parse(grant.expires_at)>Date.now();
+  if(!connected){
+   result+='<p><strong>Gmail:</strong> Not connected to this workspace. Google handles sign-in; Agent HQ never asks for your password.</p>'+
+    '<button type="button" data-chat-connect="gmail-connect">✉️ Connect Gmail with Google ↗</button>'+
+    '<button type="button" data-chat-connect="gmail-setup" class="secondary">Gmail setup / status</button>';
+  }else if(!approved){
+   result+='<p><strong>Gmail connected.</strong> '+escapeHTML(name)+' does not yet have access to your inbox.</p>'+
+    '<button type="button" data-chat-connect="gmail-grant">Allow '+escapeHTML(name)+' to read priority summaries · 24 hours</button>'+
+    '<button type="button" data-chat-connect="gmail-center" class="secondary">Open Email Center</button>';
+  }else{
+   result+='<p><strong>Gmail connected · '+escapeHTML(name)+' authorized.</strong> Priority summaries only, until '+
+    escapeHTML(new Date(grant.expires_at).toLocaleString())+'. No sending permission.</p>'+
+    '<button type="button" data-chat-connect="gmail-check">🔄 Check Gmail inbox now</button>'+
+    '<button type="button" data-chat-connect="gmail-revoke" class="secondary">Revoke '+escapeHTML(name)+"'s access</button>";
+  }
+ }
+ if(icloud)result+='<p><strong>iCloud Mail:</strong> Not available for one-tap authorization. Apple currently requires a separate secure IMAP/SMTP setup using an app-specific password.</p>'+
+  '<button type="button" data-chat-connect="icloud-info" class="secondary">🍎 Apple iCloud Mail instructions ↗</button>';
+ if(facebook)result+='<p><strong>Facebook / Instagram personal profiles:</strong> No direct account-login integration in Agent HQ yet. Saving a profile or approving a plan does not connect it.</p>'+
+  '<button type="button" data-chat-connect="social-info" class="secondary">Manage personal accounts</button>';
+ if(metaAds)result+='<p><strong>Meta Ads:</strong> '+(metaState.connected?"Read-only account connection available. Choose an ad account and approve this worker in Operations.":"Read-only advertising OAuth is available when your Meta developer app is configured.")+'</p>'+
+  '<button type="button" data-chat-connect="'+(metaState.connected?"meta-center":"meta-connect")+'" class="secondary">'+
+  (metaState.connected?"Open Meta Ads permissions":"📊 Connect Meta Ads ↗")+'</button>';
+ const returned=new URLSearchParams(location.search).get("gmail");
+ if(email&&returned)result+='<p class="ios-connection-feedback">Google authorization: '+
+  escapeHTML(({connected:"Connected",cancelled:"Cancelled",setup:"Setup required",scope:"Required scopes were not granted",error:"Not completed",invalid:"Expired link",refresh:"Reconnect needed"})[returned]||returned)+
+  '. The connection and worker grant are separate steps.</p>';
+ return '<div class="ios-message-row incoming"><div class="ios-message-bubble theirs ios-connect-bubble">'+result+'</section></div></div>';
+}
+
 function renderIPhoneChat(){
  const person=staff.find(s=>s[0]===active);
  const title=active==="hq"?"Company HQ":(person?.[2]||"Worker");
@@ -275,6 +345,7 @@ function renderIPhoneChat(){
  return '<div class="ios-thread">'+
   '<div class="ios-chat-list" id="chat-scroll" aria-label="Conversation" aria-live="polite">'+
   (rows||'<div class="ios-empty-chat">Send a message to start the conversation.</div>')+
+  renderChatConnectorCard(items)+
   '</div>'+
   (sendingAgents.has(active)?'<div class="ios-typing" aria-live="polite"><span></span><span></span><span></span></div>':"")+
   '<form id="composer" class="ios-composer" autocomplete="off">'+
@@ -607,6 +678,53 @@ if(screen==="research"){document.querySelector("#research-form").addEventListene
  finally{personalBusy=false;if(screen==="accounts")render()}
 });
 app.addEventListener("click",async e=>{
+ const connectChoice=e.target.closest("[data-chat-connect]");
+ if(connectChoice){
+  e.preventDefault();
+  if(chatConnectorBusy)return;
+  const action=connectChoice.dataset.chatConnect;
+  const worker=active;
+  chatConnectorBusy=true;connectChoice.disabled=true;
+  try{
+   const gmail=window.agentHQEmailCloud;
+   if(action==="gmail-setup"||action==="gmail-center"){screen="email";render();return}
+   if(action==="social-info"){screen="accounts";render();return}
+   if(action==="meta-center"){screen="operations";render();return}
+   if(action==="icloud-info"){window.open("https://support.apple.com/en-us/102525","_blank","noopener,noreferrer");return}
+   if(action==="meta-connect"){
+    if(!window.agentHQMetaCloud)throw Error("Meta Ads connection is loading. Refresh the app.");
+    await window.agentHQMetaCloud.connect();return;
+   }
+   if(!gmail)throw Error("Gmail connection is loading. Refresh the app.");
+   if(action==="gmail-connect"){
+    try{sessionStorage.setItem("agenthq_gmail_chat_return",worker)}catch{}
+    try{await gmail.connect()}catch(err){
+     try{sessionStorage.removeItem("agenthq_gmail_chat_return")}catch{}
+     throw err;
+    }
+    return;
+   }
+   if(action==="gmail-grant"){
+    if(!window.confirm("Give "+(staff.find(x=>x[0]===worker)?.[2]||"this worker")+
+     " read-only access to Gmail priority summaries for 24 hours? No messages will be sent and you can revoke this permission anytime."))return;
+    await gmail.grantWorker(worker);
+    sendFeedback.set(worker,"Worker access approved for priority summaries only. Tap Check Gmail inbox now to run the review.");
+   }else if(action==="gmail-revoke"){
+    await gmail.revokeWorker(worker);
+    sendFeedback.set(worker,"Gmail worker permission revoked. Your Gmail account remains connected for your own use.");
+   }else if(action==="gmail-check"){
+    const result=await gmail.check(); // explicit button initiates live Gmail API review
+    if(result?.error)throw Error(result.error);
+    if(!window.agentHQChatCloud?.converse)throw Error("Worker Messages is not ready");
+    await window.agentHQChatCloud.converse(worker,
+     "Please summarize the Gmail priority summaries from the inbox check I just approved. Rank urgent to low and note any drafts ready to review. Do not send anything.");
+    sendFeedback.set(worker,"Gmail checked. Worker response saved in this conversation; Email Center has the editable replies.");
+   }
+  }catch(err){
+   sendFeedback.set(worker,"Account action did not complete: "+(err?.message||"Unknown error"));
+  }finally{chatConnectorBusy=false;if(screen==="chat"&&active===worker)renderWithoutInterruptingDraft()}
+  return;
+ }
  const customOpen=e.target.closest("[data-studio-worker]");
  if(customOpen){
   const id=customOpen.dataset.studioWorker;
