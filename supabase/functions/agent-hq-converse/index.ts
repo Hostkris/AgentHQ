@@ -187,6 +187,50 @@ async function liveMetaAnswer(db:ReturnType<typeof createClient>,owner:string,us
   return "Meta's read-only report didn't finish. Please try again or open Operations to check the connection. I won't invent any results.";
  }finally{clearTimeout(timer)}
 }
+
+// Read only the owner's previously checked Gmail PRIORITY SUMMARIES, never message bodies.
+// A Google connection and an unexpired grant for this specific named worker are both required.
+async function liveGmailAnswer(db:ReturnType<typeof createClient>,owner:string,worker:string,question:string){
+ const wantsMail=/\b(gmail|inbox|e-mails?|emails?|mail)\b/i.test(question);
+ const wantsReview=/\b(check|scan|review|sort|prioriti[sz]e|rank|summari[sz]e|organize|organise|what.s important|what needs|unread)\b/i.test(question);
+ if(!wantsMail||!wantsReview)return null;
+ if(/\b(icloud|apple mail)\b/i.test(question))return "I can help draft email responses, but iCloud Mail is not connected to Agent HQ. Apple uses a separate IMAP/SMTP setup with an app-specific password, not Gmail's Google sign-in. I won't ask for your Apple password in chat.";
+ if(worker==="hq")return "Please choose a named coworker like Maya or Taylor before granting Gmail inbox access. I can't grant the entire HQ unrestricted email access.";
+ const {data:c,error:connectionError}=await db.from("agent_gmail_connections")
+  .select("status,last_checked_at,scopes").eq("owner_id",owner).maybeSingle();
+ if(connectionError)return "I couldn't verify Gmail's connection. Open Email Center to review the setup.";
+ if(!c||c.status!=="active"||!Array.isArray(c.scopes)||!c.scopes.includes("https://www.googleapis.com/auth/gmail.readonly"))
+  return "To review your inbox, first connect Gmail using the button in this conversation. Google will ask you to sign in and approve Gmail access. That alone won't give me permission.";
+ const {data:grant,error:grantError}=await db.from("agent_gmail_worker_grants")
+  .select("expires_at,revoked_at,scope").eq("owner_id",owner).eq("employee_id",worker).maybeSingle();
+ if(grantError)return "I couldn't verify my Gmail permission, so I won't read your inbox.";
+ if(!grant||grant.scope!=="priority_summaries"||grant.revoked_at||Date.parse(grant.expires_at)<=Date.now())
+  return "Gmail is connected. Please use the Allow button in this conversation to give me 24-hour access to its priority summaries. I can't open your inbox until you approve that specific permission.";
+ const {data:items,error}=await db.from("agent_email_items")
+  .select("from_name,from_email,subject,priority,priority_reason,needs_reply,draft_state,received_at")
+  .eq("owner_id",owner).order("received_at",{ascending:false}).limit(100);
+ if(error)return "Gmail is authorized, but I couldn't load your saved priority summaries.";
+ const last=c.last_checked_at?Date.parse(c.last_checked_at):0;
+ if(!last||!items?.length)return "I'm authorized to review Gmail priority summaries, but no messages have been checked yet. Tap Check inbox now in this conversation. Nothing will be sent.";
+ const counts={urgent:0,high:0,medium:0,low:0};
+ for(const item of items){
+  if(Object.prototype.hasOwnProperty.call(counts,item.priority))
+   counts[item.priority as keyof typeof counts]++;
+ }
+ const top=[...items].sort((a,b)=>({urgent:0,high:1,medium:2,low:3}[a.priority as keyof typeof counts]??4)-
+   ({urgent:0,high:1,medium:2,low:3}[b.priority as keyof typeof counts]??4)||
+   Date.parse(b.received_at)-Date.parse(a.received_at)).slice(0,5);
+ const brief=top.map(m=>{
+  const sender=String(m.from_name||m.from_email||"Sender").slice(0,80).replace(/[\r\n]/g," ");
+  const subject=String(m.subject||"(no subject)").slice(0,100).replace(/[\r\n]/g," ");
+  return "["+m.priority+"] "+sender+": "+subject+(m.draft_state==="ready"?" — reply draft ready":"");
+ }).join("; ");
+ const stale=Date.now()-last>15*60000?" These are SAVED results, not a fresh inbox check. Tap Check inbox now for a new review.":"";
+ return "From the last Gmail check ("+new Date(last).toLocaleString("en-US")+"): "+
+  counts.urgent+" urgent, "+counts.high+" high, "+counts.medium+" medium, "+counts.low+" low. "+
+  "Top items: "+brief+"."+stale+" I didn't send, delete, or open any email.";
+}
+
 Deno.serve(async(req:Request)=>{
  if(req.method==="OPTIONS")return new Response(null,{status:204,headers:cors(req)});
  const origin=req.headers.get("origin");
@@ -378,7 +422,7 @@ Deno.serve(async(req:Request)=>{
     replyText="Thanks, that helps. Should I resume this assignment with the team now? Yes or no?";
    }
    if(!replyText){
-    const actual=stage==="idle"?await liveMetaAnswer(db,owner,token,worker,body):null;
+    const actual=stage==="idle"?(await liveGmailAnswer(db,owner,worker,body))||(await liveMetaAnswer(db,owner,token,worker,body)):null;
     if(actual){await state("idle");replyText=actual}
    }
    if(!replyText){
