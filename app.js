@@ -257,7 +257,7 @@ function render(){const isChat=screen==="chat";const title=isChat?(active==="hq"
  const initial=active==="hq"?"HQ":name.slice(0,1).toUpperCase();
  app.innerHTML='<main class="shell ios-chat-shell"><header class="ios-chat-header">'+
  '<button class="ios-back" type="button" data-nav="messages" aria-label="Back to messages">‹ <span>Messages</span></button>'+
- '<div class="ios-contact"><span class="ios-contact-avatar">'+escapeHTML(initial)+'</span><span class="ios-contact-name">'+escapeHTML(name)+
+ '<div class="ios-contact"><span class="ios-contact-avatar" data-rpg-worker="'+escapeHTML(active)+'">'+escapeHTML(initial)+'</span><span class="ios-contact-name">'+escapeHTML(name)+
  '<small>'+escapeHTML(role)+'</small></span></div>'+
  '<button class="ios-refresh" type="button" id="refresh" aria-label="Refresh messages">↻</button>'+
  '</header>'+body+'</main>';
