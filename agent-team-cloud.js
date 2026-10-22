@@ -68,7 +68,14 @@ async function setStatus(assignmentId,status){
   await refresh();
   return data;
 }
-window.agentHQTeamCloud={refresh,create,post,setStatus};
+async function deleteAssignment(id){
+ await signedIn();
+ const {data,error}=await agentCloud.rpc('delete_agent_assignment',{p_assignment_id:id});
+ if(error||data!==true)throw Error(error?.message||'Assignment could not be deleted');
+ await Promise.allSettled([refresh(),window.agentHQCoordCloud?.refresh(),window.agentHQChatCloud?.refresh()]);
+ return true;
+}
+window.agentHQTeamCloud={refresh,create,post,setStatus,deleteAssignment};
 const load=()=>refresh().catch(error=>window.agentHQTeamError?.(error.message));
 agentCloud.auth.onAuthStateChange(()=>setTimeout(load,0));
 window.addEventListener('focus',load);
