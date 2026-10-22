@@ -40,7 +40,7 @@ function renderWorkerPanel(a){
  <button type="button" class="back" data-worker-check="1">↻ Check AI connection</button>
  ${ready?`<p class="notice">Each run sends the assignment and recent team notes to the selected AI provider. Maximum 10 worker steps per hour.</p>
  <div class="worker-actions">${a.employee_ids.map(id=>`<button type="button" class="worker-run" data-worker-run="${escapeHTML(id)}" ${workerBusy?"disabled":""}>▶ ${escapeHTML(staff.find(s=>s[0]===id)?.[2]||id)} — Draft next step</button>`).join("")}</div>`:
- `<p class="notice">To connect, open Supabase → your Agent-HQ project → Edge Functions → Secrets. Add GROQ_API_KEY or OPENROUTER_API_KEY there, not in Agent HQ or GitHub. Usage limits and possible fees depend on your provider.</p>`}
+ `<p class="notice">To connect: Supabase → Authentication → Users → copy your signed-in user UUID. Then Edge Functions → Secrets → add AGENT_HQ_ALLOWED_OWNER_IDS with that UUID, plus GROQ_API_KEY or OPENROUTER_API_KEY. Keep both values out of chats and GitHub. Provider usage limits and charges depend on your account.</p>`}
  <p id="worker-feedback" class="notice" role="status">${escapeHTML(workerBusy?"Worker drafting… please wait.":workerFeedback)}</p>
  ${recent.length?`<h3>Recent worker activity</h3>${recent.map(r=>`<p class="notice">${escapeHTML(staff.find(s=>s[0]===r.employee_id)?.[2]||r.employee_id)}: ${escapeHTML(r.status)} · ${escapeHTML(new Date(r.created_at).toLocaleString())}${r.error_summary?" · "+escapeHTML(r.error_summary):""}</p>`).join("")}`:""}
  </section>`;
