@@ -293,7 +293,31 @@ Deno.serve(async(req:Request)=>{
       pending_assignment_details:isCollect?old:null,
       recent_chat:(recent||[]).reverse().map(x=>({sender:x.sender,body:String(x.body).slice(0,1000)}))
      });
-     if(result.intent==="task"){
+     if(result.intent==="action"){
+      const proposed=validatedAction(result.action);
+      if(!proposed){
+       await state("idle");
+       replyText="I can help arrange that, but I need the exact platform, account, and action first. Which should I prepare?";
+      }else if(proposed.action_kind==="change_ad_budget"&&!/(?:\$\s*\d|\bUSD\s*\d)/i.test(composed)){
+       await state("collecting_task",composed);
+       replyText="What exact daily budget do you want, and which campaign or ad set would it apply to?";
+      }else{
+       const {data:proposal,error:proposalError}=await db.from("agent_action_proposals").insert({
+        owner_id:owner,employee_id:worker,provider:proposed.provider,
+        action_kind:proposed.action_kind,summary:proposed.summary,scope:proposed.scope,
+        execution_status:"not_connected",status:"pending"
+       }).select("id").single();
+       if(proposalError||!proposal)throw Error("Couldn't save the proposed business action");
+       await state("confirm_action","",null,null,proposal.id);
+       replyText="I can prepare this: "+proposed.summary+
+        ". Scope: "+proposed.scope+
+        ". The "+proposed.provider+" integration is not connected yet, so nothing will run. Shall I record your approval for this specific proposal? Yes or no?";
+      }
+     }else if(/\b(?:spent|spend|cpa|roas|ad metrics|campaign performance)\b/i.test(body)&&
+       /\b(?:yesterday|today|last night|this week|campaign|ads?|facebook|meta)\b/i.test(body)){
+      await state("idle");
+      replyText="I don't have live advertising account data, so I can't verify those numbers. To report actual spending and results, we'd need an authorized read-only Meta Ads connection.";
+     }else if(result.intent==="task"){
       await state("confirm_task",composed);
       replyText=result.text.match(/yes or no/i)?result.text:result.text+" Should I start this assignment? Yes or no?";
      }else if(result.intent==="collect"){
