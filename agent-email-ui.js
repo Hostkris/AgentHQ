@@ -47,7 +47,7 @@
  window.agentHQEmailSync=sync;
  window.agentHQEmailError=text=>setFeedback("Could not sync Email Center: "+text);
  function mailCounts(){
-  const n={urgent:0,high:0,medium:0,low:0},drafts=0;
+  const n={urgent:0,high:0,medium:0,low:0};let drafts=0;
   for(const row of emails){
    if(n[row.priority]!==undefined)n[row.priority]++;
    if(row.draft_state==="ready")drafts++;
