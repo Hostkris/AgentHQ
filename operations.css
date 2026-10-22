@@ -1,0 +1,58 @@
+/* Agent HQ Operations — owner-scoped action proposals, not live provider execution */
+.operations-page{display:grid;gap:13px;padding-bottom:20px}
+.operations-page h3{font-size:17px;line-height:1.3;margin:14px 0 0}
+.operations-intro{padding:18px 17px 16px;border-radius:20px;background:rgba(255,255,255,.78);
+ border:1px solid rgba(255,255,255,.65);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.operations-intro h2{font-size:20px;margin:0 0 7px}
+.operations-intro p{font-size:13px;line-height:1.55;color:#4b5661;margin:0}
+.operations-examples{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.operations-example{display:flex;min-height:135px;flex-direction:column;gap:7px;align-items:flex-start;text-align:left;
+ padding:14px;border-radius:18px;background:rgba(255,255,255,.77);border:1px solid rgba(180,186,196,.32);
+ color:#182c42;box-shadow:0 5px 15px rgba(22,31,39,.06);cursor:pointer}
+.operations-example>span{font-size:26px}
+.operations-example strong{font-size:13px;line-height:1.35}
+.operations-example small{font-size:11px;color:#53708b;margin-top:auto}
+.operations-example:focus-visible,.operations-open-chat:focus-visible{outline:3px solid #1681b6;outline-offset:2px}
+.operations-connection,.operations-proposal{border-radius:18px;padding:16px;
+ background:rgba(255,255,255,.8);border:1px solid rgba(160,169,182,.26)}
+.operations-connection h3{margin:0 0 5px}
+.operations-connection p{font-size:12px;line-height:1.55;margin:0 0 12px;color:#576270}
+.operations-services{display:grid;gap:8px}
+.operations-services span{display:flex;align-items:center;justify-content:space-between;gap:8px;
+ font-size:12px;border-bottom:1px solid rgba(130,142,150,.17);padding-bottom:7px}
+.operations-services em{font-style:normal;color:#7c5665;font-size:11px;white-space:nowrap}
+.operations-caption{font-size:11px;margin:0;opacity:.68}
+.operations-proposal{display:grid;gap:8px;overflow-wrap:anywhere}
+.operations-proposal-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.operations-proposal-head strong{font-size:14px}
+.operations-status{font-size:10px;padding:6px 9px;border-radius:100px;background:#eee;color:#544a35;white-space:nowrap}
+.operations-approved{background:#e4f1e8;color:#28523b}
+.operations-denied{background:#f5e8e8;color:#783d42}
+.operations-proposal>p{font-size:13px;line-height:1.5;margin:0}
+.operations-scope{font-size:12px;line-height:1.5}
+.operations-proposal>small{color:#617080;font-size:10px}
+.operations-proposal .operations-blocked{padding:9px 11px;background:rgba(146,123,56,.09);border-radius:10px;font-size:11px;color:#62502d}
+.operations-open-chat{background:#195f7f;color:#fff;border:0;border-radius:12px;padding:12px;font-weight:650;min-height:42px}
+.operations-empty{font-size:13px;line-height:1.55;padding:17px;border-radius:17px;background:rgba(255,255,255,.7)}
+@media(prefers-color-scheme:dark){
+ :root:not([data-theme-mode=light]) .operations-intro,
+ :root:not([data-theme-mode=light]) .operations-example,
+ :root:not([data-theme-mode=light]) .operations-connection,
+ :root:not([data-theme-mode=light]) .operations-proposal,
+ :root:not([data-theme-mode=light]) .operations-empty{background:rgba(38,43,51,.86);color:#f5f6fa;border-color:rgba(184,192,205,.16)}
+ :root:not([data-theme-mode=light]) .operations-intro p,
+ :root:not([data-theme-mode=light]) .operations-connection p,
+ :root:not([data-theme-mode=light]) .operations-example small{color:#cad3df}
+ :root:not([data-theme-mode=light]) .operations-proposal>small{color:#bfcad8}
+ :root:not([data-theme-mode=light]) .operations-services em{color:#ffb9bf}
+ :root:not([data-theme-mode=light]) .operations-proposal .operations-blocked{color:#ffe0b7;background:rgba(170,130,65,.2)}
+}
+:root[data-theme-mode=dark] .operations-intro,:root[data-theme-mode=dark] .operations-example,
+:root[data-theme-mode=dark] .operations-connection,:root[data-theme-mode=dark] .operations-proposal,
+:root[data-theme-mode=dark] .operations-empty{background:rgba(38,43,51,.86);color:#f5f6fa;border-color:rgba(184,192,205,.16)}
+:root[data-theme-mode=dark] .operations-intro p,:root[data-theme-mode=dark] .operations-connection p,
+:root[data-theme-mode=dark] .operations-example small{color:#cad3df}
+:root[data-theme-mode=dark] .operations-proposal>small{color:#bfcad8}
+:root[data-theme-mode=dark] .operations-services em{color:#ffb9bf}
+:root[data-theme-mode=dark] .operations-proposal .operations-blocked{color:#ffe0b7;background:rgba(170,130,65,.2)}
+@media(min-width:600px){.operations-examples{grid-template-columns:repeat(4,minmax(0,1fr))}}
