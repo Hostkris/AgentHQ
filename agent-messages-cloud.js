@@ -21,7 +21,7 @@ async function refresh() {
   if(generation!==syncGeneration)return;
   if(messageError)throw Error(messageError.message);
   const mapping=new Map(valid.map(x=>[x.id,x.employee_id]));
-  window.agentHQSyncMessages?.((items||[]).reverse().map(x=>({id:x.id,employeeId:mapping.get(x.conversation_id),sender:x.sender,text:x.body})).filter(x=>x.employeeId),'Text messages saved in Agent HQ.');
+  window.agentHQSyncMessages?.((items||[]).reverse().map(x=>({id:x.id,employeeId:mapping.get(x.conversation_id),sender:x.sender,text:x.body,createdAt:x.created_at})).filter(x=>x.employeeId),'Text messages saved in Agent HQ.');
 }
 async function send(employeeId,body) {
   if(!employees.has(employeeId))throw Error('Invalid employee.');
@@ -37,7 +37,31 @@ async function send(employeeId,body) {
   if(!id)throw Error('The server did not confirm the saved message.');
   return {id,employeeId,text:body,sender:'owner'};
 }
-window.agentHQChatCloud={refresh,send};
+async function converse(employeeId,body){
+ if(!employees.has(employeeId))throw Error('Unknown employee');
+ body=String(body||'').trim();
+ if(!body||body.length>10000)throw Error('Message must be 1–10,000 characters.');
+ await getUser();
+ const {data,error}=await agentCloud.functions.invoke('agent-hq-converse',{
+  body:{employee_id:employeeId,text:body}
+ });
+ if(error){
+  let reason=data?.error;
+  if(!reason&&error.context?.clone){try{reason=(await error.context.clone().json())?.error}catch{}}
+  throw Error(reason||error.message||'Worker chat is unavailable.');
+ }
+ if(!data?.success)throw Error(data?.error||'The worker chat was not confirmed.');
+ await refresh();
+ return data;
+}
+async function deleteMessage(messageId){
+ await getUser();
+ const {data,error}=await agentCloud.rpc('delete_agent_chat_message',{p_message_id:messageId});
+ if(error||data!==true)throw Error(error?.message||'Message could not be deleted');
+ await refresh();
+ return true;
+}
+window.agentHQChatCloud={refresh,send,converse,deleteMessage};
 const load=()=>refresh().catch(error=>window.agentHQChatCloudNotice?.('Message sync failed: '+error.message));
 agentCloud.auth.onAuthStateChange(()=>setTimeout(load,0));
 window.addEventListener('focus',load);
