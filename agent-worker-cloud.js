@@ -1,8 +1,7 @@
 // Agent HQ manual worker steps. Secrets stay in Supabase, never in the browser.
 import { agentCloud } from './agent-cloud-auth.js';
-let generation=0;
-let connectionFingerprint='';
 let runsFingerprint='';
+let statusPromise=null;
 
 async function getUser() {
  const {data,error}=await agentCloud.auth.getUser();
@@ -11,30 +10,48 @@ async function getUser() {
  return data.user;
 }
 
-async function status() {
- const serial=++generation;
+// Always deliver a result, even when unchanged from the previous check.
+async function getFunctionError(error) {
+ let message=error?.message||'The worker endpoint could not be reached.';
+ const response=error?.context;
+ if(response && typeof response.clone==='function'){
+  try{
+   const payload=await response.clone().json();
+   if(typeof payload?.error==='string')message=payload.error;
+   else if(typeof payload?.message==='string')message=payload.message;
+  }catch{}
+ }
+ return message;
+}
+async function requestStatus(){
  try {
   await getUser();
-  const {data,error}=await agentCloud.functions.invoke('agent-hq-worker',{body:{action:'status'}});
-  if(serial!==generation)return;
-  if(error)throw new Error(error.message||'Worker endpoint unavailable');
-  if(!data||typeof data.ready!=='boolean')throw new Error('Worker endpoint did not confirm readiness');
-  const fingerprint=JSON.stringify(data);
-  if(fingerprint!==connectionFingerprint){
-   connectionFingerprint=fingerprint;
-   window.agentHQWorkerConnection?.(data);
-  }
+  const request=agentCloud.functions.invoke('agent-hq-worker',{body:{action:'status'}});
+  let timeoutId;
+  let output;
+  try{
+   output=await Promise.race([
+    request,
+    new Promise((_,reject)=>{
+     timeoutId=setTimeout(()=>reject(new Error('The AI connection check took too long (15 seconds). Check your internet and tap Check again.')),15000);
+    })
+   ]);
+  }finally{clearTimeout(timeoutId)}
+  const {data,error}=output;
+  if(error)throw new Error(await getFunctionError(error));
+  if(!data||typeof data.ready!=='boolean')throw new Error('Supabase did not return an AI connection status. Refresh and try again.');
+  window.agentHQWorkerConnection?.(data);
   return data;
- } catch(error) {
-  if(serial!==generation)return;
-  const payload={ready:false,message:error.message,provider:null,model:null};
-  const fingerprint=JSON.stringify(payload);
-  if(connectionFingerprint!==fingerprint){
-    connectionFingerprint=fingerprint;
-    window.agentHQWorkerConnection?.(payload);
-  }
+ }catch(error){
+  const payload={ready:false,provider:null,model:null,step:'error',message:error?.message||'Unknown connection error'};
+  window.agentHQWorkerConnection?.(payload);
   return payload;
  }
+}
+async function status(){
+ if(statusPromise)return statusPromise;
+ statusPromise=requestStatus();
+ try{return await statusPromise}finally{statusPromise=null}
 }
 
 async function runs() {
