@@ -326,7 +326,7 @@ function renderOffice(){
   const sending=customHandoff?.source_bot_id===bot.id,receiving=customHandoff?.target_bot_id===bot.id;
   return '<div class="office-station '+(sending||receiving?"office-handoff":"office-idle")+' office-custom"><div class="office-emoji-bubble" aria-label="'+(sending?"Handing off":receiving?"Receiving paperwork":"Chat ready")+'">'+(sending?"📄➡️":receiving?"🤝📄":"💬")+'</div>'+
   '<button type="button" class="office-employee" data-studio-worker="'+escapeHTML(bot.id)+'" aria-label="Message custom worker '+escapeHTML(bot.name)+'">'+
-  '<span class="office-sprite studio-office-sprite">'+escapeHTML(bot.avatar_emoji)+'</span><strong>'+escapeHTML(bot.name)+'</strong></button>'+
+  '<span class="office-sprite studio-office-sprite" data-rpg-worker="'+escapeHTML(bot.id)+'"></span><strong>'+escapeHTML(bot.name)+'</strong></button>'+
   '<div class="office-workstation"><span class="office-screen"><span></span></span><span class="office-chair"></span></div>'+
   '<span class="office-status">'+(sending?"Handing off":receiving?"Receiving":"Chat ready")+'</span></div>';
  }).join("");
@@ -486,7 +486,7 @@ function render(){const isChat=screen==="chat";const title=isChat?(active==="hq"
  const staffRows=shown.map(x=>`<button class="row" data-chat="${x[0]}"><span class="avatar">${x[1]}</span><span><strong>${x[2]}</strong><small>${escapeHTML(x[3])}${inbox?getConversationPreview(x[0]):""}</small></span></button>`).join("");
  const customRows=studioBots.filter(b=>b.status==="active"&&
    (!inbox||studioMessaged.has(b.id))&&[b.name,b.role].join(" ").toLowerCase().includes(q.toLowerCase()))
-  .map(b=>'<button class="row" data-studio-worker="'+escapeHTML(b.id)+'"><span class="avatar studio-contact-avatar">'+escapeHTML(b.avatar_emoji)+'</span>'+
+  .map(b=>'<button class="row" data-studio-worker="'+escapeHTML(b.id)+'"><span class="avatar studio-contact-avatar" data-rpg-worker="'+escapeHTML(b.id)+'"></span>'+
    '<span><strong>'+escapeHTML(b.name)+'</strong><small>'+escapeHTML(b.role)+'</small></span></button>').join("");
  document.querySelector("#contact-list").innerHTML=headquarters+staffRows+customRows||(inbox?'<p class="muted">No individual conversations yet. Start one from Contacts.</p>':'<p class="muted">No employees match that search.</p>');
  };show();document.querySelector("#search").addEventListener("input",e=>show(e.target.value));
