@@ -192,10 +192,10 @@ function renderIPhoneChat(){
    return label+'<div class="ios-message-row incoming"><div class="ios-message-bubble theirs">'+escapeHTML(message)+'</div></div>';
   }
   const mine=item.sender==="owner",system=item.sender==="system";
-  return label+'<div class="ios-message-row '+(mine?"outgoing":"incoming")+'"><div class="ios-message-bubble '+(mine?"mine":"theirs")+'">'+
+  return label+'<div class="ios-message-row '+(mine?"outgoing":"incoming")+'"><div class="ios-message-bubble '+(mine?"mine":"theirs")+(item.pending?" sending":"")+'">'+
     (system?'<span class="ios-message-source">Team handoff</span>':"")+
     '<span class="ios-message-text">'+escapeHTML(item.text||"")+'</span>'+
-    (item.id?'<button type="button" class="ios-message-delete" data-delete-message="'+escapeHTML(item.id)+'" aria-label="Delete message" title="Delete message">×</button>':"")+
+    (item.id&&!item.pending?'<button type="button" class="ios-message-delete" data-delete-message="'+escapeHTML(item.id)+'" aria-label="Delete message" title="Delete message">×</button>':"")+
     '</div></div>';
  }).join("");
  const status=sendFeedback.get(active)||"";
@@ -291,13 +291,17 @@ if(screen==="research"){document.querySelector("#research-form").addEventListene
   if(sendingAgents.has(worker))return;
   if(!value){field.focus();return}
   sendingAgents.add(worker);
-  const button=form.querySelector("#send-message");
-  button.disabled=true;
-  sendFeedback.set(worker,"");
+  const optimisticId="pending-"+Date.now();
+  const previous=messages.get(worker)||[];
+  messages.set(worker,[...previous,{id:optimisticId,type:"text",text:value,sender:"owner",createdAt:new Date().toISOString(),pending:true}]);
+  drafts.set(worker,"");
+  sendFeedback.delete(worker);
+  if(screen==="chat"&&active===worker)render();
   try{
    if(!window.agentHQChatCloud?.converse)throw Error("Conversation service is loading. Please refresh Agent HQ.");
    const result=await window.agentHQChatCloud.converse(worker,value);
    drafts.set(worker,"");
+   messages.set(worker,(messages.get(worker)||[]).filter(msg=>msg.id!==optimisticId));
    sendFeedback.delete(worker);
    if(result.start_assignment_id||result.resume_assignment_id){
     const id=result.start_assignment_id||result.resume_assignment_id;
@@ -308,8 +312,9 @@ if(screen==="research"){document.querySelector("#research-form").addEventListene
    }
    await Promise.allSettled([window.agentHQTeamCloud?.refresh(),window.agentHQCoordCloud?.refresh(),window.agentHQCloudApprovals?.refresh()]);
   }catch(error){
-   sendFeedback.set(worker,"Message not sent: "+error.message);
-   // Preserve the draft if the message couldn't be submitted.
+   messages.set(worker,(messages.get(worker)||[]).filter(msg=>msg.id!==optimisticId));
+   drafts.set(worker,value);
+   sendFeedback.set(worker,"Could not confirm sending: "+error.message+". Your text is kept; check the thread before sending it again.");
   }finally{
    sendingAgents.delete(worker);
    if(active===worker&&screen==="chat")render();
