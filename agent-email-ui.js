@@ -237,10 +237,12 @@
   const field=event.target.closest("[data-email-draft]");
   if(!field)return;
   modified.set(field.dataset.emailDraft,field.value);
-  // Keep typing uninterrupted; update controls only on blur to avoid rerendering the textarea.
- });
- app.addEventListener("focusout",event=>{
-  if(event.target.closest("[data-email-draft]"))show();
+  // Never replace the focused textarea: doing so can swallow the Save button tap in iOS Safari.
+  const details=field.closest(".email-detail");
+  const send=details?.querySelector('[data-email-action="send"]');
+  if(send)send.disabled=true;
+  const hint=details?.querySelector(".email-safety");
+  if(hint)hint.textContent="Unsaved changes. Tap Save draft before sending. Nothing sends automatically.";
  });
  app.addEventListener("change",async event=>{
   const select=event.target.closest("[data-email-priority]");
