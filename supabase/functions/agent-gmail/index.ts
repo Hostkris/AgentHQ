@@ -122,9 +122,10 @@ async function callback(req:Request){
   const profile=await googleGet("profile",grant.access_token);
   const address=String(profile.emailAddress||"").toLowerCase();
   if(!emailAddress(address))return redirect("error");
+  const previouslyConnected=await getConnection(db,owner);
   let fresh=String(grant.refresh_token||"");
   if(!fresh){
-   const existing=await getConnection(db,owner);
+   const existing=previouslyConnected;
    if(existing?.gmail_address===address&&existing.encrypted_refresh_token)
     fresh=await decrypt(existing.encrypted_refresh_token,existing.refresh_iv);
   }
@@ -140,7 +141,8 @@ async function callback(req:Request){
   },{onConflict:"owner_id"});
   if(error)throw Error("Could not securely store the Google connection");
   // Keep inboxes separate if the signed-in owner switches Gmail accounts.
-  await db.from("agent_email_items").delete().eq("owner_id",owner);
+  if(previouslyConnected?.gmail_address&&previouslyConnected.gmail_address!==address)
+   await db.from("agent_email_items").delete().eq("owner_id",owner);
   return redirect("connected");
  }catch{return redirect("error")}
 }
