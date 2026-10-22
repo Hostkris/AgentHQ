@@ -13,3 +13,11 @@ textarea.form-field{min-height:88px;resize:vertical}
 .team-related{margin:22px 0;padding:12px 0;border-top:1px solid #ddd}
 .card p{white-space:pre-wrap;overflow-wrap:anywhere}
 @media(prefers-color-scheme:dark){.form-field{border-color:#666;background:#2c2c2e;color:#fff}.team-message{background:#3a3a3c;color:#fff}.team-message-mine{background:#243f65}.team-message small{color:#ccc}}
+
+/* Agent HQ manual AI worker desk */
+.worker-actions{display:grid;grid-template-columns:1fr;gap:9px;margin:14px 0}
+.worker-run{display:block;width:100%;padding:13px 14px;border-radius:14px;text-align:left;background:#d9eaff;color:#163c68;border:1px solid #a7c9ee;font-weight:600}
+.worker-run:disabled{opacity:.55;cursor:wait}
+.worker-run:focus-visible{outline:3px solid #007aff;outline-offset:2px}
+#worker-feedback{min-height:1.3rem;white-space:pre-wrap;overflow-wrap:anywhere}
+@media(prefers-color-scheme:dark){.worker-run{background:#203954;color:#eef6ff;border-color:#517ea6}}
