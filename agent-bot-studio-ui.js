@@ -213,5 +213,7 @@
  });
  observer.observe(app,{childList:true,subtree:false});
  window.agentHQBotStudioUIRefresh=draw;
+ const existing=window.agentHQBotStudioSnapshot;
+ if(existing)sync(existing.rows||[],existing.notice||"",existing.messaged||[]);
  draw();
 })();
