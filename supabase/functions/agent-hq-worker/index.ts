@@ -48,6 +48,8 @@ Deno.serve(async(req:Request)=>{
  const {data:auth,error:authError}=await admin.auth.getUser(token);
  if(authError||!auth.user)return reply(req,{error:"Session expired. Sign in again."},401);
  const ownerId=auth.user.id;
+ const allowedOwners=env("AGENT_HQ_ALLOWED_OWNER_IDS").split(",").map(v=>v.trim().toLowerCase()).filter(Boolean);
+ const ownerAllowed=allowedOwners.includes(ownerId.toLowerCase());
  let input:Record<string,unknown>;
  try{
    const parsed=await req.json();
@@ -56,11 +58,16 @@ Deno.serve(async(req:Request)=>{
  }catch{return reply(req,{error:"Invalid request"},400)}
  const ai=provider();
  if(input.action==="status")return reply(req,{
-    ready:Boolean(ai),provider:ai?.name||null,model:ai?.model||null,
-    message:ai?"Manual AI worker steps are available. No external sites or private accounts can be accessed.":
-      "Connect GROQ_API_KEY or OPENROUTER_API_KEY in Supabase Edge Function secrets to enable manual AI worker steps."
+    ready:Boolean(ai)&&ownerAllowed,
+    provider:ownerAllowed?(ai?.name||null):null,
+    model:ownerAllowed?(ai?.model||null):null,
+    message:!allowedOwners.length?"Set AGENT_HQ_ALLOWED_OWNER_IDS to your Supabase Authentication user ID in Edge Function secrets. Worker access is blocked until then.":
+      !ownerAllowed?"This signed-in account is not authorized to run AI workers. Check AGENT_HQ_ALLOWED_OWNER_IDS.":
+      !ai?"Connect GROQ_API_KEY or OPENROUTER_API_KEY in Supabase Edge Function secrets to enable manual AI worker steps.":
+      "Manual AI worker steps are available. No external sites or private accounts can be accessed."
  });
  if(input.action!=="run")return reply(req,{error:"Unsupported worker action"},400);
+ if(!ownerAllowed)return reply(req,{error:"This account has not been authorized for AI usage. Set AGENT_HQ_ALLOWED_OWNER_IDS in the Supabase function secrets."},403);
  if(!ai)return reply(req,{error:"An AI provider is not connected yet. Add a server-side API key under Supabase Edge Function secrets; never put it in Agent HQ or GitHub."},503);
  const assignmentId=typeof input.assignment_id==="string"?input.assignment_id:"";
  const employeeId=typeof input.employee_id==="string"?input.employee_id:"";
