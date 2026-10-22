@@ -127,11 +127,18 @@
      '<span class="studio-chat-face">'+E(bot.avatar_emoji)+'</span><div><strong>'+E(bot.name)+'</strong><small>'+E(bot.role)+'</small></div></header>'+
      '<div class="studio-chat-bubbles">'+
      (!history.length?'<div class="studio-chat-tip">'+E(bot.starting_message||"What can I help you with?")+'</div>':
-      history.map(m=>'<div class="studio-chat-row '+(m.sender==="owner"?"mine":"theirs")+'"><div class="studio-chat-bubble">'+
+      history.map(m=>'<div class="studio-chat-row '+(m.sender==="owner"?"mine":"theirs")+(m.sender==="handoff"?" handoff":"")+'"><div class="studio-chat-bubble">'+
        E(m.body)+'</div></div>').join(""))+
      (busy?'<div class="studio-chat-row theirs"><div class="studio-typing">● ● ●</div></div>':"")+
      '</div><form class="studio-chat-composer" id="studio-message-form"><textarea name="message" maxlength="4500" rows="2" placeholder="Text '+E(bot.name)+'…"'+(busy?" disabled":"")+'></textarea>'+
      '<button type="submit" class="studio-primary"'+(busy?" disabled":"")+'>Send</button></form>'+
+     (bots.filter(b=>b.status==="active"&&b.id!==bot.id).length?
+       '<details class="studio-handoff-box"><summary>📄➡️🤝 Pass paperwork to another worker</summary>'+
+       '<form id="studio-handoff-form"><label>Send to<select name="target" required>'+
+       bots.filter(b=>b.status==="active"&&b.id!==bot.id).map(b=>'<option value="'+E(b.id)+'">'+E(b.name)+" — "+E(b.role)+'</option>').join("")+
+       '</select></label><label>What should they handle?<textarea name="reason" required minlength="10" maxlength="900" rows="3" placeholder="Explain the next step for the other specialist."></textarea></label>'+
+       '<button type="submit" class="studio-primary"'+(busy?" disabled":"")+'>Approve written handoff</button>'+
+       '<p class="studio-warning">A brief will be generated from this conversation and saved to both coworkers. It does not start an outside task.</p></form></details>':"")+
      '<p class="studio-warning">This custom worker can chat and draft only. It does not run background tasks, browse or access your accounts.</p></section>';
   }
   return html+'<p class="studio-feedback" role="status">'+E(feedback)+'</p>';
@@ -186,6 +193,23 @@
   if(chat){selected=chat.dataset.studioChat;setTab("chat");loadChat(selected)}
  });
  app.addEventListener("submit",async event=>{
+  if(event.target.matches("#studio-handoff-form")){
+   event.preventDefault();
+   const form=event.target;
+   const to=form.elements.namedItem("target")?.value;
+   const reason=form.elements.namedItem("reason")?.value?.trim();
+   const other=bots.find(b=>b.id===to&&b.status==="active");
+   if(!selected||!other||!reason)return;
+   if(!window.confirm("Approve sending written task context from "+(selectedBot()?.name||"this worker")+
+      " to "+other.name+"? This will save a handoff in both conversations, but it will not start any external action."))return;
+   const from=selected;
+   await guarded(async()=>{
+    const result=await cloud().handoff(from,to,reason);
+    chats.set(from,await cloud().history(from));
+    feedback=result.message||"Written handoff saved and delivered.";
+   });
+   return;
+  }
   if(event.target.matches("#studio-design-form")){
    event.preventDefault();collect();
    await guarded(async()=>{
