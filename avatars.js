@@ -13,7 +13,10 @@ const people=[
 ["#31251f","#c4875e","#a45e6c","#287d7c","curly","none"]
 ];
 function image(id){
- const index=Math.max(0,ids.indexOf(id)),p=people[index];
+ const known=ids.indexOf(id);
+ const key=String(id||"");
+ let hash=0;for(const code of key){hash=(hash*33+code.codePointAt(0))>>>0}
+ const index=known>=0?known:hash%people.length,p=people[index];
  const [hair,skin,shirt,background,style,detail]=p;
  const r=(x,y,w,h,color)=>'<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" fill="'+color+'"/>';
  let pixels=r(0,0,24,24,background)+r(1,1,22,22,"#ffffff16")+
@@ -42,7 +45,7 @@ function update(){
  });
  document.querySelectorAll("[data-rpg-worker]").forEach(el=>{
   const id=el.dataset.rpgWorker;
-  if(ids.includes(id)&&!el.querySelector(".rpg-portrait-svg"))el.innerHTML=image(id);
+  if((ids.includes(id)||/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(id))&&!el.querySelector(".rpg-portrait-svg"))el.innerHTML=image(id);
  });
 }
 const root=document.getElementById("app");
