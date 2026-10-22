@@ -424,6 +424,16 @@ if(screen==="research"){document.querySelector("#research-form").addEventListene
  const scroll=document.querySelector("#chat-scroll");
  if(scroll)scroll.scrollTop=scroll.scrollHeight;
 }}app.addEventListener("click",async e=>{
+ const operationShortcut=e.target.closest("[data-op-prompt]");
+ if(operationShortcut){
+  const employee=operationShortcut.dataset.opWorker;
+  if(!staff.some(worker=>worker[0]===employee))return;
+  active=employee;
+  drafts.set(employee,operationShortcut.dataset.opPrompt||"");
+  screen="chat";render();
+  return;
+ }
+
  const messageDelete=e.target.closest("[data-delete-message]");
  if(messageDelete){
   const id=messageDelete.dataset.deleteMessage;
