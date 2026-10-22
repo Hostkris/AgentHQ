@@ -65,7 +65,9 @@ async function archive(id){const r=await invoke('archive',{bot_id:id});await ref
 async function remove(id){const r=await invoke('delete',{bot_id:id});await refresh();return r}
 async function send(id,message){
  const result=await invoke('chat',{bot_id:id,message});
- return {result,history:await history(id)};
+ const transcript=await history(id);
+ await refresh();
+ return {result,history:transcript};
 }
 window.agentHQBotStudioCloud={refresh,history,design,save,activate,archive,remove,send};
 const background=()=>refresh().catch(error=>window.agentHQBotStudioError?.(error.message));
