@@ -21,3 +21,43 @@ textarea.form-field{min-height:88px;resize:vertical}
 .worker-run:focus-visible{outline:3px solid #007aff;outline-offset:2px}
 #worker-feedback{min-height:1.3rem;white-space:pre-wrap;overflow-wrap:anywhere}
 @media(prefers-color-scheme:dark){.worker-run{background:#203954;color:#eef6ff;border-color:#517ea6}}
+
+/* Agent HQ Phase 6 — worker handoffs, questions and task progress */
+.composer{flex-wrap:wrap}
+.composer #draft{min-width:0;flex:1 1 calc(100% - 66px)}
+.chat-actions{display:flex;gap:10px;width:100%;justify-content:flex-end}
+.chat-actions .primary{flex:1 1 0;min-height:44px;font-weight:600}
+.chat-actions .assign-task-button{background:#165c70;color:#fff}
+.chat-actions button:disabled{opacity:.55}
+.assignment-progress{width:100%;margin:10px 0 12px}
+.progress-meta{display:flex;justify-content:space-between;gap:12px;align-items:center;font-size:12px;line-height:1.5}
+.progress-meta strong{white-space:nowrap}
+.progress-track{width:100%;height:9px;border-radius:999px;overflow:hidden;background:#d6dce3;margin-top:6px}
+.progress-fill{height:100%;background:#157fac;border-radius:999px;transition:width .25s ease}
+.task-row>span:last-child{flex:1;min-width:0;overflow-wrap:anywhere}
+.coordination-panel{overflow-wrap:anywhere}
+.coordination-panel>.primary{display:block;width:100%;margin:14px 0;min-height:46px}
+.handoff-steps{padding-left:22px;display:grid;gap:12px;margin-top:18px}
+.handoff-step{border-left:3px solid #13819b;padding:9px 12px;border-radius:10px;background:rgba(44,145,168,.09)}
+.handoff-step strong,.handoff-step small{display:block}
+.handoff-step small{color:#586477;margin-top:4px}
+.handoff-step p{white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0}
+.handoff-step summary{cursor:pointer;font-weight:650}
+.task-questions{margin:18px 0}
+.task-question{overflow-wrap:anywhere}
+.task-question textarea{display:block;width:100%;min-height:96px;margin:10px 0;max-height:none;border-radius:12px;padding:12px}
+.task-question button.primary{width:100%;min-height:44px}
+@media(prefers-color-scheme:dark){
+ :root:not([data-theme-mode=light]) .handoff-step{background:#283841;color:#f4f7fa}
+ :root:not([data-theme-mode=light]) .handoff-step small{color:#c5d4e4}
+ :root:not([data-theme-mode=light]) .progress-track{background:#3e4857}
+ :root:not([data-theme-mode=light]) .chat-actions .assign-task-button{background:#1b7b96;color:#fff}
+}
+:root[data-theme-mode=dark] .handoff-step{background:#283841;color:#f4f7fa}
+:root[data-theme-mode=dark] .handoff-step small{color:#c5d4e4}
+:root[data-theme-mode=dark] .progress-track{background:#3e4857}
+:root[data-theme-mode=dark] .chat-actions .assign-task-button{background:#1b7b96;color:#fff}
+:root[data-theme-mode=light] .handoff-step{background:rgba(44,145,168,.09);color:#1d1d1f}
+:root[data-theme-mode=light] .handoff-step small{color:#586477}
+:root[data-theme-mode=light] .progress-track{background:#d6dce3}
+:root[data-theme-mode=light] .chat-actions .assign-task-button{background:#165c70;color:#fff}
