@@ -260,6 +260,7 @@ function renderOffice(){
  return '<section class="office-screen-page"><div class="office-banner"><div><strong>Office floor</strong><p>Live assignment status · tap a person to message</p></div>'+
  '<button type="button" class="back" data-nav="assignments">Assignments ↗</button></div>'+
  '<div class="office-summary"><span>✍️ '+working+' drafting</span><span>❓ '+waiting+' waiting</span><span>👥 '+staff.length+' staff</span></div>'+
+ (handoff?'<div class="office-handoff-banner" role="status"><span class="handoff-paper">📄➡️🤝</span><span>'+escapeHTML(workerLabel(handoff.from))+' → '+escapeHTML(workerLabel(handoff.to))+'<small>'+escapeHTML(handoff.step)+'</small></span></div>':"")+
  '<div class="office-floor">'+people+'</div>'+
  '<p class="office-legend">✍️ Drafting · 📋 Assigned · ❓ Needs you · 🔐 Permission · ✅ Done · ☕ Available</p>'+
  '<p class="notice">Bubbles reflect saved assignment activity. Available workers are not running tasks in the background.</p></section>';
