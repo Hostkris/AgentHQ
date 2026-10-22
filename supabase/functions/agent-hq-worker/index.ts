@@ -57,15 +57,40 @@ Deno.serve(async(req:Request)=>{
    input=parsed as Record<string,unknown>;
  }catch{return reply(req,{error:"Invalid request"},400)}
  const ai=provider();
- if(input.action==="status")return reply(req,{
-    ready:Boolean(ai)&&ownerAllowed,
-    provider:ownerAllowed?(ai?.name||null):null,
-    model:ownerAllowed?(ai?.model||null):null,
-    message:!allowedOwners.length?"Set AGENT_HQ_ALLOWED_OWNER_IDS to your Supabase Authentication user ID in Edge Function secrets. Worker access is blocked until then.":
-      !ownerAllowed?"This signed-in account is not authorized to run AI workers. Check AGENT_HQ_ALLOWED_OWNER_IDS.":
-      !ai?"Connect GROQ_API_KEY or OPENROUTER_API_KEY in Supabase Edge Function secrets to enable manual AI worker steps.":
-      "Manual AI worker steps are available. No external sites or private accounts can be accessed."
- });
+ if(input.action==="status"){
+    if(!allowedOwners.length)return reply(req,{ready:false,provider:null,model:null,step:"owner",
+      message:"Missing AGENT_HQ_ALLOWED_OWNER_IDS in this Agent-HQ project's Edge Functions → Secrets. Save your Supabase Authentication User ID as its value."});
+    if(!ownerAllowed)return reply(req,{ready:false,provider:null,model:null,step:"owner",
+      message:"This signed-in Agent HQ account is not allowed. Confirm AGENT_HQ_ALLOWED_OWNER_IDS matches your signed-in Supabase Authentication User ID."});
+    if(!ai)return reply(req,{ready:false,provider:null,model:null,step:"provider",
+      message:"Your account is authorized, but Supabase cannot detect GROQ_API_KEY or OPENROUTER_API_KEY. In Edge Functions → Secrets, confirm GROQ_API_KEY is the secret NAME and your Groq key is the VALUE. Save in the Agent-HQ project."});
+    // Free read-only API-key verification. No completion is generated or billed here.
+    const endpoint=ai.name==="groq"?"https://api.groq.com/openai/v1/models":"https://openrouter.ai/api/v1/key";
+    try{
+      const check=await fetch(endpoint,{
+        method:"GET",headers:{"Authorization":"Bearer "+ai.key,"Accept":"application/json"},
+        signal:AbortSignal.timeout(8000)
+      });
+      if(!check.ok){
+        const invalid=check.status===401||check.status===403;
+        return reply(req,{ready:false,provider:ai.name,model:ai.model,step:"provider",
+          message:invalid?(ai.name==="groq"?"Groq rejected the saved API key. Replace GROQ_API_KEY's VALUE in Edge Functions → Secrets with your Groq key.":"OpenRouter rejected the saved API key. Check OPENROUTER_API_KEY in Edge Functions → Secrets."):
+          check.status===429?"AI provider rate-limited the connection test. Wait a little and tap Check again.":
+          "AI provider's connection test returned HTTP "+check.status+". Check the provider and try again."});
+      }
+      if(ai.name==="groq"){
+        const payload=await check.json();
+        const ids=new Set((payload?.data||[]).map((v:{id?:string})=>v?.id).filter(Boolean));
+        if(!ids.has(ai.model))return reply(req,{ready:false,provider:ai.name,model:ai.model,step:"model",
+          message:"Groq key works, but this model is unavailable on your account: "+ai.model+". Check AGENT_HQ_AI_MODEL in Supabase Secrets, or remove that override to use the default model."});
+      }
+      return reply(req,{ready:true,provider:ai.name,model:ai.model,step:"ready",
+        message:(ai.name==="groq"?"Groq":"OpenRouter")+" API key verified. AI Worker Desk is ready. Create a team assignment, open it, and tap a worker's Draft next step button."});
+    }catch{
+      return reply(req,{ready:false,provider:ai.name,model:ai.model,step:"network",
+        message:"The AI-provider connection test timed out or couldn't be reached. Your key was not verified; tap Check again later."});
+    }
+ }
  if(input.action!=="run")return reply(req,{error:"Unsupported worker action"},400);
  if(!ownerAllowed)return reply(req,{error:"This account has not been authorized for AI usage. Set AGENT_HQ_ALLOWED_OWNER_IDS in the Supabase function secrets."},403);
  if(!ai)return reply(req,{error:"An AI provider is not connected yet. Add a server-side API key under Supabase Edge Function secrets; never put it in Agent HQ or GitHub."},503);
