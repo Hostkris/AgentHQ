@@ -547,7 +547,32 @@ if(screen==="research"){document.querySelector("#research-form").addEventListene
  });
  const scroll=document.querySelector("#chat-scroll");
  if(scroll)scroll.scrollTop=scroll.scrollHeight;
-}}app.addEventListener("click",async e=>{
+}}app.addEventListener("submit",async e=>{
+ const accountForm=e.target.closest?.("#personal-add-form");
+ const accessForm=e.target.closest?.("[data-personal-request]");
+ if(!accountForm&&!accessForm)return;
+ e.preventDefault();
+ if(personalBusy)return;
+ personalBusy=true;
+ try{
+  const cloud=window.agentHQPersonalCloud;
+  if(!cloud)throw Error("Your private account service is loading. Refresh Agent HQ.");
+  if(accountForm){
+   const inputs=accountForm.elements;
+   await cloud.addAccount(inputs.platform.value,inputs.label.value,inputs.handle.value);
+   personalFeedback="Profile label saved. It is not yet connected to the social platform.";
+  }else{
+   const fields=accessForm.elements;
+   const worker=fields.worker.value,scope=fields.scope.value;
+   const account=personalAccounts.find(x=>x.id===accessForm.dataset.personalRequest);
+   if(!account)throw Error("That saved account is not available.");
+   await cloud.requestPermission(account.id,worker,scope,fields.purpose.value);
+   personalFeedback="Permission request prepared. Review it under the account and choose Approve or Deny.";
+  }
+ }catch(error){personalFeedback="Could not save: "+error.message}
+ finally{personalBusy=false;if(screen==="accounts")render()}
+});
+app.addEventListener("click",async e=>{
  const operationShortcut=e.target.closest("[data-op-prompt]");
  if(operationShortcut){
   const employee=operationShortcut.dataset.opWorker;
