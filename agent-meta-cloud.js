@@ -63,12 +63,18 @@ async function report(accountId,period='last_7d'){
  if(data?.source!=='meta_marketing_api_live')throw Error('No verified Meta report was returned');
  return data;
 }
+async function chooseAccount(accountId){
+ if(!/^act_\d+$/.test(accountId))throw Error('Choose an available advertising account');
+ const result=await call('select_account',{account_id:accountId});
+ await refresh();
+ return result;
+}
 async function disconnect(){
  const result=await call('disconnect');
  await refresh();
  return result;
 }
-window.agentHQMetaCloud={refresh,connect,reloadAccounts,report,disconnect};
+window.agentHQMetaCloud={refresh,connect,reloadAccounts,report,chooseAccount,disconnect};
 const auto=()=>refresh().catch(err=>window.agentHQMetaError?.(err.message));
 agentCloud.auth.onAuthStateChange(()=>setTimeout(auto,0));
 window.addEventListener('focus',auto);
