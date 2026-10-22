@@ -406,19 +406,19 @@ function renderOperations(){
  const actionNames={read_metrics:"Account reporting",change_ad_budget:"Advertising budget",create_content:"Content draft",
  publish_content:"Publishing",reply_to_comment:"Community response",create_automation:"Automation setup",send_email:"Email delivery",other:"Outside action"};
  const guides=[
-  {worker:"avery",example:"What did we spend yesterday on Meta Ads?",title:"Review ad spending",icon:"📊"},
+  {worker:"avery",example:"What did I spend yesterday on my Meta Ads account?",title:"Review ad spending",icon:"📊"},
   {worker:"alex",example:"Prepare to change our Hook 7 ad set daily budget to $600. Ask my approval first.",title:"Propose a budget change",icon:"💰"},
-  {worker:"casey",example:"Prepare captions for Instagram and TikTok. Ask approval before publishing.",title:"Social media publishing",icon:"📱"},
-  {worker:"jamie",example:"Help me plan a Manychat automation to answer common customer questions.",title:"Customer automation",icon:"🤖"}
+  {worker:"casey",example:"Draft captions for my personal Instagram and TikTok accounts. Do not publish.",title:"Personal social posts",icon:"📱"},
+  {worker:"jamie",example:"Help me plan content for my personal social accounts.",title:"Personal content planning",icon:"🤖"}
  ];
  return '<section class="operations-page">'+
- '<div class="operations-intro"><h2>Run business tasks by conversation</h2><p>Ask an AI coworker what needs doing. They can draft a plan and request your approval, but external accounts are not connected yet.</p></div>'+
+ '<div class="operations-intro"><h2>Manage your own projects by conversation</h2><p>Your AI coworkers can help with personal posts, projects and your own advertising. External accounts require your authorization and individual worker permissions.</p></div>'+
  '<h3>Try a request</h3><div class="operations-examples">'+guides.map(g=>
   '<button type="button" class="operations-example" data-op-prompt="'+escapeHTML(g.example)+'" data-op-worker="'+g.worker+'"><span>'+g.icon+'</span><strong>'+escapeHTML(g.title)+'</strong><small>Ask '+escapeHTML(staff.find(v=>v[0]===g.worker)?.[2]||g.worker)+' →</small></button>'
  ).join("")+'</div>'+
- '<div class="operations-connection"><h3>Account connections</h3><p>Groq handles AI text responses. The live business accounts shown in the reference video require separate, owner-approved OAuth connections.</p>'+
- '<div class="operations-services"><span>Meta Ads <em>Not connected</em></span><span>Instagram & Facebook <em>Not connected</em></span><span>TikTok <em>Not connected</em></span><span>Manychat <em>Not connected</em></span><span>Business email <em>Not connected</em></span></div></div>'+
- '<h3>Proposed actions</h3><p class="operations-caption">'+escapeHTML(businessActionsNotice)+'</p>'+
+ '<div class="operations-connection"><h3>My account connections</h3><p>Groq handles AI conversations and drafts. You choose which personal accounts to connect and which workers may work with them. No social platform sign-ins are connected yet.</p><button type="button" class="operations-open-chat" data-nav="accounts">Manage my profiles and worker permissions ↗</button>'+
+ '<div class="operations-services"><span>Meta Ads <em>Not connected</em></span><span>Instagram & Facebook <em>Not connected</em></span><span>TikTok <em>Not connected</em></span><span>Manychat <em>Not connected</em></span><span>Email <em>Not connected</em></span></div></div>'+
+ '<h3>Requests waiting for my approval</h3><p class="operations-caption">'+escapeHTML(businessActionsNotice)+'</p>'+
  (businessActions.length?businessActions.map(a=>
   '<article class="operations-proposal"><div class="operations-proposal-head"><strong>'+escapeHTML(actionNames[a.action_kind]||a.action_kind)+'</strong>'+
   '<span class="operations-status operations-'+escapeHTML(a.status)+'">'+escapeHTML(a.status==='approved'?"Approved plan":a.status==='denied'?"Declined":"Waiting for your answer")+'</span></div>'+
