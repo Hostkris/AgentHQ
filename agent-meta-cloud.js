@@ -69,12 +69,33 @@ async function chooseAccount(accountId){
  await refresh();
  return result;
 }
+const workerIds=new Set(['alex','maya','jordan','riley','taylor','casey','morgan','avery','jamie','quinn']);
+async function grantWorker(workerId,accountId){
+ if(!workerIds.has(workerId)||!/^act_\d+$/.test(accountId))throw Error('Choose an employee and an ad account');
+ await signedIn();
+ const {data,error}=await agentCloud.rpc('grant_agent_meta_worker_read',{
+  p_employee_id:workerId,p_account_id:accountId
+ });
+ if(error||data!==true)throw Error(error?.message||'Permission could not be saved');
+ await refresh();
+ return true;
+}
+async function revokeWorker(workerId,accountId){
+ if(!workerIds.has(workerId)||!/^act_\d+$/.test(accountId))throw Error('Choose an employee and an ad account');
+ await signedIn();
+ const {data,error}=await agentCloud.rpc('revoke_agent_meta_worker_read',{
+  p_employee_id:workerId,p_account_id:accountId
+ });
+ if(error)throw Error(error.message);
+ await refresh();
+ return data===true;
+}
 async function disconnect(){
  const result=await call('disconnect');
  await refresh();
  return result;
 }
-window.agentHQMetaCloud={refresh,connect,reloadAccounts,report,chooseAccount,disconnect};
+window.agentHQMetaCloud={refresh,connect,reloadAccounts,report,chooseAccount,grantWorker,revokeWorker,disconnect};
 const auto=()=>refresh().catch(err=>window.agentHQMetaError?.(err.message));
 agentCloud.auth.onAuthStateChange(()=>setTimeout(auto,0));
 window.addEventListener('focus',auto);
