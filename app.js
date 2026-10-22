@@ -4,7 +4,7 @@ window.agentHQOperationsSync=(rows,notice)=>{
  if(JSON.stringify(businessActions)===JSON.stringify(rows)&&businessActionsNotice===notice)return;
  businessActions.splice(0,businessActions.length,...rows);
  businessActionsNotice=notice;
- if(screen==="operations")renderWithoutInterruptingDraft();
+ if(["operations","office"].includes(screen))renderWithoutInterruptingDraft();
 };
 window.agentHQOperationsError=message=>{
  businessActionsNotice=message;
@@ -246,6 +246,10 @@ function officeWorkerState(id){
  if(running)return {emoji:"✍️",short:"Drafting",detail:running.title,kind:"working"};
  const waiting=activeTasks.find(step=>["waiting_for_owner","waiting_for_permission"].includes(step.status));
  if(waiting)return {emoji:waiting.status==="waiting_for_permission"?"🔐":"❓",short:"Waiting",detail:waiting.title,kind:"waiting"};
+ const action=businessActions.find(request=>request.employee_id===id&&request.status==="pending");
+ if(action)return {emoji:"📝🔐",short:"Approval",detail:action.summary,kind:"waiting"};
+ const approvedAction=businessActions.find(request=>request.employee_id===id&&request.status==="approved"&&request.execution_status==="not_connected");
+ if(approvedAction)return {emoji:"🔌",short:"Connection",detail:"Approved proposal; provider not connected",kind:"waiting"};
  const related=[...teamAssignments.values()].filter(a=>(a.employee_ids||[]).includes(id)&&a.status!=="completed");
  const queued=activeTasks.find(step=>step.status==="queued");
  if(queued)return {emoji:"📋",short:"Queued",detail:queued.title,kind:"queued"};
