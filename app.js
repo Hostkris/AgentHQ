@@ -51,7 +51,11 @@ function renderProgressBar(a){
  return '<div class="assignment-progress"><div class="progress-meta"><span>'+escapeHTML(coordLabels[p.state]||p.state)+'</span><strong>'+p.completed+'/'+p.steps.length+' steps · '+p.percent+'%</strong></div><div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+p.percent+'" aria-label="Completed drafting steps"><div class="progress-fill" style="width:'+p.percent+'%"></div></div></div>';
 }
 const approvalRequests=new Map();let approvalNotice="Connecting saved permission requests…",approvalFingerprint="";const pendingCount=()=>[...approvalRequests.values()].filter(r=>r.status==="pending").length;const requestApproval=async(agentId,website,reason)=>{if(!staff.some(s=>s[0]===agentId))throw Error("Unknown employee");if(!window.agentHQCloudApprovals)throw Error("Permission service is loading. Try again shortly.");return window.agentHQCloudApprovals.create(agentId,website,reason)};window.agentHQRequestApproval=requestApproval;window.agentHQSyncApprovals=(rows,notice)=>{const fingerprint=JSON.stringify(rows);if(fingerprint===approvalFingerprint&&notice===approvalNotice)return;approvalFingerprint=fingerprint;approvalNotice=notice;approvalRequests.clear();for(const [id,items] of messages)messages.set(id,items.filter(m=>m.type!=="approval"));for(const row of rows){if(!staff.some(s=>s[0]===row.employee_id))continue;const status=row.status==="pending"&&Date.parse(row.expires_at)<=Date.now()?"expired":row.status;(window.agentHQStartedChats??=new Set()).add(row.employee_id);approvalRequests.set(row.id,{id:row.id,agentId:row.employee_id,website:row.target_url,reason:row.reason,status,kind:row.request_kind,createdAt:row.created_at,expiresAt:row.expires_at});messages.set(row.employee_id,[...(messages.get(row.employee_id)||[]),{type:"approval",id:row.id}])}if(screen==="chat"||screen==="approvals"||screen==="messages"||screen==="contacts")renderWithoutInterruptingDraft()};window.agentHQApprovalCloudError=message=>{approvalNotice=message;approvalFingerprint="";if(screen==="approvals"||screen==="chat")renderWithoutInterruptingDraft()};const assessResearchTarget=(raw)=>{let url;try{url=new URL(raw)}catch{return {level:"blocked",reason:"Invalid website address"}}if(!["https:","http:"].includes(url.protocol)||url.username||url.password)return {level:"blocked",reason:"Unsupported or credential-bearing URL"};const host=url.hostname.toLowerCase();if(host==="localhost"||host.endsWith(".local")||host.endsWith(".internal")||/^(?:127\.|10\.|192\.168\.|169\.254\.|0\.)/.test(host)||/^172\.(?:1[6-9]|2\d|3[01])\./.test(host)||host==="[::1]")return {level:"blocked",reason:"Local or private network destination"};if(url.protocol!=="https:")return {level:"review",reason:"Unencrypted HTTP connection"};if(/(?:login|signin|account|checkout|payment|billing|admin|download|upload|oauth|authorize)/i.test(url.pathname+url.search))return {level:"review",reason:"Sensitive account, payment, or file-related page"};return {level:"review",reason:"Unverified external website. Manual approval required for simulated agent research"}};const escapeHTML=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));window.agentHQSyncMessages=(rows,notice)=>{const next=JSON.stringify(rows);if(next===chatFingerprint&&notice===chatNotice)return;chatFingerprint=next;chatNotice=notice;for(const [id,items] of messages)messages.set(id,items.filter(m=>m.type==="approval"));for(const row of rows){if(!["hq",...staff.map(s=>s[0])].includes(row.employeeId))continue;(window.agentHQStartedChats??=new Set()).add(row.employeeId);messages.set(row.employeeId,[...(messages.get(row.employeeId)||[]),{id:row.id,type:"text",text:row.text,sender:row.sender}])}if(screen==="chat"||screen==="messages"||screen==="contacts")renderWithoutInterruptingDraft()};window.agentHQChatCloudNotice=(notice,quiet=false)=>{if(chatNotice===notice)return;chatNotice=notice;if(!quiet&&(screen==="chat"||screen==="messages"))renderWithoutInterruptingDraft()};const getConversationPreview=id=>{const approvals=[...approvalRequests.values()].filter(r=>r.agentId===id);const latest=approvals.at(-1);if(latest)return " · "+({pending:"⚠️ Permission pending",approved:"✅ Request approved",denied:"⛔ Request denied",expired:"Request expired",revoked:"Permission revoked"}[latest.status]||latest.status);const last=(messages.get(id)||[]).filter(m=>m.type!=="approval").at(-1);return last?" · "+escapeHTML(String(last.text).slice(0,55)):""};function renderWithoutInterruptingDraft(){if((screen==="chat"&&(document.activeElement?.id==="draft"||sendingAgents.has(active)))||((screen==="team"||screen==="assignments")&&(teamSaving||["team-title","team-instructions","team-info","team-note"].includes(document.activeElement?.id)))){const notice=document.querySelector("#chat-sync-status");if(notice)notice.textContent=chatNotice+" Permission requests: "+approvalNotice+" No AI worker is connected.";return}render()}const button=(label,screenName,emoji)=>`<button class="tile" data-nav="${screenName}"><span class="emoji">${emoji}</span><span>${label}</span></button>`;
-const teamRows=()=>[...teamAssignments.values()].map(a=>`<button class="row" data-team-open="${escapeHTML(a.id)}"><span class="avatar">📋</span><span><strong>${escapeHTML(a.title)}</strong><small>${escapeHTML(teamMemberNames(a.employee_ids))}</small><small>${escapeHTML(teamStatusLabel[a.status]||a.status)}</small></span></button>`).join("");
+const teamRows=()=>[...teamAssignments.values()].map(a=>
+ '<button class="row task-row" data-team-open="'+escapeHTML(a.id)+'"><span class="avatar">📋</span><span>'+
+ '<strong>'+escapeHTML(a.title)+'</strong><small>'+escapeHTML(teamMemberNames(a.employee_ids))+'</small>'+
+ '<small>'+escapeHTML(coordLabels[a.coordination_status]||teamStatusLabel[a.status]||a.status)+'</small>'+
+ renderProgressBar(a)+'</span></button>').join("");
 function renderAIConnectionGuide(){
  const provider=workerConnection.ready?(workerConnection.provider==="groq"?"Groq":workerConnection.provider==="openrouter"?"OpenRouter":"AI provider"):"Not verified";
  return `<section class="card" id="ai-connection-guide">
@@ -74,6 +78,41 @@ function renderAssignments(){
    <p id="team-create-feedback" class="notice" role="status">${escapeHTML(teamCreateFeedback)}</p></section>
    <h2>Team assignment discussions</h2>
    ${teamAssignments.size?teamRows():`<p class="muted">No assignments yet. Create one above to open a private team discussion.</p>`}`;
+}
+
+function renderQuestionCards(employeeId){
+ const rows=[...teamAssignments.values()].flatMap(a=>(coordSteps.get(a.id)||[])
+  .filter(step=>step.employee_id===employeeId&&["waiting_for_owner","waiting_for_permission"].includes(step.status))
+  .map(step=>({a,step})));
+ if(!rows.length)return "";
+ return '<section class="task-questions"><h2>Worker questions and permission requests</h2>'+
+ rows.map(({a,step})=>'<div class="card task-question"><strong>'+escapeHTML(workerLabel(step.employee_id))+' · '+escapeHTML(a.title)+'</strong>'+
+ '<p class="notice">'+(step.status==="waiting_for_permission"?"Website approval does not start browsing. Reply with source information to let the team continue drafting.":"The worker needs your reply before continuing.")+'</p>'+
+ '<p>'+escapeHTML(step.question||"Please provide the missing information.")+'</p>'+
+ '<form data-task-answer="'+escapeHTML(a.id)+'"><textarea data-answer-input="'+escapeHTML(a.id)+'" aria-label="Answer task question" maxlength="10000" placeholder="Reply with what your worker needs…"></textarea>'+
+ '<button type="submit" class="primary" '+(answeringAssignments.has(a.id)?"disabled":"")+'>Answer and resume team</button></form></div>').join("")+'</section>';
+}
+function renderCoordinationPanel(a){
+ const p=taskStats(a),record=coordProgress.get(a.id),busy=Boolean(record?.active||window.agentHQCoordCloud?.isRunning?.(a.id));
+ const pending=p.steps.some(step=>step.status==="queued");
+ const start=!p.steps.length&&a.status!=="completed";
+ const continueTeam=p.steps.length>0&&pending&&!p.waiting;
+ const entries=p.steps.map(step=>'<li class="handoff-step"><strong>'+escapeHTML(workerLabel(step.employee_id))+' — '+escapeHTML(step.title)+'</strong>'+
+ '<small>'+escapeHTML(({queued:"Queued",running:"Drafting",completed:"Draft finished",waiting_for_owner:"Waiting for answer",waiting_for_permission:"Permission needed",failed:"Paused"})[step.status]||step.status)+'</small>'+
+ (step.handoff_from?'<small>Handoff from '+escapeHTML(workerLabel(step.handoff_from))+'</small>':"")+
+ '<p>'+escapeHTML(step.instructions)+'</p>'+
+ (step.output?'<details><summary>Read completed draft</summary><p>'+escapeHTML(step.output)+'</p></details>':"")+'</li>').join("");
+ return '<section class="card coordination-panel"><h2>AI manager and worker handoffs</h2>'+
+ '<p class="notice">Alex routes drafting work to specialists. Each run is bounded and only continues while this page is open. No external websites, accounts or publishing are available.</p>'+
+ renderProgressBar(a)+
+ (a.manager_summary?'<p><strong>Alex’s plan:</strong> '+escapeHTML(a.manager_summary)+'</p>':"")+
+ (record?'<p class="notice" role="status">'+escapeHTML(record.detail)+'</p>':"")+
+ (start?'<button class="primary" data-team-plan="'+escapeHTML(a.id)+'" '+(busy?"disabled":"")+'>▶ Ask Alex to plan and start</button>':"")+
+ (continueTeam?'<button class="primary" data-team-continue="'+escapeHTML(a.id)+'" '+(busy?"disabled":"")+'>▶ Continue teamwork</button>':"")+
+ (p.waiting?'<p><strong>'+escapeHTML(workerLabel(p.waiting.employee_id))+' needs your response in Messages.</strong></p>'+
+ '<button class="back" data-chat="'+escapeHTML(p.waiting.employee_id)+'">Open worker Messages →</button>':"")+
+ (entries?'<ol class="handoff-steps">'+entries+'</ol>':'<p class="muted">Alex will create the specialist handoff steps when this task starts.</p>')+
+ '</section>';
 }
 function renderWorkerPanel(a){
  const recent=workerHistory.filter(r=>r.assignment_id===a.id).slice(0,5);
@@ -99,7 +138,7 @@ function renderTeamThread(){
  <strong>Information needed</strong><p>${a.info_needed?escapeHTML(a.info_needed):"Nothing specified yet. Use the discussion below to add details."}</p>
  <label for="team-status">Assignment status (set manually)</label>
  <select id="team-status" class="form-field">${Object.entries(teamStatusLabel).map(([value,label])=>`<option value="${value}" ${a.status===value?"selected":""}>${label}</option>`).join("")}</select></section>
- ${renderWorkerPanel(a)}<h2>Team discussion</h2>
+ ${renderCoordinationPanel(a)}${renderWorkerPanel(a)}<h2>Team discussion</h2>
  <p class="notice">Assigned workers share this discussion through manual AI steps once connected. No fake replies or automatic background work.</p>
  <div class="team-thread" aria-live="polite">${notes.length?notes.map(n=>{
  const author=n.sender_kind==="owner"?"You":n.sender_kind==="agent"?(staff.find(s=>s[0]===n.sender_id)?.[2]||"Agent"):"System";
