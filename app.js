@@ -212,6 +212,19 @@ function renderIPhoneChat(){
   '<div id="send-feedback" class="ios-chat-feedback" role="status" aria-live="polite">'+(errors?escapeHTML(status):"")+'</div>'+
  '</div>';
 }
+function recentOfficeHandoff(){
+ for(const steps of coordSteps.values()){
+  const ordered=[...steps].sort((a,b)=>a.step_number-b.step_number);
+  for(let i=1;i<ordered.length;i++){
+   const previous=ordered[i-1],next=ordered[i];
+   if(next.handoff_from!==previous.employee_id||previous.status!=="completed")continue;
+   const time=Date.parse(previous.updated_at||"");
+   if(Number.isFinite(time)&&time<=Date.now()+60000&&Date.now()-time<120000)
+    return {from:previous.employee_id,to:next.employee_id,step:next.title};
+  }
+ }
+ return null;
+}
 function officeWorkerState(id){
  const activeTasks=[...coordSteps.values()].flat().filter(step=>step.employee_id===id);
  const running=activeTasks.find(step=>step.status==="running");
