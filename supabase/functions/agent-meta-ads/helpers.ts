@@ -112,7 +112,7 @@ export async function userFromRequest(req:Request,db:ReturnType<typeof admin>){
 }
 export async function connection(db:ReturnType<typeof admin>,owner:string){
  const {data,error}=await db.from("agent_meta_ads_connections")
-  .select("owner_id,meta_user_id,encrypted_access_token,token_iv,token_expires_at,status,updated_at")
+  .select("owner_id,meta_user_id,encrypted_access_token,token_iv,token_expires_at,status,updated_at,preferred_account_id")
   .eq("owner_id",owner).maybeSingle();
  if(error)throw Error("Meta connection information could not be read");
  return data;
@@ -129,12 +129,20 @@ export async function access(db:ReturnType<typeof admin>,owner:string){
 export async function adAccounts(db:ReturnType<typeof admin>,owner:string,token:string){
  const payload=await metaGET("me/adaccounts",token,{fields:"id,name,currency,timezone_name,account_status",limit:"100"});
  const accounts=(Array.isArray(payload?.data)?payload.data:[]).map(cleanAccount).filter(Boolean);
- // An owner may only read an ad account discovered from their own Meta token.
+ // Refresh account metadata only after Meta's authoritative response.
+ // Drop no-longer-visible accounts to avoid showing stale options.
+ const {error:clearError}=await db.from("agent_meta_ad_accounts").delete().eq("owner_id",owner);
+ if(clearError)throw Error("Could not refresh your advertising account list");
  if(accounts.length){
   const {error}=await db.from("agent_meta_ad_accounts").upsert(accounts.map((a:any)=>({
    owner_id:owner,...a,last_seen_at:stamp()
   })),{onConflict:"owner_id,account_id"});
   if(error)throw Error("Could not securely save your advertising account list");
+ }
+ const {data:stored}=await db.from("agent_meta_ads_connections").select("preferred_account_id").eq("owner_id",owner).maybeSingle();
+ if(stored&&(!stored.preferred_account_id||!accounts.some((a:any)=>a.account_id===stored.preferred_account_id))){
+  const preferred=accounts.length===1?accounts[0].account_id:null;
+  await db.from("agent_meta_ads_connections").update({preferred_account_id:preferred,updated_at:stamp()}).eq("owner_id",owner);
  }
  return {accounts,has_more:Boolean(payload?.paging?.next)};
 }
