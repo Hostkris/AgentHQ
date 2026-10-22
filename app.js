@@ -59,10 +59,10 @@ const approvalRequests=new Map();let approvalNotice="Connecting saved permission
  return "";
 };function renderWithoutInterruptingDraft(){if((screen==="chat"&&(document.activeElement?.id==="draft"||document.activeElement?.hasAttribute?.("data-answer-input")||sendingAgents.has(active)||answeringAssignments.size>0))||((screen==="team"||screen==="assignments")&&(teamSaving||["team-title","team-instructions","team-info","team-note"].includes(document.activeElement?.id)))){const notice=document.querySelector("#chat-sync-status");if(notice)notice.textContent=chatNotice+" Permission requests: "+approvalNotice+" No AI worker is connected.";return}render()}const button=(label,screenName,emoji)=>`<button class="tile" data-nav="${screenName}"><span class="emoji">${emoji}</span><span>${label}</span></button>`;
 const teamRows=()=>[...teamAssignments.values()].map(a=>
- '<button class="row task-row" data-team-open="'+escapeHTML(a.id)+'"><span class="avatar">📋</span><span>'+
+ '<div class="assignment-list-item"><button class="row task-row" data-team-open="'+escapeHTML(a.id)+'"><span class="avatar">📋</span><span>'+
  '<strong>'+escapeHTML(a.title)+'</strong><small>'+escapeHTML(teamMemberNames(a.employee_ids))+'</small>'+
  '<small>'+escapeHTML(coordLabels[a.coordination_status]||teamStatusLabel[a.status]||a.status)+'</small>'+
- renderProgressBar(a)+'</span></button>').join("");
+ renderProgressBar(a)+'</span></button><button class="tiny-delete assignment-delete" type="button" data-delete-assignment="'+escapeHTML(a.id)+'" aria-label="Delete assignment '+escapeHTML(a.title)+'" title="Delete assignment">×</button></div>').join("");
 function renderAIConnectionGuide(){
  const provider=workerConnection.ready?(workerConnection.provider==="groq"?"Groq":workerConnection.provider==="openrouter"?"OpenRouter":"AI provider"):"Not verified";
  return `<section class="card" id="ai-connection-guide">
@@ -173,6 +173,45 @@ function renderWorkerTeamLinks(employeeId){
  }).join("")}</section>`;
 }
 
+function renderIPhoneChat(){
+ const person=staff.find(s=>s[0]===active);
+ const title=active==="hq"?"Company HQ":(person?.[2]||"Worker");
+ const role=active==="hq"?"AI team":(person?.[3]||"AI worker");
+ const initial=active==="hq"?"HQ":title.slice(0,1).toUpperCase();
+ const items=(messages.get(active)||[]).slice().sort((a,b)=>(Date.parse(a.createdAt)||0)-(Date.parse(b.createdAt)||0));
+ let previousDay="";
+ const rows=items.map(item=>{
+  const date=new Date(item.createdAt||Date.now());
+  const day=isNaN(date.getTime())?"":date.toDateString();
+  const label=day&&day!==previousDay?'<div class="ios-date">'+escapeHTML(date.toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"}))+'</div>':"";
+  if(day)previousDay=day;
+  if(item.type==="approval"){
+   const r=approvalRequests.get(item.id);if(!r)return "";
+   const message="Website request: "+r.website+"\nReason: "+r.reason+
+    "\n"+(r.status==="pending"?"Please reply yes or no if you want to discuss approval for this specific website. No browsing will start.":"Request "+r.status+".");
+   return label+'<div class="ios-message-row incoming"><div class="ios-message-bubble theirs">'+escapeHTML(message)+'</div></div>';
+  }
+  const mine=item.sender==="owner",system=item.sender==="system";
+  return label+'<div class="ios-message-row '+(mine?"outgoing":"incoming")+'"><div class="ios-message-bubble '+(mine?"mine":"theirs")+'">'+
+    (system?'<span class="ios-message-source">Team handoff</span>':"")+
+    '<span class="ios-message-text">'+escapeHTML(item.text||"")+'</span>'+
+    (item.id?'<button type="button" class="ios-message-delete" data-delete-message="'+escapeHTML(item.id)+'" aria-label="Delete message" title="Delete message">×</button>':"")+
+    '</div></div>';
+ }).join("");
+ const status=sendFeedback.get(active)||"";
+ const errors=/not saved|failed|unavailable|error|could not/i.test(status);
+ return '<div class="ios-thread">'+
+  '<div class="ios-chat-list" id="chat-scroll" aria-label="Conversation" aria-live="polite">'+
+  (rows||'<div class="ios-empty-chat">Send a message to start the conversation.</div>')+
+  '</div>'+
+  (sendingAgents.has(active)?'<div class="ios-typing" aria-live="polite"><span></span><span></span><span></span></div>':"")+
+  '<form id="composer" class="ios-composer" autocomplete="off">'+
+   '<textarea id="draft" aria-label="Text message" placeholder="Text Message" rows="1" maxlength="10000"></textarea>'+
+   '<button class="ios-send" id="send-message" type="submit" aria-label="Send message" '+(sendingAgents.has(active)?"disabled":"")+'><span aria-hidden="true">↑</span></button>'+
+  '</form>'+
+  '<div id="send-feedback" class="ios-chat-feedback" role="status" aria-live="polite">'+(errors?escapeHTML(status):"")+'</div>'+
+ '</div>';
+}
 function render(){const isChat=screen==="chat";const title=isChat?(active==="hq"?"Company Headquarters":staff.find(x=>x[0]===active)?.[2]):screen==="team"?(teamAssignments.get(teamActive)?.title||"Team discussion"):({home:"Agent HQ",contacts:"Contacts",messages:"Messages",assignments:"Assignments",approvals:"Approvals",research:"Research",browser:"Browser",reminders:"Reminders",settings:"Settings"})[screen];let body="";if(screen==="home")body=`<p class="muted">Your private virtual company</p><div class="grid">${button("Messages","messages","💬")}${button("Contacts","contacts","👥")}${button("Company HQ","hq","🏢")}${button("Assignments","assignments","📋")}${button("Research","research","🔎")}${button("Browser","browser","🌐")}${button("Approvals","approvals","✅")}${button("Reminders","reminders","📅")}${button("Settings","settings","⚙️")}</div>`;else if(screen==="browser")body=`<section class="card"><p class="muted">Agent HQ Browser</p><form id="agent-browser-form" style="display:flex;gap:8px;flex-wrap:wrap"><input id="agent-browser-input" type="text" aria-label="Search or website" placeholder="Search the web or enter a URL" required style="flex:1;min-width:180px;padding:12px;border:1px solid #d2d2d7;border-radius:12px"><button class="primary" type="submit">Go</button></form><p class="notice" id="agent-browser-status">Searches and websites open in a new tab. Agent browsing and account access are not connected yet.</p><p class="notice">To test the permission message workflow, select an employee and create a simulated risky-site request.</p><select id="test-agent" aria-label="Employee">${staff.map(s=>`<option value="${s[0]}">${s[2]}</option>`).join("")}</select> <button type="button" id="test-risk">Test approval request</button></section>`;else if(screen==="research")body=`<section class="card"><strong>Agent research safety check</strong><p class="notice">This is a local workflow test. No AI employee or remote browsing engine is connected.</p><form id="research-form"><label for="research-agent">Employee</label><select id="research-agent">${staff.map(s=>`<option value="${s[0]}">${s[2]}</option>`).join("")}</select><label for="research-url">Website to review</label><input id="research-url" type="url" required placeholder="https://example.com" style="width:100%;padding:12px;margin:8px 0"><button class="primary" type="submit">Request research access</button></form><p id="research-status" class="notice">No external website will open automatically.</p></section>`;else if(screen==="approvals")body=`<p class="notice">${escapeHTML(approvalNotice)} These records do not grant real browsing access.</p><div class="card"><strong>Pending requests: ${pendingCount()}</strong><p class="muted">Open the employee's individual message to approve or deny.</p></div>${[...approvalRequests.values()].filter(r=>r.status==="pending").map(r=>`<button class="row" data-chat="${escapeHTML(r.agentId)}"><span class="avatar">⚠️</span><span><strong>${escapeHTML(staff.find(s=>s[0]===r.agentId)?.[2]||r.agentId)}</strong><small>${escapeHTML(r.website)}</small></span></button>`).join("")}<h2>Saved decisions</h2><p class="muted">Approved and denied requests remain visible in the employee conversation.</p>${[...approvalRequests.values()].filter(r=>r.status!=="pending").reverse().slice(0,25).map(r=>`<button class="row" data-chat="${escapeHTML(r.agentId)}"><span class="avatar">${r.status==="approved"?"✅":r.status==="denied"?"⛔":"🕒"}</span><span><strong>${escapeHTML(staff.find(s=>s[0]===r.agentId)?.[2]||r.agentId)} · ${escapeHTML(r.status)}</strong><small>${escapeHTML(r.website)}</small></span></button>`).join("")}`;else if(screen==="assignments")body=renderAssignments();else if(screen==="team")body=renderTeamThread();else if(screen==="contacts"||screen==="messages")body=`${screen==="messages"?`<p class="notice">Saved text: ${escapeHTML(chatNotice)}</p><p class="notice">Permissions: ${escapeHTML(approvalNotice)}</p><button type="button" id="sync-msgs" class="back">↻ Sync saved messages</button>`:""}<input id="search" aria-label="Search contacts" placeholder="Search employees" style="width:100%;padding:12px;border:1px solid #d2d2d7;border-radius:14px"><div id="contact-list"></div>${screen==="messages"?`<section class="team-related"><h2>Team assignment discussions</h2><p class="notice">Shared task information and worker-to-worker conversation history belong here.</p>${teamAssignments.size?teamRows():`<p class="muted">Team assignments will appear here when created.</p>`}</section>`:""}`;else if(isChat){const items=messages.get(active)||[];body=`<p id="chat-sync-status" class="notice">${escapeHTML(chatNotice)} Permission requests: ${escapeHTML(approvalNotice)}.</p>
  <section class="card"><strong>Text a worker or assign a task</strong>
  <p class="notice">Tap Assign Task to turn your message into work. Alex will plan the task and assign it to the right specialists; they will draft and hand off their work. Send only saves an ordinary conversation message.</p>
