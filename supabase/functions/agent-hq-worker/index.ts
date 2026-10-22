@@ -30,7 +30,7 @@ function reply(req:Request,obj:unknown,status=200):Response {
 }
 function env(name:string):string {return Deno.env.get(name)?.trim()||""}
 function provider() {
- if(env("GROQ_API_KEY"))return {name:"groq",key:env("GROQ_API_KEY"),url:"https://api.groq.com/openai/v1/chat/completions",model:env("AGENT_HQ_AI_MODEL")||"llama-3.3-70b-versatile"};
+ if(env("GROQ_API_KEY"))return {name:"groq",key:env("GROQ_API_KEY"),url:"https://api.groq.com/openai/v1/chat/completions",model:env("AGENT_HQ_AI_MODEL")||"openai/gpt-oss-120b"};
  if(env("OPENROUTER_API_KEY"))return {name:"openrouter",key:env("OPENROUTER_API_KEY"),url:"https://openrouter.ai/api/v1/chat/completions",model:env("AGENT_HQ_AI_MODEL")||"meta-llama/llama-3.3-70b-instruct:free"};
  return null;
 }
@@ -119,7 +119,8 @@ Do not output HTML, links to scripts, credentials, or fake worker actions. Stay 
       headers:{"Authorization":"Bearer "+ai.key,"Content-Type":"application/json",
         ...(ai.name==="openrouter"?{"HTTP-Referer":ORIGIN,"X-Title":"Agent HQ"}:{})},
       body:JSON.stringify({
-        model:ai.model,temperature:0.4,max_tokens:550,stream:false,
+        model:ai.model,temperature:0.4,max_tokens:900,stream:false,
+        ...(ai.name==="groq" && ai.model.startsWith("openai/gpt-oss") ? {reasoning_effort:"low"} : {}),
         messages:[{role:"system",content:system},{role:"user",content:JSON.stringify(userPayload)}]
       })
     });
