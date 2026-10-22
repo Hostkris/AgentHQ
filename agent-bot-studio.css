@@ -144,3 +144,33 @@
 :root[data-theme-mode=dark] .studio-secondary{background:#334f60;color:#ddf4fc}
 :root[data-theme-mode=dark] .studio-template button{background:#355569;color:#e1f7ff}
 @media(prefers-reduced-motion:reduce){.studio-chat-face,.studio-typing{animation:none!important}}
+
+/* Owner-approved cross-worker paper handoffs */
+.studio-handoff-box{margin:0 12px 12px;padding:11px 12px;border-radius:14px;
+ border:1px solid rgba(91,148,171,.26);background:rgba(107,178,189,.075)}
+.studio-handoff-box>summary{cursor:pointer;font-size:12px;font-weight:750;line-height:1.5}
+.studio-handoff-box form{display:grid;gap:10px;margin-top:11px}
+.studio-handoff-box label{display:grid;gap:6px;font-size:11px;font-weight:750}
+.studio-handoff-box select,.studio-handoff-box textarea{
+ width:100%;box-sizing:border-box;font:13px/1.5 inherit;background:#fff;color:#233645;
+ border:1px solid rgba(132,159,174,.48);border-radius:11px;padding:10px}
+.studio-handoff-box textarea{resize:vertical;min-height:68px}
+.studio-handoff-box .studio-warning{padding:0}
+.studio-chat-row.handoff{justify-content:center}
+.studio-chat-row.handoff .studio-chat-bubble{max-width:95%;font-size:11px;line-height:1.55;
+ background:rgba(238,218,159,.52);border:1px solid rgba(196,153,72,.22);color:#58471c}
+.studio-office-sprite{font-size:35px;display:grid;place-items:center;image-rendering:pixelated;
+ animation:studio-face-idle 3.5s ease-in-out infinite}
+.studio-contact-avatar{display:grid;place-items:center;font-size:22px!important;
+ background:rgba(116,172,175,.22)!important}
+@media(prefers-color-scheme:dark){
+ :root:not([data-theme-mode=light]) .studio-handoff-box{background:rgba(65,96,114,.25);border-color:#5d839a}
+ :root:not([data-theme-mode=light]) .studio-handoff-box select,
+ :root:not([data-theme-mode=light]) .studio-handoff-box textarea{background:#303d4d;color:#fff;border-color:#607d8b}
+ :root:not([data-theme-mode=light]) .studio-chat-row.handoff .studio-chat-bubble{
+ background:#514632;color:#ffe6a6;border-color:#806a49}
+}
+:root[data-theme-mode=dark] .studio-handoff-box{background:rgba(65,96,114,.25);border-color:#5d839a}
+:root[data-theme-mode=dark] .studio-handoff-box select,:root[data-theme-mode=dark] .studio-handoff-box textarea{
+ background:#303d4d;color:#fff;border-color:#607d8b}
+:root[data-theme-mode=dark] .studio-chat-row.handoff .studio-chat-bubble{background:#514632;color:#ffe6a6;border-color:#806a49}
