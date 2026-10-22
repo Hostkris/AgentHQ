@@ -287,9 +287,17 @@ function renderChatConnectorCard(items){
   const grant=chatGmailGrants.find(g=>g.employee_id===active);
   const approved=connected&&grant&&grant.scope==="priority_summaries"&&!grant.revoked_at&&Date.parse(grant.expires_at)>Date.now();
   if(!connected){
-   result+='<p><strong>Gmail:</strong> Not connected to this workspace. Google handles sign-in; Agent HQ never asks for your password.</p>'+
-    '<button type="button" data-chat-connect="gmail-connect">✉️ Connect Gmail with Google ↗</button>'+
-    '<button type="button" data-chat-connect="gmail-setup" class="secondary">Gmail setup / status</button>';
+   const needsSetup=Array.isArray(chatGmailStatus.missing)&&chatGmailStatus.missing.length>0;
+   if(needsSetup){
+    result+='<p><strong>🔧 Gmail needs one-time setup.</strong> Google sign-in cannot open until the app owner finishes Google OAuth setup. This is not a worker-permission problem.</p>'+
+     '<p>1. Make a Google OAuth Web client. 2. Save its credentials in Agent HQ’s secure server settings. 3. Come back and check setup.</p>'+
+     '<button type="button" data-chat-connect="gmail-setup">Finish Gmail setup →</button>'+
+     '<button type="button" data-chat-connect="gmail-refresh" class="secondary">↻ Check setup again</button>';
+   }else{
+    result+='<p><strong>Gmail:</strong> Not connected to this workspace. Google handles sign-in; Agent HQ never asks for your password.</p>'+
+     '<button type="button" data-chat-connect="gmail-connect">✉️ Connect Gmail with Google ↗</button>'+
+     '<button type="button" data-chat-connect="gmail-setup" class="secondary">Gmail setup / status</button>';
+   }
   }else if(!approved){
    result+='<p><strong>Gmail connected.</strong> '+escapeHTML(name)+' does not yet have access to your inbox.</p>'+
     '<button type="button" data-chat-connect="gmail-grant">Allow '+escapeHTML(name)+' to read priority summaries · 24 hours</button>'+
@@ -696,6 +704,11 @@ app.addEventListener("click",async e=>{
     await window.agentHQMetaCloud.connect();return;
    }
    if(!gmail)throw Error("Gmail connection is loading. Refresh the app.");
+   if(action==="gmail-refresh"){
+    await gmail.refresh();
+    sendFeedback.set(worker,"Gmail setup checked. If setup is complete, tap Connect Gmail with Google. Otherwise, finish the one-time steps in Email Center.");
+    return;
+   }
    if(action==="gmail-connect"){
     try{sessionStorage.setItem("agenthq_gmail_chat_return",worker)}catch{}
     try{await gmail.connect()}catch(err){
