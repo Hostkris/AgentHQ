@@ -86,6 +86,44 @@ function validatedAction(candidate:unknown){
  if(summary.length<5||scope.length<5)return null;
  return {provider,action_kind:kind,summary,scope};
 }
+const PERSONAL_ACTION_SCOPES:Record<string,string>={
+ read_metrics:"read_account_data",publish_content:"publish_content",
+ reply_to_comment:"manage_messages"
+};
+// Creates only an owner-scoped PERMISSION REQUEST. Never a live connection or grant.
+async function requestPersonalScope(
+ db:ReturnType<typeof createClient>,owner:string,worker:string,platform:string,
+ kind:string,summary:string,userInstruction:string
+):Promise<{outcome:"not_required"|"missing"|"ambiguous"|"requested"|"approved",label?:string}>{
+ const capability=PERSONAL_ACTION_SCOPES[kind];
+ if(!capability||!["facebook","instagram","tiktok","youtube"].includes(platform))
+  return {outcome:"not_required"};
+ if(worker==="hq")return {outcome:"ambiguous"};
+ const {data:profiles,error:accountError}=await db.from("agent_personal_accounts")
+  .select("id,label,handle").eq("owner_id",owner).eq("platform",platform).limit(50);
+ if(accountError)throw Error("Couldn't verify your saved social accounts");
+ if(!profiles?.length)return {outcome:"missing"};
+ // Only select automatically when exactly one matching profile exists.
+ const matched=profiles.filter(p=>userInstruction.toLowerCase().includes(String(p.handle).toLowerCase()));
+ const account=matched.length===1?matched[0]:profiles.length===1?profiles[0]:null;
+ if(!account)return {outcome:"ambiguous"};
+ const {data:existing,error:checkError}=await db.from("agent_personal_permission_plans")
+  .select("id,status,expires_at,revoked_at").eq("owner_id",owner)
+  .eq("account_id",account.id).eq("employee_id",worker).eq("capability",capability)
+  .maybeSingle();
+ if(checkError)throw Error("Couldn't check your worker permissions");
+ if(existing?.status==="approved"&&!existing.revoked_at&&Date.parse(existing.expires_at)>Date.now())
+  return {outcome:"approved",label:String(account.label)};
+ const purpose=("For the owner's request: "+summary).slice(0,500);
+ const {error:saveError}=await db.from("agent_personal_permission_plans").upsert({
+  owner_id:owner,account_id:account.id,employee_id:worker,capability,purpose,
+  status:"requested",requested_at:new Date().toISOString(),
+  expires_at:new Date(Date.now()+7*86400000).toISOString(),
+  decided_at:null,revoked_at:null,external_execution_enabled:false
+ },{onConflict:"owner_id,account_id,employee_id,capability"});
+ if(saveError)throw Error("Couldn't save the worker's limited permission request");
+ return {outcome:"requested",label:String(account.label)};
+}
 async function liveMetaAnswer(db:ReturnType<typeof createClient>,owner:string,userJwt:string,employeeId:string,question:string){
  const mentionsAds=/\b(meta|facebook|instagram|ads?|campaigns?|adsets?)\b/i.test(question);
  const requestsMetrics=/\b(spent|spend|spending|performance|results|report|metrics|impressions|clicks|cpc|ctr|roas|costs?)\b/i.test(question);
