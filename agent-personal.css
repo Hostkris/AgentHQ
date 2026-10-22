@@ -1,0 +1,101 @@
+/* Agent HQ Personal Workspace — private profile labels and worker scope plans */
+.personal-workspace{display:grid;gap:15px;padding-bottom:32px}
+.personal-intro,.personal-ad-card,.personal-account,.personal-add-section,.personal-empty{
+ border:1px solid rgba(141,159,174,.25);border-radius:20px;
+ background:rgba(255,255,255,.83);box-shadow:0 5px 19px rgba(36,54,76,.045)}
+.personal-intro{padding:18px 16px}
+.personal-intro h2{font-size:20px;margin:0 0 8px}
+.personal-intro p{font-size:13px;line-height:1.55;margin:0 0 12px}
+.personal-privacy{font-size:11px;line-height:1.45;background:rgba(75,137,157,.095);
+ padding:10px;border-radius:12px;color:#365b6c}
+.personal-ad-card{display:flex;align-items:center;justify-content:space-between;gap:9px;padding:14px}
+.personal-ad-card strong{font-size:14px}
+.personal-ad-card p{font-size:11px;margin:6px 0 0;color:#617080}
+.personal-ad-card button{border:0;background:#176f86;color:#fff;font-weight:650;font-size:11px;
+ border-radius:11px;min-height:42px;padding:8px 12px;max-width:145px}
+.personal-connection-banner{font-size:12px;line-height:1.5;padding:12px 14px;
+ border-radius:15px;border:1px solid rgba(177,137,74,.25);
+ color:#654a22;background:rgba(255,221,161,.24)}
+.personal-add-section{overflow:hidden}
+.personal-add-section>summary{cursor:pointer;list-style:none;font-weight:700;font-size:14px;padding:17px}
+.personal-add-section>summary::-webkit-details-marker{display:none}
+.personal-add-section>summary:after{content:"⌄";float:right;color:#637786}
+.personal-add-section[open]>summary:after{content:"⌃"}
+.personal-add-form,.personal-request-form{display:grid;gap:12px;padding:3px 15px 17px}
+.personal-add-form label,.personal-request-form label{display:grid;gap:6px;font-size:12px;font-weight:650}
+.personal-add-form input,.personal-add-form select,
+.personal-request-form select,.personal-request-form textarea{
+ box-sizing:border-box;display:block;width:100%;min-height:43px;
+ background:#fff;color:#243646;border:1px solid rgba(116,131,151,.42);
+ border-radius:11px;padding:10px 11px;font:inherit;font-size:14px}
+.personal-request-form textarea{min-height:75px;resize:vertical}
+.personal-primary{min-height:44px;width:100%;border-radius:12px;border:0;
+ background:#1b7089;color:#fff;font-size:13px;font-weight:700}
+.personal-section-heading{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.personal-section-heading h3{font-size:16px;margin:0}
+.personal-section-heading h3 span{color:#798995;font-weight:450}
+.personal-section-heading small{font-size:11px;color:#697f8b}
+.personal-account{padding:14px;overflow:hidden}
+.personal-account-head{display:flex;align-items:center;gap:12px}
+.personal-account-icon{height:43px;width:43px;flex:0 0 43px;display:grid;place-items:center;
+ font-size:23px;border-radius:12px;background:rgba(81,142,162,.11)}
+.personal-account-title{min-width:0;flex:1}
+.personal-account-title strong{display:block;font-size:14px;overflow-wrap:anywhere}
+.personal-account-title small{display:block;font-size:11px;color:#697c8a;margin-top:4px;overflow-wrap:anywhere}
+.personal-remove{flex:none;border:0;border-radius:50%;font-size:19px;width:31px;height:31px;
+ line-height:1;background:rgba(152,157,166,.14);color:#687483}
+.personal-account-status{font-size:11px;color:#785a3b;margin:11px 0}
+.personal-worker-details{border-top:1px solid rgba(106,137,158,.18);padding-top:10px}
+.personal-worker-details>summary{cursor:pointer;font-size:13px;font-weight:700;padding:7px 0}
+.personal-worker-details[open]>summary{padding-bottom:12px}
+.personal-request-form{padding:12px 0 3px;margin-top:12px;border-top:1px solid rgba(109,131,147,.21)}
+.personal-permission{display:grid;gap:8px;margin:9px 0;padding:12px;
+ border-radius:12px;background:rgba(101,157,174,.075);font-size:12px}
+.personal-permission strong{font-weight:750}
+.personal-permission>p{margin:0;font-size:12px;line-height:1.45;overflow-wrap:anywhere}
+.personal-permission>small{font-size:10px;color:#6b7888}
+.personal-permission-status{font-size:10px;font-weight:650;color:#4b6472}
+.personal-status-approved{color:#236d53}
+.personal-status-denied,.personal-status-revoked,.personal-status-expired{color:#93666a}
+.personal-permission-actions{display:flex;gap:7px;flex-wrap:wrap}
+.personal-permission-actions button,.personal-danger{min-height:40px;padding:9px 12px;font-size:12px;
+ border-radius:10px;border:1px solid rgba(79,104,120,.26);background:#e6f2f5;color:#235169;font-weight:650}
+.personal-permission-actions button:last-child,.personal-danger{color:#8a3741;background:#f6e9eb}
+.personal-muted{font-size:11px;color:#607080;line-height:1.5;margin:7px 0}
+.personal-empty{padding:20px;font-size:13px;line-height:1.5;color:#697987}
+.personal-feedback{font-size:12px;min-height:15px;margin:0;line-height:1.5;color:#476b79}
+.personal-footer{font-size:11px;color:#657783;line-height:1.6;margin:0;padding:5px}
+@media(prefers-color-scheme:dark){
+ :root:not([data-theme-mode=light]) .personal-intro,
+ :root:not([data-theme-mode=light]) .personal-ad-card,
+ :root:not([data-theme-mode=light]) .personal-account,
+ :root:not([data-theme-mode=light]) .personal-add-section,
+ :root:not([data-theme-mode=light]) .personal-empty{
+ background:rgba(40,46,54,.89);color:#f5f7fa;border-color:#535d6a}
+ :root:not([data-theme-mode=light]) .personal-add-form input,
+ :root:not([data-theme-mode=light]) .personal-add-form select,
+ :root:not([data-theme-mode=light]) .personal-request-form select,
+ :root:not([data-theme-mode=light]) .personal-request-form textarea{
+ background:#303944;color:#fff;border-color:#70818e}
+ :root:not([data-theme-mode=light]) .personal-account-title small,
+ :root:not([data-theme-mode=light]) .personal-permission>small,
+ :root:not([data-theme-mode=light]) .personal-muted,
+ :root:not([data-theme-mode=light]) .personal-footer,
+ :root:not([data-theme-mode=light]) .personal-feedback{color:#c5d4e3}
+ :root:not([data-theme-mode=light]) .personal-connection-banner{background:rgba(119,90,43,.35);color:#ffe3b5;border-color:#78613b}
+ :root:not([data-theme-mode=light]) .personal-privacy{color:#bfe3ef}
+ :root:not([data-theme-mode=light]) .personal-status-approved{color:#9ae2ba}
+}
+:root[data-theme-mode=dark] .personal-intro,:root[data-theme-mode=dark] .personal-ad-card,
+:root[data-theme-mode=dark] .personal-account,:root[data-theme-mode=dark] .personal-add-section,
+:root[data-theme-mode=dark] .personal-empty{background:rgba(40,46,54,.89);color:#f5f7fa;border-color:#535d6a}
+:root[data-theme-mode=dark] .personal-add-form input,:root[data-theme-mode=dark] .personal-add-form select,
+:root[data-theme-mode=dark] .personal-request-form select,:root[data-theme-mode=dark] .personal-request-form textarea{
+ background:#303944;color:#fff;border-color:#70818e}
+:root[data-theme-mode=dark] .personal-account-title small,:root[data-theme-mode=dark] .personal-permission>small,
+:root[data-theme-mode=dark] .personal-muted,:root[data-theme-mode=dark] .personal-footer,
+:root[data-theme-mode=dark] .personal-feedback{color:#c5d4e3}
+:root[data-theme-mode=dark] .personal-connection-banner{background:rgba(119,90,43,.35);color:#ffe3b5;border-color:#78613b}
+:root[data-theme-mode=dark] .personal-privacy{color:#bfe3ef}
+:root[data-theme-mode=dark] .personal-status-approved{color:#9ae2ba}
+@media(max-width:365px){.personal-ad-card{flex-direction:column;align-items:stretch}.personal-ad-card button{max-width:none}}
