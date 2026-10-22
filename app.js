@@ -281,75 +281,47 @@ if(screen==="team"&&teamAssignments.has(teamActive)){
   finally{teamSaving=false;render()}
  });
 }
-if(screen==="research"){document.querySelector("#research-form").addEventListener("submit",async e=>{e.preventDefault();const agentId=document.querySelector("#research-agent").value;const raw=document.querySelector("#research-url").value.trim();const verdict=assessResearchTarget(raw);const status=document.querySelector("#research-status");if(verdict.level==="blocked"){status.textContent="Blocked: "+verdict.reason;return}const submit=e.currentTarget.querySelector('[type="submit"]');submit.disabled=true;status.textContent="Saving permission request…";try{const id=await requestApproval(agentId,raw,"RESEARCH TEST — "+verdict.reason+". No action will execute automatically.");if(id){active=agentId;screen="chat";render()}}catch(err){status.textContent=err.message}finally{submit.disabled=false}})}if(screen==="browser"){document.querySelector("#test-risk").addEventListener("click",async e=>{const button=e.currentTarget;const agentId=document.querySelector("#test-agent").value;button.disabled=true;document.querySelector("#agent-browser-status").textContent="Saving test request…";try{const id=await requestApproval(agentId,"https://example.com/permission-test","SIMULATION: Unknown website requires your permission before continuing.");if(id){active=agentId;screen="chat";render()}}catch(err){document.querySelector("#agent-browser-status").textContent=err.message}finally{button.disabled=false}});document.querySelector("#agent-browser-form").addEventListener("submit",e=>{e.preventDefault();const input=document.querySelector("#agent-browser-input").value.trim();let target;if(/^https?:\/\//i.test(input))target=input;else if(/^[^\s]+\.[a-z]{2,}(?:[\/:?#].*)?$/i.test(input))target="https://"+input;else target="https://www.google.com/search?q="+encodeURIComponent(input);try{const url=new URL(target);if(!["https:","http:"].includes(url.protocol))throw Error("Invalid protocol");const tab=window.open(url.href,"_blank","noopener,noreferrer");document.querySelector("#agent-browser-status").textContent=tab===null?"Pop-up blocked. In Safari, allow pop-ups for Agent HQ, then tap Go again.":"Website requested in a new tab. Agent access is not enabled."}catch{document.querySelector("#agent-browser-status").textContent="Enter a valid website or search phrase."}})}if(isChat){document.querySelector("#draft").value=drafts.get(active)||"";document.querySelector("#draft").addEventListener("input",e=>drafts.set(active,e.target.value));document.querySelectorAll("form[data-task-answer]").forEach(form=>{
- const assignmentId=form.dataset.taskAnswer;
- const field=form.querySelector("[data-answer-input]");
- field.value=answerDrafts.get(assignmentId)||"";
- field.addEventListener("input",event=>answerDrafts.set(assignmentId,event.target.value));
+if(screen==="research"){document.querySelector("#research-form").addEventListener("submit",async e=>{e.preventDefault();const agentId=document.querySelector("#research-agent").value;const raw=document.querySelector("#research-url").value.trim();const verdict=assessResearchTarget(raw);const status=document.querySelector("#research-status");if(verdict.level==="blocked"){status.textContent="Blocked: "+verdict.reason;return}const submit=e.currentTarget.querySelector('[type="submit"]');submit.disabled=true;status.textContent="Saving permission request…";try{const id=await requestApproval(agentId,raw,"RESEARCH TEST — "+verdict.reason+". No action will execute automatically.");if(id){active=agentId;screen="chat";render()}}catch(err){status.textContent=err.message}finally{submit.disabled=false}})}if(screen==="browser"){document.querySelector("#test-risk").addEventListener("click",async e=>{const button=e.currentTarget;const agentId=document.querySelector("#test-agent").value;button.disabled=true;document.querySelector("#agent-browser-status").textContent="Saving test request…";try{const id=await requestApproval(agentId,"https://example.com/permission-test","SIMULATION: Unknown website requires your permission before continuing.");if(id){active=agentId;screen="chat";render()}}catch(err){document.querySelector("#agent-browser-status").textContent=err.message}finally{button.disabled=false}});document.querySelector("#agent-browser-form").addEventListener("submit",e=>{e.preventDefault();const input=document.querySelector("#agent-browser-input").value.trim();let target;if(/^https?:\/\//i.test(input))target=input;else if(/^[^\s]+\.[a-z]{2,}(?:[\/:?#].*)?$/i.test(input))target="https://"+input;else target="https://www.google.com/search?q="+encodeURIComponent(input);try{const url=new URL(target);if(!["https:","http:"].includes(url.protocol))throw Error("Invalid protocol");const tab=window.open(url.href,"_blank","noopener,noreferrer");document.querySelector("#agent-browser-status").textContent=tab===null?"Pop-up blocked. In Safari, allow pop-ups for Agent HQ, then tap Go again.":"Website requested in a new tab. Agent access is not enabled."}catch{document.querySelector("#agent-browser-status").textContent="Enter a valid website or search phrase."}})}if(isChat){
+ const field=document.querySelector("#draft"),form=document.querySelector("#composer");
+ field.value=drafts.get(active)||"";
+ field.addEventListener("input",event=>drafts.set(active,event.target.value));
  form.addEventListener("submit",async event=>{
   event.preventDefault();
-  const value=field.value.trim();
-  if(answeringAssignments.has(assignmentId))return;
+  const worker=active,value=field.value.trim();
+  if(sendingAgents.has(worker))return;
   if(!value){field.focus();return}
-  answeringAssignments.add(assignmentId);
-  const submit=form.querySelector("button[type=submit]");
-  submit.disabled=true;submit.textContent="Saving your answer…";
+  sendingAgents.add(worker);
+  const button=form.querySelector("#send-message");
+  button.disabled=true;
+  sendFeedback.set(worker,"");
   try{
-   if(!window.agentHQCoordCloud)throw Error("Coordination service unavailable");
-   await window.agentHQCoordCloud.answer(assignmentId,value);
-   answerDrafts.delete(assignmentId);
-   teamActive=assignmentId;screen="team";
-   render();
-   window.agentHQCoordCloud.runTeam(assignmentId,{maxSteps:3}).catch(error=>{
-    window.agentHQCoordError?.("Team resume paused: "+error.message);
-   });
+   if(!window.agentHQChatCloud?.converse)throw Error("Conversation service is loading. Please refresh Agent HQ.");
+   const result=await window.agentHQChatCloud.converse(worker,value);
+   drafts.set(worker,"");
+   sendFeedback.delete(worker);
+   if(result.start_assignment_id||result.resume_assignment_id){
+    const id=result.start_assignment_id||result.resume_assignment_id;
+    const planFirst=Boolean(result.start_assignment_id);
+    window.agentHQCoordCloud?.runTeam(id,{planFirst,maxSteps:3}).catch(error=>{
+     window.agentHQCoordError?.("AI team paused: "+error.message);
+    });
+   }
+   await Promise.allSettled([window.agentHQTeamCloud?.refresh(),window.agentHQCoordCloud?.refresh(),window.agentHQCloudApprovals?.refresh()]);
   }catch(error){
-   sendFeedback.set(active,"Your answer was not saved: "+error.message);
+   sendFeedback.set(worker,"Message not sent: "+error.message);
+   // Preserve the draft if the message couldn't be submitted.
   }finally{
-   answeringAssignments.delete(assignmentId);
-   if(screen==="chat")render();
+   sendingAgents.delete(worker);
+   if(active===worker&&screen==="chat")render();
   }
  });
-});
-document.querySelector("#composer").addEventListener("submit",async e=>{
- e.preventDefault();
- const worker=active,input=e.currentTarget.querySelector("#draft"),value=input.value.trim();
- const assign=e.submitter?.id==="assign-message";
- if(sendingAgents.has(worker))return;
- if(!value){sendFeedback.set(worker,"Write a message or assignment first.");const feedback=document.querySelector("#send-feedback");if(feedback)feedback.textContent=sendFeedback.get(worker);return}
- sendingAgents.add(worker);
- const sendButton=e.currentTarget.querySelector("#send-message"),assignButton=e.currentTarget.querySelector("#assign-message");
- sendButton.disabled=true;assignButton.disabled=true;
- const status=document.querySelector("#send-feedback");
- if(status)status.textContent=assign?"Saving task and notifying manager…":"Saving message…";
- let saved=false;
- try{
-  if(assign){
-   if(!window.agentHQCoordCloud)throw Error("Team assignment engine is loading. Refresh Agent HQ.");
-   const id=await window.agentHQCoordCloud.assignFromChat(worker,value);
-   drafts.set(worker,"");
-   sendFeedback.set(worker,"Assignment saved. Alex is organizing your workers.");
-   teamActive=id;teamDraft="";teamPostFeedback="";screen="team";render();
-   window.agentHQCoordCloud.runTeam(id,{planFirst:true,maxSteps:3}).catch(err=>{
-    window.agentHQCoordError?.("AI coordination paused: "+err.message);
-   });
-  }else{
-   if(!window.agentHQChatCloud)throw Error("Message service is loading. Refresh Agent HQ.");
-   const result=await window.agentHQChatCloud.send(worker,value);
-   const items=messages.get(worker)||[];
-   if(!items.some(m=>m.id===result.id))messages.set(worker,[...items,{id:result.id,type:"text",text:result.text,sender:"owner"}]);
-   drafts.set(worker,"");
-   sendFeedback.set(worker,"Message saved. To give a worker work, choose Assign Task.");
-   saved=true;
-  }
- }catch(err){
-  sendFeedback.set(worker,(assign?"Assignment not created: ":"Message not saved: ")+err.message+" Your draft is kept.");
- }finally{
-  sendingAgents.delete(worker);
-  if(active===worker&&screen==="chat")render();
- }
- if(saved)window.agentHQChatCloud?.refresh().catch(err=>window.agentHQChatCloudNotice?.("Message reload failed: "+err.message));
-});document.querySelector("#refresh").addEventListener("click",async()=>{const v=document.querySelector("#draft").value;drafts.set(active,v);if(window.agentHQCloudApprovals){try{await window.agentHQCloudApprovals.refresh()}catch(err){window.agentHQApprovalCloudError("Could not refresh requests: "+err.message)}}if(window.agentHQChatCloud){try{await window.agentHQChatCloud.refresh()}catch(err){window.agentHQChatCloudNotice("Could not refresh texts: "+err.message)}}render()});document.querySelector("#mic").addEventListener("click",()=>{const status=document.querySelector("#speech-status");const Speech=window.SpeechRecognition||window.webkitSpeechRecognition;if(!Speech){status.textContent="Speech recognition is unavailable here. Use your iPhone keyboard microphone to dictate.";return}const recognition=new Speech();recognition.lang="en-US";recognition.onresult=e=>{const t=e.results[0][0].transcript;const field=document.querySelector("#draft");field.value=[field.value,t].filter(Boolean).join(" ");drafts.set(active,field.value);status.textContent="Dictation inserted. Review before sending."};recognition.onerror=()=>status.textContent="Microphone unavailable. Try keyboard dictation.";recognition.start();status.textContent="Listening…";})}}app.addEventListener("click",async e=>{const check=e.target.closest("[data-worker-check]");if(check){
+ document.querySelector("#refresh").addEventListener("click",async()=>{
+  await Promise.allSettled([window.agentHQChatCloud?.refresh(),window.agentHQCloudApprovals?.refresh(),window.agentHQTeamCloud?.refresh(),window.agentHQCoordCloud?.refresh()]);
+  if(screen==="chat")render();
+ });
+ const scroll=document.querySelector("#chat-scroll");
+ if(scroll)scroll.scrollTop=scroll.scrollHeight;
+}}app.addEventListener("click",async e=>{const check=e.target.closest("[data-worker-check]");if(check){
   if(workerCheckBusy)return;
   workerCheckBusy=true;
   workerFeedback="Checking AI connection…";
