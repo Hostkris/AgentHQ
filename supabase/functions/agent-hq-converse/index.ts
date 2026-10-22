@@ -67,6 +67,25 @@ Return ONLY valid JSON with {"intent":"answer|collect|task|action","reply":"shor
   return {intent,text,action:proposed};
  }finally{clearTimeout(timer)}
 }
+const ACTION_PAIRS:Record<string,string[]> = {
+ meta_ads:["read_metrics","change_ad_budget"],
+ facebook:["create_content","publish_content","reply_to_comment","read_metrics"],
+ instagram:["create_content","publish_content","reply_to_comment","read_metrics"],
+ tiktok:["create_content","publish_content","reply_to_comment","read_metrics"],
+ youtube:["create_content","publish_content","reply_to_comment","read_metrics"],
+ manychat:["create_automation"],email:["send_email"],other:["other"]
+};
+function validatedAction(candidate:unknown){
+ if(!candidate||typeof candidate!=="object"||Array.isArray(candidate))return null;
+ const value=candidate as Record<string,unknown>;
+ const provider=typeof value.provider==="string"?value.provider.trim():"";
+ const kind=typeof value.kind==="string"?value.kind.trim():"";
+ if(!(ACTION_PAIRS[provider]||[]).includes(kind))return null;
+ const summary=typeof value.summary==="string"?value.summary.trim().slice(0,800):"";
+ const scope=typeof value.scope==="string"?value.scope.trim().slice(0,1200):"";
+ if(summary.length<5||scope.length<5)return null;
+ return {provider,action_kind:kind,summary,scope};
+}
 Deno.serve(async(req:Request)=>{
  if(req.method==="OPTIONS")return new Response(null,{status:204,headers:cors(req)});
  const origin=req.headers.get("origin");
@@ -104,13 +123,15 @@ Deno.serve(async(req:Request)=>{
  let stage=stored?.stage||"idle";
  let pending=stored?.pending_text||"";
  let related=stored?.assignment_id||null,permission=stored?.permission_request_id||null;
+ let pendingAction=stored?.action_proposal_id||null;
  let startAssignment:string|null=null,resumeAssignment:string|null=null;
  let replyText="";
  const decision=yesNo(body);
- const state=async(next:string,taskText="",assignmentId:string|null=null,requestId:string|null=null)=>{
+ const state=async(next:string,taskText="",assignmentId:string|null=null,requestId:string|null=null,actionId:string|null=null)=>{
   const {error}=await db.from("agent_chat_states").upsert({
    owner_id:owner,employee_id:worker,stage:next,pending_text:taskText.slice(0,10000),
-   assignment_id:assignmentId,permission_request_id:requestId,updated_at:new Date().toISOString()
+   assignment_id:assignmentId,permission_request_id:requestId,
+   action_proposal_id:actionId,updated_at:new Date().toISOString()
   },{onConflict:"owner_id,employee_id"});
   if(error)throw Error("Couldn't save the conversation state");
  };
