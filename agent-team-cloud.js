@@ -29,6 +29,11 @@ async function refresh() {
     return;
   }
   const ids=assignments.map(a=>a.id);
+  const {data:decisions,error:decisionsError}=await agentCloud.from('agent_alex_plan_decisions')
+    .select('assignment_id,status').in('assignment_id',ids);
+  if(decisionsError){window.agentHQTeamError?.('Alex plan approval ledger is unavailable: '+decisionsError.message);return;}
+  const planStatus=new Map((decisions||[]).map(row=>[row.assignment_id,row.status]));
+  const withDecisions=assignments.map(a=>({...a,alex_plan_status:planStatus.get(a.id)||'pending'}));
   const {data:notes,error:notesError}=await agentCloud
     .from('agent_team_messages')
     .select('id,assignment_id,sender_kind,sender_id,message_type,body,created_at')
@@ -39,7 +44,7 @@ async function refresh() {
     window.agentHQTeamError?.('Could not load team discussion: '+notesError.message);
     return;
   }
-  window.agentHQTeamSync?.(assignments,notes||[],'Team assignments and notes saved securely.');
+  window.agentHQTeamSync?.(withDecisions,notes||[],'Team assignments and owner approvals saved securely.');
 }
 async function create(title,instructions,infoNeeded,members){
   await signedIn();

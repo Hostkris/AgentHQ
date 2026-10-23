@@ -97,6 +97,8 @@ Deno.serve(async(req:Request)=>{
  const assignmentId=typeof input.assignment_id==="string"?input.assignment_id:"";
  const employeeId=typeof input.employee_id==="string"?input.employee_id:"";
  if(!uuid.test(assignmentId)||!(employeeId in MEMBER_ROLES))return reply(req,{error:"Invalid assignment or employee"},400);
+ // Alex coordinates by proposing specialist plans, never through the generic text-worker endpoint.
+ if(employeeId==="alex")return reply(req,{error:"Alex is the General Manager, not a drafting specialist. Open the assignment and ask Alex to propose a team plan."},403);
  const {data:assignment,error:taskError}=await admin.from("agent_team_assignments")
   .select("id,title,instructions,info_needed,employee_ids,status")
   .eq("id",assignmentId).eq("owner_id",ownerId).maybeSingle();

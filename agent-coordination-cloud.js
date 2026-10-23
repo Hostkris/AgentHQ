@@ -99,7 +99,14 @@ async function runTeam(id,{planFirst=false,maxSteps=3}={}){
   throw error;
  }finally{running.delete(id)}
 }
-window.agentHQCoordCloud={refresh,assignFromChat,answer,runTeam,isRunning:id=>running.has(id)};
+async function decidePlan(id, decision) {
+ if(!["approve","reject"].includes(decision))throw Error("Invalid decision");
+ await getUser();
+ const result=await invoke(decision,id);
+ await syncAll();
+ return result;
+}
+window.agentHQCoordCloud={refresh,assignFromChat,answer,runTeam,decidePlan,isRunning:id=>running.has(id)};
 const load=()=>refresh().catch(error=>window.agentHQCoordError?.(error.message));
 agentCloud.auth.onAuthStateChange(()=>setTimeout(load,0));
 window.addEventListener('focus',load);

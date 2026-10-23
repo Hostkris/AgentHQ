@@ -197,18 +197,20 @@ function renderCoordinationPanel(a){
  const p=taskStats(a),record=coordProgress.get(a.id),busy=Boolean(record?.active||window.agentHQCoordCloud?.isRunning?.(a.id));
  const pending=p.steps.some(step=>step.status==="queued");
  const start=!p.steps.length&&a.status!=="completed";
- const continueTeam=p.steps.length>0&&pending&&!p.waiting;
+ const awaitingApproval=p.steps.length>0&&a.alex_plan_status!=="approved"&&p.steps.every(step=>step.status==="queued");
+ const continueTeam=p.steps.length>0&&pending&&!p.waiting&&a.alex_plan_status==="approved";
  const entries=p.steps.map(step=>'<li class="handoff-step"><strong>'+escapeHTML(workerLabel(step.employee_id))+' — '+escapeHTML(step.title)+'</strong>'+
  '<small>'+escapeHTML(({queued:"Queued",running:"Drafting",completed:"Draft finished",waiting_for_owner:"Waiting for answer",waiting_for_permission:"Permission needed",failed:"Paused"})[step.status]||step.status)+'</small>'+
  (step.handoff_from?'<small>Handoff from '+escapeHTML(workerLabel(step.handoff_from))+'</small>':"")+
  '<p>'+escapeHTML(step.instructions)+'</p>'+
  (step.output?'<details><summary>Read completed draft</summary><p>'+escapeHTML(step.output)+'</p></details>':"")+'</li>').join("");
  return '<section class="card coordination-panel"><h2>AI manager and worker handoffs</h2>'+
- '<p class="notice">Alex routes drafting work to specialists. Each run is bounded and only continues while this page is open. No external websites, accounts or publishing are available.</p>'+
+ '<p class="notice">Alex routes drafting work to specialists. Each run is bounded and only continues while this page is open. No external websites, accounts or publishing are available. Alex proposes plans and waits for your approval.</p>'+
  renderProgressBar(a)+
  (a.manager_summary?'<p><strong>Alex’s plan:</strong> '+escapeHTML(a.manager_summary)+'</p>':"")+
  (record?'<p class="notice" role="status">'+escapeHTML(record.detail)+'</p>':"")+
- (start?'<button class="primary" data-team-plan="'+escapeHTML(a.id)+'" '+(busy?"disabled":"")+'>▶ Ask Alex to plan and start</button>':"")+
+ (start?'<button class="primary" data-team-plan="'+escapeHTML(a.id)+'" '+(busy?"disabled":"")+'>▶ Ask Alex to propose a plan</button>':"")+
+ (awaitingApproval?'<p class="notice">Alex proposes the specialist work. Nothing starts until you approve this plan.</p><div class="worker-actions"><button type="button" class="primary" data-alex-decision="approve" data-alex-assignment="'+escapeHTML(a.id)+'" '+(busy?"disabled":"")+'>Approve plan</button><button type="button" class="back" data-alex-decision="reject" data-alex-assignment="'+escapeHTML(a.id)+'" '+(busy?"disabled":"")+'>Reject plan</button></div>':"")+
  (continueTeam?'<button class="primary" data-team-continue="'+escapeHTML(a.id)+'" '+(busy?"disabled":"")+'>▶ Continue teamwork</button>':"")+
  (p.waiting?'<p><strong>'+escapeHTML(workerLabel(p.waiting.employee_id))+' needs your response in Messages.</strong></p>'+
  '<button class="back" data-chat="'+escapeHTML(p.waiting.employee_id)+'">Open worker Messages →</button>':"")+
@@ -224,7 +226,7 @@ function renderWorkerPanel(a){
  <p class="notice">${escapeHTML(workerConnection.message)}</p>
  <button type="button" class="back" data-worker-check="1" ${workerCheckBusy?"disabled":""}>${workerCheckBusy?"Checking…":"↻ Check AI connection"}</button>
  ${ready?`<p class="notice">Each run sends the assignment and recent team notes to the selected AI provider. Maximum 10 worker steps per hour.</p>
- <div class="worker-actions">${a.employee_ids.map(id=>`<button type="button" class="worker-run" data-worker-run="${escapeHTML(id)}" ${workerBusy?"disabled":""}>▶ ${escapeHTML(staff.find(s=>s[0]===id)?.[2]||id)} — Draft next step</button>`).join("")}</div>`:
+ <div class="worker-actions">${a.employee_ids.filter(id=>id!=="alex").map(id=>`<button type="button" class="worker-run" data-worker-run="${escapeHTML(id)}" ${workerBusy?"disabled":""}>▶ ${escapeHTML(staff.find(s=>s[0]===id)?.[2]||id)} — Draft next step</button>`).join("")}</div>`:
  `<p class="notice">To connect: Supabase → Authentication → Users → copy your signed-in user UUID. Then Edge Functions → Secrets → add AGENT_HQ_ALLOWED_OWNER_IDS with that UUID, plus GROQ_API_KEY or OPENROUTER_API_KEY. Keep both values out of chats and GitHub. Provider usage limits and charges depend on your account.</p>`}
  <p id="worker-feedback" class="notice" role="status">${escapeHTML(workerBusy?"Worker drafting… please wait.":workerFeedback)}</p>
  ${recent.length?`<h3>Recent worker activity</h3>${recent.map(r=>`<p class="notice">${escapeHTML(staff.find(s=>s[0]===r.employee_id)?.[2]||r.employee_id)}: ${escapeHTML(r.status)} · ${escapeHTML(new Date(r.created_at).toLocaleString())}${r.error_summary?" · "+escapeHTML(r.error_summary):""}</p>`).join("")}`:""}
@@ -897,6 +899,16 @@ const check=e.target.closest("[data-worker-check]");if(check){
   }catch(err){workerFeedback="Worker did not finish: "+err.message}
   finally{workerBusy=null;if(screen==="team")renderWithoutInterruptingDraft()}
   return
+ }
+ const alexDecision=e.target.closest("[data-alex-decision]");
+ if(alexDecision){
+  const id=alexDecision.dataset.alexAssignment,decision=alexDecision.dataset.alexDecision;
+  if(!teamAssignments.has(id)||!window.agentHQCoordCloud?.decidePlan)return;
+  alexDecision.disabled=true;
+  window.agentHQCoordCloud.decidePlan(id,decision).catch(error=>{
+    window.agentHQCoordError?.("Alex plan decision failed: "+error.message);
+  }).finally(()=>{alexDecision.disabled=false;});
+  return;
  }
  const manager=e.target.closest("[data-team-plan]");
  const nextStep=e.target.closest("[data-team-continue]");
