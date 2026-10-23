@@ -18,7 +18,7 @@
  let settingsView="home",wallpaperRequest=0;
  const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
  const symbol=name=>window.AgentHQIcons?.svg(name)||"";
- const titles={home:"Settings",account:"Account & Sign-In",appearance:"Appearance",icons:"App Icons",wallpaper:"Wallpaper",accessibility:"Text & Accessibility",connections:"Connected Apps",ai:"AI Connection",permissions:"Privacy & Permissions",voice:"Voice & Dictation",about:"About Agent HQ"};
+ const titles={home:"Settings",account:"Account & Sign-In",appearance:"Appearance",icons:"App Icons",wallpaper:"Wallpaper",accessibility:"Text & Accessibility",connections:"Connected Apps",ai:"AI Connection",research:"Web Research",permissions:"Privacy & Permissions",voice:"Voice & Dictation",about:"About Agent HQ"};
  const modeNames={auto:"Automatic",light:"Light",dark:"Dark"};
  function save(){try{localStorage.setItem(KEY,JSON.stringify(prefs));return true}catch{alert("This change could not be saved on this device. Try a smaller photo or free some browser storage.");return false}}
  function apply(){
@@ -48,6 +48,7 @@
   group('Workspace',row('accounts','Account & Sign-In','','account','login password recovery sync')+
    row('email','Connected Apps','Gmail, profiles & Meta Ads','connections','email social')+
    row('ai','AI Connection','Provider status & connection check','ai','groq openrouter workers')+
+   row('research','Web Research','Public web search & reports','research','browser internet sources groq')+
    row('approvals','Privacy & Permissions','Access requests & worker approvals','permissions','security accounts'))+
   group('General',row('voice','Voice & Dictation','','voice','microphone speech read aloud')+
    row('info','About Agent HQ','','about','version information')+
@@ -85,6 +86,7 @@
   if(view==='account')return note('Sign in to access your saved conversations, assignments and connected services.')+'<div data-settings-account-host><p class="settings-footnote">Loading account controls…</p></div>';
   if(view==='connections')return group('Apps & Accounts',row('email','Gmail','Inbox, drafts & email connection','email','',true)+row('accounts','My Profiles','Social profiles & worker permissions','accounts','',true)+row('operations','Meta Ads','Advertising connection & reporting','operations','',true))+note('Open a service to review its connection. Nothing connects until you choose to authorize it.');
   if(view==='permissions')return group('Your Control',row('approvals','Access Requests','Review pending requests and saved decisions','approvals','',true)+row('accounts','Worker Permissions','Review or revoke planning permissions','accounts','',true)+row('email','Email Permissions','Gmail connection & AI drafting controls','email','',true))+note('You control account connections and approvals. Appearance settings and photos are saved in this browser on this device.');
+  if(view==='research')return (window.agentHQSettingsResearch?.()||'')+group('Reports',row('research','Research History','Request research or read saved reports','research','',true))+note('Approve one topic at a time in Messages. A report is saved only when live search returns source links.');
   if(view==='ai')return (window.agentHQSettingsAI?.()||'<p class="settings-footnote">AI connection status is loading. Return to Settings and try again.</p>')+note('This checks your existing provider connection. It does not create an assignment or generate a reply.');
   if(view==='accessibility')return group('Display',switchRow('Larger Text','largerText','Use larger interface text.'))+group('Motion',switchRow('Reduce Motion','reduceMotion','Limit animations and moving effects.'))+note('Agent HQ also respects your device’s reduced-motion preference.');
   if(view==='voice')return group('Voice Features','<div class="settings-value-row"><span>Dictation</span><span>'+(window.SpeechRecognition||window.webkitSpeechRecognition?'Available':'Depends on your browser')+'</span></div><div class="settings-value-row"><span>Read Aloud</span><span>'+(window.speechSynthesis?'Available':'Not available here')+'</span></div>')+group('Use Voice',row('messages','Open Messages','Use the microphone in a conversation','messages','',true))+note('Your browser asks for microphone permission when you start dictation. Dictation enters text; it does not send the message.');

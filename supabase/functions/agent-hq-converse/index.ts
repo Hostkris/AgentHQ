@@ -1,8 +1,9 @@
 import {createClient} from "npm:@supabase/supabase-js@2.79.0";
+import {createResearchRequest,isResearchInstruction,researchApproval,researchStatus,runResearch} from "./research.ts";
 const ORIGIN="https://hostkris.github.io";
 const EMPLOYEES={
  alex:"General Manager",maya:"Marketing strategist",jordan:"Scripts and content",
- riley:"Research analyst (no browsing)",taylor:"Communications",
+ riley:"Research analyst",taylor:"Communications",
  casey:"Social media planner",morgan:"Store merchandising",
  avery:"Business analyst",jamie:"Scheduling",quinn:"Partnerships and growth",
  hq:"Company team coordinator"
@@ -31,7 +32,7 @@ function provider(){
 }
 async function decide(ai:NonNullable<ReturnType<typeof provider>>,role:string,context:unknown){
  const system=`You are a friendly, concise AI coworker working as ${role} in Agent HQ. This is the OWNER'S PRIVATE PERSONAL-USE workspace for their own social accounts, advertising accounts and projects, not a commercial agency. This is a casual one-to-one text conversation, not a task dashboard.
-You can answer general knowledge questions, discuss assignments, and ask for missing task details. No tools, browsing, account access, purchasing, posting, or file modification are available. Never imply you actually researched a website or completed external work. Do not fabricate sources.
+You can answer general knowledge questions, discuss assignments, and ask for missing task details. Public web research is available through a separate owner-approved research flow. You cannot browse in this classification call. Account access, purchasing, posting, and file modification are unavailable. Never imply you actually researched a website or completed external work. Do not fabricate sources.
 Interpret the user's most recent message in context. Reply naturally, warmly but briefly (up to 450 characters) as a human coworker might text, not corporate UI language.
 For a request that appears to be internal text drafting or specialist teamwork, classify as "task" if details suffice, or "collect" when important details are missing; ask ONE focused question. For a general question, classify as "answer" and answer from general knowledge.
 For up-to-date business account metrics (e.g., ad spend yesterday), changing an ad budget, publishing to Instagram/TikTok/Facebook/YouTube, sending an email, replying on a real social account, or building a Manychat automation, classify as "action" (NOT "task" or "answer"). Do not invent account metrics or claim a provider is connected.
@@ -42,8 +43,9 @@ manychat: create_automation
 email: send_email
 other: other.
 For "action", return {"intent":"action","reply":"short conversational approval question ending Yes or no?","action":{"provider":"meta_ads","kind":"change_ad_budget","summary":"specific proposed change","scope":"named account, target and amount; mention missing information explicitly"}}. Never assume an account, ID, price or spend amount. If amount/target is missing, ask to clarify instead of issuing an incomplete budget change.
+For requests to research online, search the web, look something up, find current public information, or compare current public options, classify as "research". The server will ask approval before searching; do not claim to have searched. For requests requiring account data or actions, still use "action".
 For "task", ask if they want to START the assignment, ending with "Yes or no?".
-Return ONLY valid JSON with {"intent":"answer|collect|task|action","reply":"short natural message","action":optional object as above} and no code fences.`;
+Return ONLY valid JSON with {"intent":"answer|collect|task|action|research","reply":"short natural message","action":optional object as above} and no code fences.`;
  const abort=new AbortController(),timer=setTimeout(()=>abort.abort(),25000);
  try{
   const response=await fetch(ai.url,{method:"POST",signal:abort.signal,
@@ -60,7 +62,7 @@ Return ONLY valid JSON with {"intent":"answer|collect|task|action","reply":"shor
   const begin=content.indexOf("{"),end=content.lastIndexOf("}");
   if(begin<0||end<=begin)throw Error("AI reply format was unexpected");
   const payload=JSON.parse(content.slice(begin,end+1));
-  const intent=["answer","collect","task","action"].includes(payload.intent)?payload.intent:"answer";
+  const intent=["answer","collect","task","action","research"].includes(payload.intent)?payload.intent:"answer";
   const text=typeof payload.reply==="string"?payload.reply.trim().slice(0,1200):"";
   if(!text)throw Error("AI response was empty");
   const proposed=payload.action&&typeof payload.action==="object"&&!Array.isArray(payload.action)?payload.action:null;
@@ -249,6 +251,7 @@ Deno.serve(async(req:Request)=>{
  let input:Record<string,unknown>;
  try{const raw=await req.json();if(!raw||typeof raw!=="object"||Array.isArray(raw))throw Error();input=raw}
  catch{return reply(req,{error:"Invalid message"},400)}
+ if(input.action==="research_status")return reply(req,await researchStatus(env("GROQ_API_KEY")));
  const worker=typeof input.employee_id==="string"?input.employee_id:"";
  const body=typeof input.text==="string"?input.text.trim():"";
  if(!(worker in EMPLOYEES)||body.length<1||body.length>10000)return reply(req,{error:"Please enter a valid message (up to 10,000 characters)"},400);
@@ -269,14 +272,15 @@ Deno.serve(async(req:Request)=>{
  let pending=stored?.pending_text||"";
  let related=stored?.assignment_id||null,permission=stored?.permission_request_id||null;
  let pendingAction=stored?.action_proposal_id||null;
+ let researchJob=stored?.research_job_id||null,replySaved=false;
  let startAssignment:string|null=null,resumeAssignment:string|null=null;
  let replyText="";
  const decision=yesNo(body);
- const state=async(next:string,taskText="",assignmentId:string|null=null,requestId:string|null=null,actionId:string|null=null)=>{
+ const state=async(next:string,taskText="",assignmentId:string|null=null,requestId:string|null=null,actionId:string|null=null,researchId:string|null=null)=>{
   const {error}=await db.from("agent_chat_states").upsert({
    owner_id:owner,employee_id:worker,stage:next,pending_text:taskText.slice(0,10000),
    assignment_id:assignmentId,permission_request_id:requestId,
-   action_proposal_id:actionId,updated_at:new Date().toISOString()
+   action_proposal_id:actionId,research_job_id:researchId,updated_at:new Date().toISOString()
   },{onConflict:"owner_id,employee_id"});
   if(error)throw Error("Couldn't save the conversation state");
  };
@@ -292,8 +296,43 @@ Deno.serve(async(req:Request)=>{
    .order("updated_at",{ascending:false}).limit(1);
   return tasks?.[0]||null;
  };
+ const proposeResearch=async(topic:string)=>{
+  if(!env("GROQ_API_KEY")){
+   await state("idle");replyText="Web research needs the Groq server connection. Open Settings → Web Research and tap Check connection. A GROQ_API_KEY must be configured in Supabase Secrets; don't send API keys in chat.";return;
+  }
+  const id=await createResearchRequest(db,owner,worker,cid,topic);
+  await state("confirm_research","",null,null,null,id);
+  replyText=researchApproval(topic);
+ };
  try{
-  if(stage==="confirm_action"){
+  if(input.action==="request_research"){
+   await proposeResearch(body);
+  }else if(stage==="confirm_research"){
+   const {data:job,error:jobError}=researchJob?await db.from("agent_research_jobs")
+    .select("id,status,query,expires_at").eq("id",researchJob).eq("owner_id",owner).eq("employee_id",worker).maybeSingle():{data:null,error:null};
+   if(jobError)throw Error("Couldn't check the research request.");
+   if(!job||job.status!=="pending"||Date.parse(job.expires_at)<=Date.now()){
+    await state("idle");replyText="That research request expired or has already been decided. Send a new topic if you want another report.";
+   }else if(decision){
+    const {data:changed,error}=await db.from("agent_research_jobs")
+     .update({status:decision==="yes"?"approved":"denied",approved_at:decision==="yes"?new Date().toISOString():null})
+     .eq("id",job.id).eq("owner_id",owner).eq("employee_id",worker).eq("status","pending")
+     .gt("expires_at",new Date().toISOString()).select("id").maybeSingle();
+    if(error||!changed)throw Error("The research decision was already used or couldn't be saved.");
+    await state("idle");
+    if(decision==="no")replyText="Cancelled. I haven't searched the web for this request.";
+    else{
+     try{replyText=await runResearch(db,owner,worker,job.id,env("GROQ_API_KEY"));replySaved=true}
+     catch(e){replyText="I couldn't complete the web research: "+(e instanceof Error?e.message:"Please try again.")+" No report was marked complete. Send the topic again to request a new search."}
+    }
+   }else if(isResearchInstruction(body)){
+    await proposeResearch(body);
+   }else{
+    // Changing the subject cancels the pending approval; a later Yes cannot approve a stale topic.
+    await db.from("agent_research_jobs").update({status:"denied"}).eq("id",job.id).eq("owner_id",owner).eq("status","pending");
+    await state("idle");replyText="I've cancelled that pending research request. Send the revised topic or question, and I'll help with it.";
+   }
+  }else if(stage==="confirm_action"){
    const {data:proposal,error:lookupError}=pendingAction?
     await db.from("agent_action_proposals")
      .select("id,status,summary,scope,provider,action_kind")
@@ -372,7 +411,8 @@ Deno.serve(async(req:Request)=>{
     replyText="For "+request.target_url+" ("+request.reason+"), should I record approval for this specific request? Yes or no? It won't start browsing.";
    }
   }else{
-   const waiting=await currentWaiting();
+   if(isResearchInstruction(body)&&stage==="idle")await proposeResearch(body);
+   const waiting=replyText?null:await currentWaiting();
    if(waiting?.status==="waiting_for_permission"&&decision){
     const {data:requests}=await db.from("agent_permission_requests")
      .select("id,target_url,reason,expires_at,status")
@@ -485,6 +525,8 @@ Deno.serve(async(req:Request)=>{
        /\b(?:yesterday|today|last night|this week|campaign|ads?|facebook|meta)\b/i.test(body)){
       await state("idle");
       replyText="I don't have live advertising account data, so I can't verify those numbers. To report actual spending and results, we'd need an authorized read-only Meta Ads connection.";
+     }else if(result.intent==="research"){
+      await proposeResearch(composed);
      }else if(result.intent==="task"){
       await state("confirm_task",composed);
       replyText=result.text.match(/yes or no/i)?result.text:result.text+" Should I start this assignment? Yes or no?";
@@ -498,7 +540,7 @@ Deno.serve(async(req:Request)=>{
     }
    }
   }
-  await append(replyText);
+  if(!replySaved)await append(replyText);
   return reply(req,{success:true,owner_message_id:ownerMessage.id,
    reply:replyText,start_assignment_id:startAssignment,resume_assignment_id:resumeAssignment});
  }catch(error){

@@ -37,13 +37,13 @@ async function send(employeeId,body) {
   if(!id)throw Error('The server did not confirm the saved message.');
   return {id,employeeId,text:body,sender:'owner'};
 }
-async function converse(employeeId,body){
+async function converse(employeeId,body,options={}){
  if(!employees.has(employeeId))throw Error('Unknown employee');
  body=String(body||'').trim();
  if(!body||body.length>10000)throw Error('Message must be 1–10,000 characters.');
  await getUser();
  const {data,error}=await agentCloud.functions.invoke('agent-hq-converse',{
-  body:{employee_id:employeeId,text:body}
+  body:{employee_id:employeeId,text:body,...(options.research?{action:"request_research"}:{})}
  });
  if(error){
   let reason=data?.error;
@@ -68,3 +68,20 @@ window.addEventListener('focus',load);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
 setInterval(()=>{if(!document.hidden)load()},30000);
 load();
+
+async function researchRefresh(){
+ try{
+  await getUser();
+  const {data,error}=await agentCloud.from('agent_research_jobs').select('id,employee_id,query,status,created_at,expires_at,report,error').order('created_at',{ascending:false}).limit(30);
+  if(error)throw Error(error.message);
+  const jobs=(data||[]).map(j=>({...j,status:j.status==='pending'&&Date.parse(j.expires_at)<=Date.now()?'expired':j.status}));
+  window.agentHQResearchSync?.(jobs,'Saved research requests and reports.');return jobs;
+ }catch(e){window.agentHQResearchSync?.([],e.message);throw e}
+}
+async function researchStatus(){
+ await getUser();const {data,error}=await agentCloud.functions.invoke('agent-hq-converse',{body:{action:'research_status'}});
+ if(error||!data){let reason=data?.error;if(!reason&&error?.context?.clone){try{reason=(await error.context.clone().json())?.error}catch{}}throw Error(reason||error?.message||'Research status is unavailable.')}
+ window.agentHQResearchConnection?.(data);return data;
+}
+window.agentHQResearchCloud={refresh:researchRefresh,status:researchStatus};
+agentCloud.auth.onAuthStateChange(()=>{window.agentHQResearchSync?.([],'Sign in to view research history.');window.agentHQResearchConnection?.({ready:false,message:'Tap Check connection to verify web research.'})});
