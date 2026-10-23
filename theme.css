@@ -277,3 +277,30 @@
 :root[data-theme-mode=light] .home-dashboard .tile-label{background:rgba(255,255,255,.76);color:#172b36}
 @media(prefers-reduced-motion:reduce){.office-station,.office-emoji-bubble{animation:none!important}}
 
+
+/* Built-in landscape wallpaper picker */
+.wallpaper-help,.wallpaper-status{font-size:13px;line-height:1.5}
+.wallpaper-help{margin:0 0 12px}
+.wallpaper-status{min-height:22px;margin:10px 0;color:#354962}
+.wallpaper-actions{display:flex;flex-wrap:wrap;gap:8px}
+.wallpaper-actions .back{font-size:13px;color:#24374a;background:rgba(255,255,255,.88)}
+.wallpaper-library>summary{font-size:14px;font-weight:700;cursor:pointer;min-height:44px;padding:12px 0}
+.wallpaper-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.theme-panel .wallpaper-card{display:flex;flex-direction:column;gap:5px;min-width:0;padding:6px 6px 10px;text-align:left;
+ border:2px solid transparent;border-radius:15px;background:rgba(255,255,255,.76);color:#1e3346}
+.wallpaper-card[aria-pressed=true]{border-color:#176d99;box-shadow:0 0 0 2px rgba(23,109,153,.15)}
+.wallpaper-thumbnail{display:block;position:relative;width:100%;aspect-ratio:18/11;overflow:hidden;border-radius:10px;background:#c8d5df}
+.wallpaper-thumbnail img{display:block;width:100%;height:100%;object-fit:cover}
+.wallpaper-check{display:none;position:absolute;right:6px;bottom:6px;width:24px;height:24px;border-radius:50%;background:#176d99;color:#fff;font-size:15px;text-align:center;line-height:24px}
+.wallpaper-card[aria-pressed=true] .wallpaper-check{display:block}
+.wallpaper-name{font-size:12px;line-height:1.3;font-weight:750;overflow-wrap:anywhere}
+.wallpaper-card small{font-size:10px;line-height:1.3;color:#53687b}
+.wallpaper-credits{margin-top:14px;font-size:11px;line-height:1.5}
+.wallpaper-credits summary{cursor:pointer;min-height:32px;padding:7px 0}
+.wallpaper-credits a{color:#155a81}
+:root[data-theme-mode=dark] .wallpaper-card{background:#343642;color:#f4f7fa}
+:root[data-theme-mode=dark] .wallpaper-card small,:root[data-theme-mode=dark] .wallpaper-status{color:#d3deeb}
+:root[data-theme-mode=dark] .wallpaper-card[aria-pressed=true]{border-color:#7ccce9}
+:root[data-theme-mode=dark] .wallpaper-actions .back{background:#343642;color:#f4f7fa}
+:root[data-theme-mode=dark] .wallpaper-credits a{color:#99d6f2}
+@media(max-width:340px){.wallpaper-grid{gap:8px}.theme-panel .wallpaper-card{padding:4px 4px 8px}.wallpaper-name{font-size:11px}}
