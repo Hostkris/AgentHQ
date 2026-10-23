@@ -6,7 +6,23 @@ Riley handles these requests. A request can start in My Accounts or from Riley's
 
 The request and Approve/Deny card are saved under the owner's Agent HQ sign-in. A pending request expires after 24 hours; approval permits one analysis for 15 minutes. The server requires the current owner's approved, unexpired request, the exact normalized URL and a capture made after approval. It claims the request atomically before calling Groq. Repeated claims, denial, revocation, wrong pages and expired grants are rejected. Riley cannot send replies or publish content through this feature. Alex's operating instructions and execution guards are unchanged.
 
-## iPhone and iPad flow
+## Connected Safari flow (no capture copy/paste)
+
+Install Userscripts on the iPhone/iPad, open it once, and enable its Safari extension. Allow it only on `hostkris.github.io` and the Facebook/Messenger domains needed. Open `https://hostkris.github.io/AgentHQ/safari/agent-hq-connected-reader.user.js` in Safari and use the Userscripts popup to install it. This is a separate script; the original manual reader remains available. Grant network access to the Agent HQ Supabase endpoint if Safari/Userscripts asks.
+
+1. Open Agent HQ **in Safari**, sign in, and create a specific page/task request in My Accounts or Riley’s thread. The Home Screen PWA may not run Safari extensions.
+2. Approve reading, then tap **Connect Safari & read**. This explicitly authorizes automatically sending the loaded text from the exact approved URL to Riley through the existing Groq connection.
+3. The script stores a one-page capability in Userscripts storage and opens the approved page in Safari. Sign into Facebook yourself beforehand. Keep Safari open and the approved page visible. A five-second stop window appears before reading starts.
+4. The connector checks that permission is still active, captures loaded rendered text (excluding form fields, editable drafts and hidden elements), and submits it directly. There is no capture to copy or paste. Riley’s report is saved in the private Agent HQ thread; return there to view it.
+5. Each capability expires with its 15-minute approval. A new connection replaces the old capability for that request; analysis claims the request once. Revoke in Riley’s thread to block submission or saving a result. “Stop this read” stops local work; if already submitted, revoke in the thread too.
+
+The bridge is a deterministic **single-page reader**, not a general browser agent: it cannot navigate through the account, click Facebook controls, load hidden messages, publish, send, or control the Facebook app. It does not retry uncertain network/provider outcomes. Different URLs require separate approvals. Additional sites/actions need their own tested adapters. There is no paid browser service, desktop dependency or new AI provider; existing Supabase/Groq quotas still apply, and existing billing status was not changed or independently verified.
+
+### Capability authentication
+
+The existing owner function keeps JWT verification and `getUser()`/owner-allowlist checks. Only that authenticated owner can issue a handoff for their approved request. A cryptographically random 256-bit token is returned once and only its SHA-256 hash is stored in the service-only `agent_social_read_handoffs` table. No owner JWT, Facebook cookie, password or service key is given to the extension. The token is held in the userscript’s isolated storage, never put into a URL, web localStorage or chat message. Supabase’s new `agent-safari-bridge` endpoint uses custom capability authentication (`verify_jwt=false`); both `check` and `analyze` must resolve a live hash and allowed owner. An exact URL and the existing atomic one-use approval claim gate all AI calls. Direct anon/authenticated table/RPC access is revoked. Reissued, used, expired or revoked tokens cannot authorize a new analysis. Content remains untrusted user-supplied evidence, not a verified Facebook account audit.
+
+## Manual iPhone and iPad flow
 
 1. Sign into Facebook in Safari using the My Accounts link. If iOS opens the Facebook app, copy the link and paste it into Safari.
 2. Install Userscripts: https://apps.apple.com/us/app/userscripts/id1463298887 . Open it once, enable its Safari extension and allow only the Facebook/Messenger sites needed.
@@ -27,4 +43,4 @@ Facebook/Messenger may restrict what mobile Safari renders. This does not guaran
 
 ## Verification
 
-Run `node --experimental-strip-types --test tests/social-read.test.mjs` and the rollback-only SQL script in `tests/social-read-rollback.sql`. Also verify the mobile extension on the owner's signed-in iPhone/iPad; desktop DOM tests and public checks cannot establish a working personal Facebook session. No live private Facebook content was used in development tests.
+Run `node --experimental-strip-types --test tests/social-read.test.mjs tests/safari-bridge.test.mjs` and the rollback-only SQL scripts in `tests/social-read-rollback.sql` and `tests/safari-handoff-rollback.sql`. A mocked browser test checks the HQ handoff, approved submission, wrong page, revoked permission, stop window and excluded editable text. Also verify the mobile extension on the owner's signed-in iPhone/iPad; desktop DOM tests and public checks cannot establish a working personal Facebook session. No live private Facebook content was used in development tests.
