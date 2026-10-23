@@ -57,13 +57,18 @@
  function render(){
   const counts=mailCounts();
   const connected=status.connected===true;
+  const unavailable=status.unavailable===true;
   const missing=Array.isArray(status.missing)&&status.missing.length>0;
   let content='<div class="email-top"><div><h2>✉️ My Email Center</h2>'+
    '<p>Alex sorts priorities. Taylor prepares replies. You decide what gets sent.</p></div>'+
-   '<span class="email-account-status">'+(connected?"Gmail connected":missing?"Setup needed":"Not connected")+'</span></div>';
+   '<span class="email-account-status">'+(unavailable?"Temporarily unavailable":connected?"Gmail connected":missing?"Setup needed":"Not connected")+'</span></div>';
   if(callback)content+='<p class="email-callback">'+escape(callback)+'</p>';
   if(!status.auth_error&&status.email)content+='<div class="email-connected-as">📮 '+escape(status.email)+'</div>';
-  if(missing){
+  if(unavailable){
+   content+='<section class="email-setup"><h3>Gmail status temporarily unavailable</h3>'+
+    '<p>Agent HQ could not reach its email service. This does not mean your Gmail authorization was removed. Please try checking the connection again.</p>'+
+    '<button type="button" class="email-primary" data-email-action="refresh">↻ Retry connection check</button></section>';
+  }else if(missing){
    content+='<section class="email-setup"><h3>🔧 One-time Gmail setup</h3>'+
     '<p>The Connect Gmail button cannot open Google sign-in yet. The app owner must finish these steps once; this is not a problem with your iPhone or Maya.</p>'+
     '<p><strong>Step 1 — Google.</strong> Enable Gmail API, set up Google Auth Platform, and create an OAuth client of type <strong>Web application</strong>.</p>'+
