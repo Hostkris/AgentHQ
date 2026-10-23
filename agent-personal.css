@@ -110,3 +110,10 @@
 .personal-browser-setup code{font-size:11px;overflow-wrap:anywhere}
 .personal-browser-setup button:disabled{opacity:.65}
 
+
+.social-read-link{display:block;text-align:center;background:#007aff;color:#fff!important;border-radius:14px;padding:12px 16px;font-weight:650;text-decoration:none!important;min-height:44px;box-sizing:border-box}
+.personal-browser-setup form,.social-read-card form{display:grid;gap:10px}
+.personal-browser-setup label,.social-read-card label{display:grid;gap:6px;font-size:13px;font-weight:600}
+.personal-browser-setup input,.personal-browser-setup textarea,.social-read-card input,.social-read-card textarea,.social-read-card select{box-sizing:border-box;width:100%;max-width:100%;padding:12px;border:1px solid #aab8c7;border-radius:12px;font:16px -apple-system,BlinkMacSystemFont,sans-serif;background:var(--surface,#fff);color:var(--text,#18232b)}
+.social-read-card{width:min(100%,440px);box-sizing:border-box;display:grid;gap:10px;overflow-wrap:anywhere}
+.social-read-card p{margin:0;font-size:13px;line-height:1.5}.social-read-card a{color:inherit;text-decoration:underline}.social-read-source{font-size:12px!important;overflow-wrap:anywhere}.social-read-status{text-transform:capitalize;font-size:12px;color:#536d82}.social-read-actions{display:flex;gap:10px}.social-read-actions button{flex:1;min-width:0;min-height:44px}.social-reader-help{font-size:13px;line-height:1.5}.social-reader-help summary{cursor:pointer;min-height:44px;padding:10px 0;box-sizing:border-box}.social-reader-help ol{margin:0;padding-left:22px}.social-reader-help li{margin-bottom:10px}.social-reader-help a{text-decoration:underline}.social-read-card button:disabled{opacity:.6}

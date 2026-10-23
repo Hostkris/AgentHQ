@@ -42,6 +42,7 @@ async function converse(employeeId,body,options={}){
  body=String(body||'').trim();
  if(!body||body.length>10000)throw Error('Message must be 1–10,000 characters.');
  await getUser();
+ if(!options.research&&window.agentHQSocialReadCloud?.matches(employeeId,body))return window.agentHQSocialReadCloud.requestFromChat(body);
  const {data,error}=await agentCloud.functions.invoke('agent-hq-converse',{
   body:{employee_id:employeeId,text:body,...(options.research?{action:"request_research"}:{})}
  });

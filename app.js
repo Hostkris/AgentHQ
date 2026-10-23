@@ -362,6 +362,7 @@ function renderIPhoneChat(){
   '<div class="ios-chat-list" id="chat-scroll" aria-label="Conversation" aria-live="polite">'+
   (rows||'<div class="ios-empty-chat">Send a message to start the conversation.</div>')+
   renderChatConnectorCard(items)+
+  '<div data-social-read-thread>'+(window.agentHQSocialReadThread?.(active)||'')+'</div>'+
   '</div>'+
   (sendingAgents.has(active)?'<div class="ios-typing" aria-live="polite"><span></span><span></span><span></span></div>':"")+
   '<form id="composer" class="ios-composer" autocomplete="off">'+
@@ -489,7 +490,7 @@ function renderPersonalAccounts(){
    '<div class="personal-account-title"><strong>'+escapeHTML(account.label)+'</strong><small>'+escapeHTML(names[account.platform]||account.platform)+' · '+escapeHTML(account.handle)+'</small></div>'+
    '<button class="personal-remove" type="button" data-personal-delete="'+escapeHTML(account.id)+'" title="Remove saved profile label" aria-label="Remove '+escapeHTML(account.label)+'">×</button></div>'+
    '<div class="personal-account-status">○ Account label only · Not connected</div>'+
-   (account.platform==='facebook'?'<div data-facebook-host-setup>'+(window.agentHQFacebookSetup?.()||'<p class="personal-muted">Facebook connection controls are loading. Reopen My Accounts in a moment.</p>')+'</div>':'')+
+   (account.platform==='facebook'?'<div data-facebook-read-setup>'+(window.agentHQFacebookReadAccount?.(account)||'<a href="https://www.facebook.com/" target="_blank" rel="noopener noreferrer">Sign in to Facebook ↗</a>')+'</div>':'')+
    '<details class="personal-worker-details"'+(hasPending?' open':'')+'><summary>Worker permissions'+(hasPending?' · Approval needed':'')+(grants.length?' ('+grants.length+')':"")+'</summary>'+
    (item||'<p class="personal-muted">No worker permission plans yet.</p>')+
    '<form class="personal-request-form" data-personal-request="'+escapeHTML(account.id)+'">'+
@@ -923,3 +924,6 @@ const check=e.target.closest("[data-worker-check]");if(check){
   return;
  }
  const teamLink=e.target.closest("[data-team-open]");if(teamLink){const id=teamLink.dataset.teamOpen;if(teamAssignments.has(id)){teamActive=id;teamDraft="";teamPostFeedback="";screen="team";render()}return}const decision=e.target.closest("[data-approval]");if(decision){const req=approvalRequests.get(decision.dataset.approval);if(req&&req.status==="pending"&&req.agentId===active){const choice=decision.dataset.decision;const service=window.agentHQCloudApprovals;if(!service){window.agentHQApprovalCloudError("Permission service unavailable. Try refreshing Agent HQ.");return}const controls=[...decision.closest(".card").querySelectorAll("[data-approval]")];controls.forEach(button=>button.disabled=true);service.decide(req.id,choice).catch(err=>{window.agentHQApprovalCloudError("Decision not saved: "+err.message)}).finally(()=>controls.forEach(button=>button.disabled=false))}return}const nav=e.target.closest("[data-nav]");const chat=e.target.closest("[data-chat]");if(nav){const next=nav.getAttribute("data-nav");settingsReturn=screen==="settings"&&!["home","settings"].includes(next)?true:["home","settings"].includes(next)?false:settingsReturn;screen=next;window.scrollTo(0,0);if(screen==="hq"){active="hq";screen="chat"}render()}if(chat){active=chat.dataset.chat;screen="chat";render()}});render();
+
+window.agentHQSocialReadSync=()=>{if((screen==='chat'&&active==='riley')||screen==='accounts')renderWithoutInterruptingDraft()};
+window.agentHQSocialReadOpen=()=>{active='riley';screen='chat';render()};

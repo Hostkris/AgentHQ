@@ -1,0 +1,31 @@
+begin;
+do $$
+declare o uuid; a uuid; req jsonb; rid uuid; result jsonb; blocked boolean;
+begin
+ select owner_id,id into o,a from public.agent_personal_accounts where platform='facebook' limit 1;
+ if o is null then raise exception 'A saved Facebook profile is required for this rollback-only test'; end if;
+ req:=public.agent_social_read_transition(o,'request',jsonb_build_object('account_id',a,'source_url','https://www.facebook.com/example','purpose','Rollback-only controlled page review'));
+ rid:=(req->>'id')::uuid;
+ blocked:=false;begin perform public.agent_social_read_transition(gen_random_uuid(),'approve',jsonb_build_object('id',rid));exception when others then blocked:=true;end;if not blocked then raise exception 'Cross-owner approval was accepted';end if;
+ perform public.agent_social_read_transition(o,'approve',jsonb_build_object('id',rid));
+ blocked:=false;begin perform public.agent_social_read_transition(o,'claim',jsonb_build_object('id',rid,'source_url','https://www.facebook.com/wrong','captured_at',now()));exception when others then blocked:=true;end;if not blocked then raise exception 'Wrong page was accepted';end if;
+ perform public.agent_social_read_transition(o,'claim',jsonb_build_object('id',rid,'source_url','https://www.facebook.com/example','captured_at',now()));
+ blocked:=false;begin perform public.agent_social_read_transition(o,'claim',jsonb_build_object('id',rid,'source_url','https://www.facebook.com/example','captured_at',now()));exception when others then blocked:=true;end;if not blocked then raise exception 'Duplicate analysis claim was accepted';end if;
+ perform public.agent_social_read_transition(o,'revoke',jsonb_build_object('id',rid));
+ blocked:=false;begin perform public.agent_social_read_transition(o,'finish',jsonb_build_object('id',rid,'report','Must not be saved'));exception when others then blocked:=true;end;if not blocked then raise exception 'Revoked analysis report was saved';end if;
+ req:=public.agent_social_read_transition(o,'request',jsonb_build_object('account_id',a,'source_url','https://www.facebook.com/example','purpose','Rollback-only denied page review'));rid:=(req->>'id')::uuid;
+ perform public.agent_social_read_transition(o,'deny',jsonb_build_object('id',rid));
+ blocked:=false;begin perform public.agent_social_read_transition(o,'claim',jsonb_build_object('id',rid,'source_url','https://www.facebook.com/example','captured_at',now()));exception when others then blocked:=true;end;if not blocked then raise exception 'Denied analysis was claimed';end if;
+ req:=public.agent_social_read_transition(o,'request',jsonb_build_object('account_id',a,'source_url','https://www.facebook.com/example','purpose','Rollback-only expired page review'));rid:=(req->>'id')::uuid;
+ perform public.agent_social_read_transition(o,'approve',jsonb_build_object('id',rid));
+ update public.agent_social_read_requests set expires_at=now()-interval '1 second' where id=rid;
+ blocked:=false;begin perform public.agent_social_read_transition(o,'claim',jsonb_build_object('id',rid,'source_url','https://www.facebook.com/example','captured_at',now()));exception when others then blocked:=true;end;if not blocked then raise exception 'Expired analysis was claimed';end if;
+ req:=public.agent_social_read_transition(o,'request',jsonb_build_object('account_id',a,'source_url','https://www.facebook.com/example','purpose','Rollback-only successful page review'));rid:=(req->>'id')::uuid;
+ perform public.agent_social_read_transition(o,'approve',jsonb_build_object('id',rid));
+ perform public.agent_social_read_transition(o,'claim',jsonb_build_object('id',rid,'source_url','https://www.facebook.com/example','captured_at',now()));
+ result:=public.agent_social_read_transition(o,'finish',jsonb_build_object('id',rid,'report','Controlled test report, not real Facebook data.'));
+ if result->>'status'<>'completed' or not exists(select 1 from public.agent_messages where owner_id=o and conversation_id=(result->>'conversation_id')::uuid and body like '%Controlled test report, not real Facebook data.%') then raise exception 'Report and completion were not saved together';end if;
+ if has_table_privilege('anon','public.agent_social_read_requests','select') or has_table_privilege('authenticated','public.agent_social_read_requests','insert') or has_function_privilege('authenticated','public.agent_social_read_transition(uuid,text,jsonb)','execute') then raise exception 'Unexpected client privileges';end if;
+end $$;
+rollback;
+select 'PASS: owner isolation, exact page, one-use claim, revoke, deny and server-only writes (all test changes rolled back)' as result;
