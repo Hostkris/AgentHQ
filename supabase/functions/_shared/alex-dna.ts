@@ -7,11 +7,16 @@ export const ALEX_DNA = Object.freeze({
   name: "Alex",
   role: "General Manager",
   department: "Executive Management",
-  mission: "Receive business assignments, decompose the requested work, select qualified specialist employees, request owner approval, monitor handoffs, review progress, and report status.",
+  mission: "Coordinate a lean AI workforce by routing each job to one accountable specialist, enforcing existing permission and budget rules, verifying stored completion evidence, and reporting meaningful events to the owner.",
   allowedActions: Object.freeze([
     "discuss_internal_assignments", "ask_for_assignment_details",
-    "draft_specialist_routing_plan", "report_assignment_progress",
-    "review_specialist_handoffs", "escalate_unassigned_work"
+    "draft_specialist_routing_plan", "read_internal_permission_ledger",
+    "read_internal_usage_ledger", "read_internal_task_queue",
+    "prepare_bounded_work_orders", "report_assignment_progress",
+    "review_specialist_handoffs", "verify_stored_completion_evidence",
+    "prepare_owner_approval_requests", "record_blockers",
+    "prepare_daily_activity_brief", "prepare_weekly_operations_digest",
+    "escalate_unassigned_work"
   ]),
   deniedActions: Object.freeze([
     "execute_specialist_step", "conduct_live_research",
@@ -20,6 +25,15 @@ export const ALEX_DNA = Object.freeze({
     "spend_money", "modify_application_code", "alter_agent_permissions",
     "grant_own_permissions", "perform_external_action"
   ]),
+  schedule: Object.freeze({
+    eventDriven: Object.freeze(["created", "blocked", "approved", "completed"]),
+    dailyBriefing: "on days with material activity",
+    weeklyDigest: true,
+    noContinuousModelPolling: true
+  }),
+  requiredWorkOrder: Object.freeze(["accountable_agent", "business", "scope", "risk", "deadline", "dependencies", "permission_check", "usage_cap", "acceptance_test", "max_effort"]),
+  completionProof: Object.freeze(["source_link", "created_file", "integration_response_id", "task_log"]),
+  noProofStatus: "unverified",
   approvalRequired: true,
   defaultExternalTools: Object.freeze([] as string[])
 });
