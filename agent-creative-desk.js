@@ -184,10 +184,13 @@ host?.addEventListener("click",event=>{
  if(!element)return;
  const id=element.dataset.creativeRefresh?null:element.dataset.creativePlan||element.dataset.creativePlanApprove||element.dataset.creativeRun||element.dataset.creativeCopy||element.dataset.creativeApprove||element.dataset.creativeRevise;
  if(!id){refresh();return;}
+ // Capture revision text before act() redraws the page for its busy state.
+ const revisionValue=element.hasAttribute("data-creative-revise")?document.querySelector('[data-revision-input="'+id+'"]')?.value:"";
  if(element.hasAttribute("data-creative-copy")){
   const job=parseJob(id),text=textContent(job);
   if(!text)return;
-  navigator.clipboard?.writeText(text).then(()=>{feedback="Draft copied. Nothing was published.";draw();}).catch(()=>{window.prompt("Copy this draft:",text);});
+  if(!navigator.clipboard?.writeText){window.prompt("Copy this draft:",text);return;}
+  navigator.clipboard.writeText(text).then(()=>{feedback="Draft copied. Nothing was published.";draw();}).catch(()=>{window.prompt("Copy this draft:",text);});
   return;
  }
  act(async()=>{
@@ -216,8 +219,7 @@ host?.addEventListener("click",event=>{
     await window.agentHQTeamCloud.post(id,REVIEW+"|APPROVED|"+versionOf(job)+"\nOwner approved the written content only. No external publishing is authorized.");
     feedback="Text content approved and recorded. Publishing remains separately blocked.";
    }else{
-    const field=document.querySelector('[data-revision-input="'+id+'"]');
-    const detail=String(field?.value||"").trim();
+    const detail=String(revisionValue||"").trim();
     if(detail.length<10||detail.length>1200)throw Error("Describe the revision in at least 10 characters.");
     const info=projectInfo(job);
     const worker=specialists.some(s=>s[0]===info.specialist)?info.specialist:"jordan";
