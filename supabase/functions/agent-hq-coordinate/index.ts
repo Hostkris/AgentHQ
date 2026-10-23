@@ -1,18 +1,8 @@
 import {createClient} from "npm:@supabase/supabase-js@2.79.0";
+import {ALEX_DNA, ALEX_PLAN_APPROVAL_NOTE, SPECIALIST_JOBS, isAlexSpecialist} from "../_shared/alex-dna.ts";
 
-const ALLOWED=["alex","maya","jordan","riley","taylor","casey","morgan","avery","jamie","quinn"];
-const JOBS:Record<string,string>={
- alex:"General Manager: breaks down assignments and coordinates specialists",
- maya:"Marketing: campaign strategy, messaging and positioning",
- jordan:"Content: scripts, copywriting and editorial production",
- riley:"Research: evidence planning, comparative analysis, no internet tools",
- taylor:"Communications: email drafts and professional correspondence",
- casey:"Social media: platform-specific posts and content plans",
- morgan:"Shopify: storefront merchandising and product descriptions",
- avery:"Business analysis: budgets, costs, metrics and operational analysis",
- jamie:"Scheduling: priorities, dependencies and timelines",
- quinn:"Growth: partnerships, outreach strategy and development"
-};
+const ALLOWED=["alex",...Object.keys(SPECIALIST_JOBS)];
+const JOBS=SPECIALIST_JOBS;
 const ORIGIN="https://hostkris.github.io";
 function cors(req:Request){
  const origin=req.headers.get("origin");
@@ -82,7 +72,7 @@ Deno.serve(async(req:Request)=>{
  try{const obj=await req.json();if(!obj||typeof obj!=="object"||Array.isArray(obj))throw Error();input=obj}
  catch{return reply(req,{error:"Invalid input"},400)}
  const action=input.action,assignmentId=input.assignment_id;
- if(!["plan","next"].includes(String(action))||typeof assignmentId!=="string"||!uuid.test(assignmentId))
+ if(!["plan","next","approve","reject"].includes(String(action))||typeof assignmentId!=="string"||!uuid.test(assignmentId))
   return reply(req,{error:"Invalid coordination request"},400);
  const {data:assignment,error:loadError}=await admin.from("agent_team_assignments")
   .select("id,title,instructions,info_needed,employee_ids,status,source_employee_id,coordination_status,manager_summary")
@@ -97,7 +87,46 @@ Deno.serve(async(req:Request)=>{
   .order("step_number",{ascending:true});
  if(stepLoadError)return reply(req,{error:"Could not read worker steps"},500);
  const existing=steps||[];
- if(action==="plan"&&existing.length)return reply(req,{state:"ready",message:"A manager plan already exists",steps:existing.length});
+ // Approval is a signed-in owner action, separate from creating a plan.
+ const {data:approvals,error:approvalError}=await admin.from("agent_team_messages")
+  .select("id").eq("owner_id",owner).eq("assignment_id",assignmentId)
+  .eq("sender_kind","owner").eq("message_type","note")
+  .eq("body",ALEX_PLAN_APPROVAL_NOTE).limit(1);
+ if(approvalError)return reply(req,{error:"Could not verify owner plan approval"},503);
+ const approved=Boolean(approvals?.length);
+ if(action==="approve"){
+  if(!existing.length||!assignment.manager_summary)return reply(req,{error:"Alex has not drafted a plan to approve"},409);
+  if(existing.some(s=>s.status!=="queued"))return reply(req,{error:"This plan has already started and cannot be newly approved"},409);
+  if(!approved){
+   const {error:saveError}=await admin.from("agent_team_messages").insert({
+    owner_id:owner,assignment_id:assignmentId,sender_kind:"owner",sender_id:"owner",
+    message_type:"note",body:ALEX_PLAN_APPROVAL_NOTE
+   });
+   if(saveError)return reply(req,{error:"Could not save the owner's approval"},500);
+  }
+  return reply(req,{state:"ready",message:"You approved Alex's specialist routing plan. Specialists may now draft when you choose Continue teamwork."});
+ }
+ if(action==="reject"){
+  if(!existing.length||approved||existing.some(s=>s.status!=="queued"))
+   return reply(req,{error:"Only an unapproved, not-yet-started plan can be rejected"},409);
+  const {error:deleteError}=await admin.from("agent_task_steps").delete()
+   .eq("owner_id",owner).eq("assignment_id",assignmentId).eq("status","queued");
+  if(deleteError)return reply(req,{error:"Could not clear the rejected plan"},500);
+  const {error:resetError}=await admin.from("agent_team_assignments")
+   .update({employee_ids:["alex"],manager_summary:null,coordination_status:"planning",status:"planned",updated_at:new Date().toISOString()})
+   .eq("owner_id",owner).eq("id",assignmentId);
+  if(resetError)return reply(req,{error:"Could not reset Alex's plan"},500);
+  await admin.from("agent_team_messages").insert({
+   owner_id:owner,assignment_id:assignmentId,sender_kind:"owner",sender_id:"owner",
+   message_type:"note",body:"Owner rejected Alex's specialist routing plan. A new proposal is required."
+  });
+  return reply(req,{state:"planning",message:"Plan rejected. Ask Alex for a revised plan."});
+ }
+ if(action==="plan"&&existing.length)return reply(req,{
+  state:approved?"ready":"awaiting_approval",
+  message:approved?"Plan already approved":"Alex's plan is waiting for your approval",steps:existing.length
+ });
+ if(action==="next"&&!approved)return reply(req,{state:"awaiting_approval",message:"Review Alex's plan and press Approve plan before any specialist starts."});
  if(action==="next"&&!existing.length)return reply(req,{state:"unplanned",message:"Plan the team assignment first"});
  if(action==="next"){
   const waiting=existing.find(s=>s.status==="waiting_for_owner"||s.status==="waiting_for_permission");
@@ -117,7 +146,7 @@ Deno.serve(async(req:Request)=>{
   .lt("created_at",new Date(Date.now()-10*60*1000).toISOString());
  const next=existing.find(s=>s.status==="queued");
  const worker=action==="plan"?"alex":next?.employee_id;
- if(!worker||!ALLOWED.includes(worker))return reply(req,{error:"No valid next worker"},400);
+ if(!worker||(action==="plan"?worker!=="alex":!isAlexSpecialist(worker)))return reply(req,{error:"No valid next worker"},400);
  const {data:run,error:runError}=await admin.from("agent_worker_runs").insert({
   owner_id:owner,assignment_id:assignmentId,employee_id:worker,status:"running",
   provider:ai.name,model:ai.model
@@ -136,11 +165,11 @@ Deno.serve(async(req:Request)=>{
    }
    const requested=assignment.source_employee_id;
    const originalWorker=ALLOWED.includes(requested)?requested:assignment.employee_ids?.[0];
-   const system=`You are Alex, the AI general manager coordinating a company's specialist agents.
+   const system=`You are Alex, Agent HQ's General Manager. Permanent mission: ${ALEX_DNA.mission}.
 Your sole capability is to PLAN TEXT work. You have NO web access, tools, account access, or ability to execute external actions.
 Given the owner's assignment, choose 1–4 specialist workers in sensible dependency order. Select only from:
 ${Object.entries(JOBS).map(([id,job])=>id+": "+job).join("; ")}.
-If the message was sent to a specialist, give that specialist the first step if reasonably appropriate; otherwise explain reassignment.
+If the message was sent to a specialist (not Alex), give that specialist the first step if reasonably appropriate; otherwise explain reassignment. NEVER assign any specialist execution step to Alex.
 Make handoffs specific, not generic. No impersonation or claims of completed real-world work.
 Do not invent facts, web searches, source verification, user sign-ins, purchases, or emails. Mark research as unverified until owner supplies sources.
 Respond ONLY as valid JSON with exactly:
@@ -157,7 +186,7 @@ Choose a maximum of 4 DIFFERENT workers. No markdown.`;
     if(!value||typeof value!=="object")continue;
     const obj=value as Record<string,unknown>;
     const id=safeText(obj.worker,30).toLowerCase();
-    if(!ALLOWED.includes(id)||seen.has(id))continue;
+    if(!isAlexSpecialist(id)||seen.has(id))continue;
     seen.add(id);
     routes.push({worker:id,title:safeText(obj.title,180)||"Specialist contribution",
      instructions:safeText(obj.instructions,3000)||"Develop a clearly scoped text draft for this assignment"});
@@ -171,7 +200,7 @@ Choose a maximum of 4 DIFFERENT workers. No markdown.`;
    if(commitError)throw Error("Could not save the manager's plan");
    await admin.from("agent_worker_runs").update({status:"completed",result_preview:summary.slice(0,4000),
      finished_at:new Date().toISOString()}).eq("id",runId).eq("owner_id",owner);
-   return reply(req,{state:"ready",message:"Alex planned "+total+" specialist steps.",
+   return reply(req,{state:"awaiting_approval",message:"Alex proposed "+total+" specialist steps. Review and approve or reject the plan before anyone starts.",
     summary,steps:routes.map(x=>({employee_id:x.worker,title:x.title}))});
   }
 
