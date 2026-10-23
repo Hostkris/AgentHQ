@@ -15,6 +15,7 @@ test('Alex DNA gives no external execution tools and lists only specialists',()=
 test('Alex cannot directly execute generic worker steps',()=>{
  const worker=source('supabase/functions/agent-hq-worker/index.ts');
  assert.match(worker,/if\(employeeId==="alex"\)return reply\(req,.*403\)/);
+ assert.match(worker,/if\(planDecision\?\.status!=="approved"\)return reply/);
 });
 test('Owner plan decisions are backed by RLS rather than chat text',()=>{
  const sql=source('supabase/migrations/20261023190000_alex_plan_decisions.sql');
@@ -30,6 +31,7 @@ test('iPhone interface requires separate plan approval before specialist continu
  const client=source('agent-coordination-cloud.js');
  assert.match(ui,/data-alex-decision="approve"/);
  assert.match(ui,/data-alex-decision="reject"/);
+ assert.match(ui,/a\.manager_summary&&a\.alex_plan_status!=="approved"/);
  assert.match(ui,/continueTeam=p\.steps\.length>0&&pending&&!p\.waiting&&a\.alex_plan_status==="approved"/);
  assert.match(client,/async function decidePlan\(/);
 });
