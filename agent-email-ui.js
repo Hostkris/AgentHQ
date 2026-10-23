@@ -21,7 +21,7 @@
  let status={configured:false,connected:false,ai_drafting_enabled:false,
   message:"Checking your Gmail connection…" };
  let emails=[],filter="attention",selected="",messageView=null;
- let busy=false,feedback="",modified=new Map(),error="";
+ let busy=false,feedback="",lastCheckResult="",modified=new Map(),error="";
  let lastMarkup="";
  const d=(date)=>{if(!date)return "";const t=new Date(date);return Number.isFinite(t.getTime())?t.toLocaleString():""};
  const get=(id)=>emails.find(e=>e.gmail_message_id===id);
@@ -94,6 +94,7 @@
     (status.ai_drafting_enabled?"Turn off":"Enable AI drafts")+'</button></div>'+
     '<p class="email-last-check">'+(status.last_checked_at?"Last checked "+escape(d(status.last_checked_at)):
      "Inbox not checked yet. Select Check Inbox Now.")+'</p>'+
+    (lastCheckResult?'<p class="email-callback" role="status">'+escape(lastCheckResult)+'</p>':"")+
     '<div class="email-summary">'+
       [["urgent",counts.urgent],["high",counts.high],["medium",counts.medium],["low",counts.low]].map(([name,n])=>
        '<div class="email-summary-item email-tier-'+name+'"><span>'+ICON[name]+' '+labels[name]+'</span><strong>'+n+'</strong></div>').join("")+
@@ -173,7 +174,7 @@
   if(action==="check"){
    feedback="Checking your inbox and preparing drafts. This may take a moment.";show();
    const out=await service.check();
-   feedback=out.message||"Inbox reviewed.";
+   lastCheckResult=out.message||"Inbox reviewed."; feedback=lastCheckResult;
   }
   if(action==="original"){
    const messageId=selected;const content=await service.original(messageId);
