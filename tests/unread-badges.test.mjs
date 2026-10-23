@@ -28,7 +28,8 @@ test('Badge system needs no extra user-facing setup button or permission prompt'
  const app=read('app.js');
  const css=read('ios-ui.css');
  assert.doesNotMatch(app,/data-enable-icon-badges/);
- assert.doesNotMatch(app,/Notification\.requestPermission\(\)/);
+ assert.match(app,/Notification\.requestPermission\(\)\.then\(\(\)=>syncAppBadge\(\)\)/);
+ assert.match(app,/if\(next==="messages"\&\&/);
  assert.doesNotMatch(css,/\.agent-badge-settings/);
  assert.match(app,/navigator\.setAppBadge\(count\)/);
  assert.match(app,/navigator\.clearAppBadge\(\)/);
