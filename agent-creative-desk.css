@@ -1,0 +1,42 @@
+/* Creative Desk — compact iPhone-friendly editorial workflow. */
+.creative-page{display:grid;gap:15px;padding-bottom:30px}
+.creative-page>section{background:var(--card-bg,rgba(255,255,255,.78));border:1px solid rgba(120,120,140,.19);border-radius:20px;padding:16px;box-shadow:0 8px 26px rgba(35,40,65,.05);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+.creative-hero>strong{font-size:1.3rem;letter-spacing:-.03em}
+.creative-hero p{line-height:1.45}
+.creative-engine{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.creative-engine span{border:1px solid rgba(140,140,150,.3);border-radius:10px;padding:8px 10px;font-size:.78rem;background:rgba(180,190,205,.11)}
+.creative-engine b{font-weight:700}
+.creative-note{font-size:.81rem;line-height:1.45;opacity:.8}
+.creative-intake form{display:grid;gap:13px}
+.creative-intake h2,.creative-history h2{margin:0 0 13px;font-size:1.12rem}
+.creative-intake label,.creative-final label{display:grid;gap:5px;font-size:.86rem;font-weight:650}
+.creative-intake input,.creative-intake select,.creative-intake textarea,.creative-final textarea{width:100%;box-sizing:border-box;border:1px solid rgba(125,125,140,.45);border-radius:12px;background:rgba(255,255,255,.76);color:#20212b;padding:11px;font-size:16px;min-width:0;font-family:inherit}
+.creative-intake textarea,.creative-final textarea{resize:vertical}
+.creative-two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.creative-page button{font-family:inherit;border-radius:10px;cursor:pointer;border:1px solid rgba(125,125,140,.36);padding:10px 12px;background:rgba(240,240,247,.8);color:#222534;font-size:.86rem;font-weight:650}
+.creative-page button:disabled{opacity:.55;cursor:wait}
+.creative-page .creative-primary{background:#294a84;color:white;border-color:#294a84}
+.creative-history-header{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.creative-history-header h2{margin:0}
+.creative-feedback{font-size:.82rem;line-height:1.5;opacity:.8}
+.creative-job{display:grid;gap:10px;border:1px solid rgba(125,125,140,.22);border-radius:16px;background:rgba(246,247,252,.55);padding:13px;margin-top:14px}
+.creative-job-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap}
+.creative-job-head strong{display:block;line-height:1.35}
+.creative-job-head small{display:block;opacity:.72;margin-top:3px}
+.creative-job-state{display:inline-block;padding:5px 9px;border-radius:30px;font-size:.72rem;font-weight:650;border:1px solid rgba(100,120,170,.2);background:rgba(105,145,205,.13)}
+.creative-brief{white-space:pre-wrap;font-size:.9rem;margin:3px 0}
+.creative-manager{font-size:.85rem}
+.creative-manager p{white-space:pre-wrap}
+.creative-step{border-top:1px solid rgba(125,125,140,.23);padding-top:10px}
+.creative-step-head{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:.84rem;margin-bottom:8px}
+.creative-step-head span{opacity:.7}
+.creative-output{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.5;font-size:.9rem;background:rgba(255,255,255,.7);padding:12px;border-radius:12px;max-height:500px;overflow:auto}
+.creative-controls{display:flex;flex-wrap:wrap;gap:8px}
+.creative-final{border:1px solid rgba(100,130,185,.29);padding:12px;border-radius:13px;display:grid;gap:10px;background:rgba(130,155,210,.09)}
+.creative-final h3,.creative-final p{margin:0}
+.creative-final h3{font-size:.96rem}
+.creative-final p{font-size:.84rem;line-height:1.45}
+.creative-confirm{font-weight:750}
+.creative-nopublish{font-size:.77rem;opacity:.75;margin:0}
+.creative-empty{font-size:.89rem;opacity:.72}
+@media(max-width:390px){.creative-two{grid-template-columns:1fr}}
