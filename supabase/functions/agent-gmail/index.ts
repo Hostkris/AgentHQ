@@ -42,7 +42,7 @@ function extract(message:any){
   snippet,is_unread:labels.includes("UNREAD"),received_at:when,
   original_message_id:/^<[^<>\s]+@[^<>\s]+>$/.test(headerId)?headerId:"",
   original_references:safeHeader(h,"References").slice(0,1500),
-  ...chosen
+  priority:chosen.priority,priority_reason:chosen.reason,needs_reply:chosen.needs_reply
  };
 }
 function ai(){
@@ -168,78 +168,74 @@ async function check(req:Request,db:DB,owner:string){
  if(!connection.scopes.includes(READ_SCOPE))throw Error("Gmail read access was not granted");
  const list=await googleGet("messages",token,{q:"in:inbox",maxResults:String(BATCH_SIZE)});
  const refs=(Array.isArray(list.messages)?list.messages:[]).slice(0,BATCH_SIZE);
- let drafted=0,checked=0,failures=0,skipped=0; const reasons:Record<string,number>={};
- // Fetch only a small bounded batch. Never fetch attachments.
+ let checked=0,drafted=0,failures=0,skipped=0;
+ const reasons:Record<string,number>={};
+ // Gmail sends only inbox metadata and selected text; attachments are never fetched.
+ // Owner-approved email sending is a completely separate action.
  for(let idx=0;idx<refs.length;idx+=3){
-  const group=refs.slice(idx,idx+3);
-  await Promise.all(group.map(async(ref:any)=>{
-   let phase="validation";
+  await Promise.all(refs.slice(idx,idx+3).map(async(ref:any)=>{
+   let phase="fetch";
    try{
-    if(!messagePattern.test(String(ref.id||""))){skipped++;reasons.invalid_message_id=(reasons.invalid_message_id||0)+1;return}
-    phase="fetch_message";
-    const raw=await googleGet("messages/"+encodeURIComponent(ref.id),token,{format:"full"});
-    phase="parse_message";
+    const messageId=String(ref?.id||"");
+    if(!messagePattern.test(messageId)){
+     skipped++;reasons.invalid_gmail_id=(reasons.invalid_gmail_id||0)+1;return;
+    }
+    const raw=await googleGet("messages/"+encodeURIComponent(messageId),token,{format:"full"});
+    phase="parse";
     const item=extract(raw);
-    if(!item||!messagePattern.test(item.gmail_message_id)||!messagePattern.test(item.thread_id)){skipped++;reasons.unusable_sender_or_id=(reasons.unusable_sender_or_id||0)+1;return}
-    phase="read_existing_build";
-    // Primary key (owner_id,gmail_message_id) ensures at most one row.
-    // Array results safely represent first-time messages without a singular query.
-    const existingQuery=db.from("agent_email_items")
-     .select("priority,priority_manual,draft_state,draft_body,needs_reply")
-     .eq("owner_id",owner).eq("gmail_message_id",item.gmail_message_id);
-    phase="read_existing_request";
-    const {data:existingRows,error:readErr}=await existingQuery;
-    if(readErr)throw Object.assign(Error("Could not read saved priority"),{db_code:String(readErr.code||"unknown").slice(0,24)});
-    const existing=existingRows?.[0]||null;
-    const priority=existing?.priority_manual?existing.priority:item.priority;
-    const needsReply=existing?.priority_manual?existing.needs_reply:item.needs_reply;
-    const fields:any={owner_id:owner,...item,priority,needs_reply,last_checked_at:timestamp(),updated_at:timestamp()};
-    if(existing?.priority_manual){fields.priority_manual=true;fields.priority_reason="Priority changed by owner"}
-    const draftedBefore=existing?.draft_state==="ready"||existing?.draft_state==="sent"||
-      existing?.draft_state==="sending"||existing?.draft_state==="unknown";
-    if(draftedBefore){
-     fields.draft_body=existing.draft_body;
-     fields.draft_state=existing.draft_state;
-    }else if(connection.ai_drafting_enabled&&needsReply&&
-      ["medium","high","urgent"].includes(priority)){
-     const proposed=await draftFor(raw,connection.gmail_address);
-     if(proposed){fields.draft_body=proposed;fields.draft_state="ready";drafted++}
-     else{fields.draft_body="";fields.draft_state="none"}
-    }else{fields.draft_body="";fields.draft_state="none"}
-    phase="save_message";
-    const {error}=await db.from("agent_email_items").upsert(fields,{
-     onConflict:"owner_id,gmail_message_id"
+    if(!item||!messagePattern.test(item.gmail_message_id)||!messagePattern.test(item.thread_id)){
+     skipped++;reasons.invalid_message_metadata=(reasons.invalid_message_metadata||0)+1;return;
+    }
+    phase="store";
+    // Single server-only RPC performs atomic INSERT / UPDATE and preserves manual
+    // priority, existing drafts, sending state and sent confirmations.
+    const {data:saved,error:saveError}=await db.rpc("agent_gmail_ingest_item",{
+     p_owner_id:owner,p_item:item
     });
-    if(error)throw Error("Could not save a prioritized email");
+    if(saveError)throw Object.assign(Error("Could not save inbox metadata"),{
+     db_code:String(saveError.code||"database_error").slice(0,24)
+    });
+    if(!saved||typeof saved!=="object")throw Error("Gmail save did not return confirmation");
     checked++;
+    if(!connection.ai_drafting_enabled||saved.needs_reply!==true||
+      saved.draft_state!=="none"||!["urgent","high","medium"].includes(saved.priority))return;
+    phase="draft";
+    const proposed=await draftFor(raw,connection.gmail_address);
+    if(!proposed)return;
+    const {data:savedDraft,error:draftError}=await db.rpc("agent_gmail_store_generated_draft",{
+     p_owner_id:owner,p_message_id:item.gmail_message_id,p_draft:proposed
+    });
+    if(draftError)throw Object.assign(Error("Could not save generated reply"),{
+     db_code:String(draftError.code||"database_error").slice(0,24)
+    });
+    if(savedDraft===true)drafted++;
    }catch(error){
     failures++;
-    const safeError=error instanceof Error?error.message:"Unknown error";
-    const httpStatus=safeError.includes("Gmail request failed (")?safeError.split("Gmail request failed (")[1]?.split(")")[0]:"";
-    const dbCode=error && typeof error==="object" && "db_code" in error?String(error.db_code).replace(/[^A-Za-z0-9_]/g,"").slice(0,24):"";
-    const category=phase+(dbCode?"_code_"+dbCode:httpStatus?"_http_"+httpStatus:phase==="parse_message"?"_parse_error":phase==="fetch_message"?"_network_error":"_error");
-    // Log only a short sanitized failure class. Never log email text, sender, IDs, or credentials.
-    console.error("Agent Gmail import failure",JSON.stringify({phase,kind:error instanceof Error?error.name:typeof error,code:dbCode||"",detail:safeError.slice(0,160).replace(/[\\r\\n]/g," ")}));
+    const dbCode=error&&typeof error==="object"&&"db_code" in error?
+     String(error.db_code).replace(/[^A-Za-z0-9_]/g,"").slice(0,24):"";
+    const category=phase+(dbCode?"_"+dbCode:"_error");
     reasons[category]=(reasons[category]||0)+1;
-    if(failures===1){
-     const diagnostic=safeError.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/gi,"[email]").slice(0,180);
-     console.error("Agent Gmail import failed",JSON.stringify({phase,error_type:error instanceof Error?error.name:typeof error,code:dbCode||null,message:diagnostic}));
-    }
+    // Only log the safe operation stage and error code; never private email content.
+    console.error("Agent HQ Gmail step failed",phase,dbCode||"runtime_error");
    }
   }));
  }
- await db.from("agent_gmail_connections").update({last_checked_at:timestamp(),
-  updated_at:timestamp()}).eq("owner_id",owner);
+ const {error:stampError}=await db.from("agent_gmail_connections")
+  .update({last_checked_at:timestamp(),updated_at:timestamp()}).eq("owner_id",owner);
+ if(stampError)console.error("Agent HQ Gmail timestamp update failed",String(stampError.code||"unknown").slice(0,24));
  const found=refs.length;
  const message=found===0?
-  "Gmail returned no messages in your Inbox. Only your Inbox is checked, not All Mail or Spam.":
+  "Gmail returned no messages in your Inbox. Only your Inbox is checked.":
   checked===0?
-  "Gmail returned "+found+" messages, but Agent HQ couldn't save them. Details: "+Object.entries(reasons).map(([reason,n])=>reason+" "+n).join(", ")+". No messages were sent.":
-  checked+" inbox messages reviewed; "+drafted+" new draft replies prepared."+
-  (failures||skipped?" "+(failures+skipped)+" message(s) could not be processed.":"")+" Nothing sent.";
- return respond(req,{checked,found,skipped,drafts_prepared:drafted,failures,
-  failure_categories:reasons,ai_drafting_enabled:connection.ai_drafting_enabled,
-  message,checked_at:timestamp(),read_only_review:true});
+  "Gmail found "+found+" messages, but Agent HQ couldn't save them. "+
+   Object.entries(reasons).map(([reason,n])=>reason+" "+n).join(", ")+". Nothing sent.":
+  checked+" inbox messages saved; "+drafted+" new suggested replies prepared."+
+   (failures||skipped?" "+(failures+skipped)+" item(s) could not be fully processed. "+
+    Object.entries(reasons).map(([reason,n])=>reason+" "+n).join(", ")+".":"")+
+   " Nothing sent.";
+ return respond(req,{found,checked,drafts_prepared:drafted,failures,skipped,
+  failure_categories:reasons,checked_at:timestamp(),
+  ai_drafting_enabled:connection.ai_drafting_enabled,read_only_review:true,message});
 }
 async function original(req:Request,db:DB,owner:string,input:Record<string,unknown>){
  const messageId=String(input.message_id||"");
