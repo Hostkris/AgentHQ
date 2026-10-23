@@ -181,13 +181,15 @@ async function check(req:Request,db:DB,owner:string){
     phase="parse_message";
     const item=extract(raw);
     if(!item||!messagePattern.test(item.gmail_message_id)||!messagePattern.test(item.thread_id)){skipped++;reasons.unusable_sender_or_id=(reasons.unusable_sender_or_id||0)+1;return}
-    phase="read_existing";
-    // Return an array, not maybeSingle(): some PostgREST versions report a
-    // zero-row first-time lookup as PGRST116 instead of a successful null.
-    const {data:existingRows,error:readErr}=await db.from("agent_email_items")
+    phase="read_existing_build";
+    // Primary key (owner_id,gmail_message_id) ensures at most one row.
+    // Array results safely represent first-time messages without a singular query.
+    const existingQuery=db.from("agent_email_items")
      .select("priority,priority_manual,draft_state,draft_body,needs_reply")
-     .eq("owner_id",owner).eq("gmail_message_id",item.gmail_message_id).limit(1);
-    if(readErr)throw Error("Could not read saved priority ["+String(readErr.code||"unknown").slice(0,24)+"]");
+     .eq("owner_id",owner).eq("gmail_message_id",item.gmail_message_id);
+    phase="read_existing_request";
+    const {data:existingRows,error:readErr}=await existingQuery;
+    if(readErr)throw Object.assign(Error("Could not read saved priority"),{db_code:String(readErr.code||"unknown").slice(0,24)});
     const existing=existingRows?.[0]||null;
     const priority=existing?.priority_manual?existing.priority:item.priority;
     const needsReply=existing?.priority_manual?existing.needs_reply:item.needs_reply;
@@ -214,9 +216,13 @@ async function check(req:Request,db:DB,owner:string){
     failures++;
     const safeError=error instanceof Error?error.message:"Unknown error";
     const httpStatus=safeError.includes("Gmail request failed (")?safeError.split("Gmail request failed (")[1]?.split(")")[0]:"";
-    const dbCode=safeError.includes("Could not read saved priority [")?safeError.split("Could not read saved priority [")[1]?.split("]")[0]:"";
+    const dbCode=error && typeof error==="object" && "db_code" in error?String(error.db_code).replace(/[^A-Za-z0-9_]/g,"").slice(0,24):"";
     const category=phase+(dbCode?"_code_"+dbCode:httpStatus?"_http_"+httpStatus:phase==="parse_message"?"_parse_error":phase==="fetch_message"?"_network_error":"_error");
     reasons[category]=(reasons[category]||0)+1;
+    if(failures===1){
+     const diagnostic=safeError.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/gi,"[email]").slice(0,180);
+     console.error("Agent Gmail import failed",JSON.stringify({phase,error_type:error instanceof Error?error.name:typeof error,code:dbCode||null,message:diagnostic}));
+    }
    }
   }));
  }
