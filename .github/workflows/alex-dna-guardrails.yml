@@ -8,6 +8,9 @@ on:
       - 'supabase/functions/**'
       - 'supabase/migrations/**'
       - 'tests/alex-dna.test.mjs'
+      - 'tests/unread-badges.test.mjs'
+      - 'ios-ui.css'
+      - 'index.html'
       - '.github/workflows/alex-dna-guardrails.yml'
   pull_request:
     paths:
@@ -27,3 +30,5 @@ jobs:
       - uses: actions/checkout@v4
       - name: Test Alex role and approval boundaries
         run: node --test tests/alex-dna.test.mjs
+      - name: Test unread message badges
+        run: node --test tests/unread-badges.test.mjs
