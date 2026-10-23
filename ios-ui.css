@@ -212,7 +212,7 @@ button:disabled{cursor:default}
  font-size:12px;padding:0 5px;
 }
 #contact-list .row>.agent-contact-copy{flex:1;min-width:0}
-#contact-list .row>.agent-unread-badge--thread{margin-left:auto}
+#contact-list .row>span.agent-unread-badge--thread:last-child{flex:0 0 auto;margin-left:auto;min-width:22px}
 @media(prefers-color-scheme:dark){
  .home-dashboard .agent-unread-badge--tile{border-color:rgba(28,28,30,.94)}
 }
