@@ -216,12 +216,3 @@ button:disabled{cursor:default}
 @media(prefers-color-scheme:dark){
  .home-dashboard .agent-unread-badge--tile{border-color:rgba(28,28,30,.94)}
 }
-
-
-.agent-badge-settings{
- display:flex;flex-wrap:wrap;align-items:center;gap:8px;
- margin:0 0 15px;padding:10px 12px;border-radius:15px;
- background:var(--ui-card,rgba(255,255,255,.75));
-}
-.agent-badge-settings button{font-size:13px;font-weight:650}
-.agent-badge-settings span{font-size:12px;color:var(--ui-muted,#6e7580);line-height:1.45}
