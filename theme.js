@@ -18,7 +18,7 @@
  let settingsView="home",wallpaperRequest=0;
  const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
  const symbol=name=>window.AgentHQIcons?.svg(name)||"";
- const titles={home:"Settings",account:"Account & Sign-In",appearance:"Appearance",icons:"App Icons",wallpaper:"Wallpaper",accessibility:"Text & Accessibility",connections:"Connected Apps",ai:"AI Connection",research:"Web Research",permissions:"Privacy & Permissions",voice:"Voice & Dictation",about:"About Agent HQ"};
+ const titles={home:"Settings",account:"Account & Sign-In",appearance:"Appearance",icons:"App Icons",wallpaper:"Wallpaper",accessibility:"Text & Accessibility",connections:"Connected Apps",ai:"AI Connection",research:"Web Research",hosted:"Hosted Browser",permissions:"Privacy & Permissions",voice:"Voice & Dictation",about:"About Agent HQ"};
  const modeNames={auto:"Automatic",light:"Light",dark:"Dark"};
  function save(){try{localStorage.setItem(KEY,JSON.stringify(prefs));return true}catch{alert("This change could not be saved on this device. Try a smaller photo or free some browser storage.");return false}}
  function apply(){
@@ -84,8 +84,9 @@
   if(view==='icons')return appearance(false);
   if(view==='wallpaper')return wallpaper();
   if(view==='account')return note('Sign in to access your saved conversations, assignments and connected services.')+'<div data-settings-account-host><p class="settings-footnote">Loading account controls…</p></div>';
-  if(view==='connections')return group('Apps & Accounts',row('email','Gmail','Inbox, drafts & email connection','email','',true)+row('accounts','My Profiles','Social profiles & worker permissions','accounts','',true)+row('operations','Meta Ads','Advertising connection & reporting','operations','',true))+note('Open a service to review its connection. Nothing connects until you choose to authorize it.');
+  if(view==='connections')return group('Apps & Accounts',row('browser','Hosted Browser','iPhone & iPad · Facebook setup','hosted','cloud browser personal profile')+row('email','Gmail','Inbox, drafts & email connection','email','',true)+row('accounts','My Profiles','Social profiles & worker permissions','accounts','',true)+row('operations','Meta Ads','Advertising connection & reporting','operations','',true))+note('Open a service to review its connection. Nothing connects until you choose to authorize it.');
   if(view==='permissions')return group('Your Control',row('approvals','Access Requests','Review pending requests and saved decisions','approvals','',true)+row('accounts','Worker Permissions','Review or revoke planning permissions','accounts','',true)+row('email','Email Permissions','Gmail connection & AI drafting controls','email','',true))+note('You control account connections and approvals. Appearance settings and photos are saved in this browser on this device.');
+  if(view==='hosted')return window.agentHQSettingsBrowserHost?.()||note('Hosted browser controls are loading. Return to Settings and try again.');
   if(view==='research')return (window.agentHQSettingsResearch?.()||'')+group('Reports',row('research','Research History','Request research or read saved reports','research','',true))+note('Approve one topic at a time in Messages. A report is saved only when live search returns source links.');
   if(view==='ai')return (window.agentHQSettingsAI?.()||'<p class="settings-footnote">AI connection status is loading. Return to Settings and try again.</p>')+note('This checks your existing provider connection. It does not create an assignment or generate a reply.');
   if(view==='accessibility')return group('Display',switchRow('Larger Text','largerText','Use larger interface text.'))+group('Motion',switchRow('Reduce Motion','reduceMotion','Limit animations and moving effects.'))+note('Agent HQ also respects your device’s reduced-motion preference.');

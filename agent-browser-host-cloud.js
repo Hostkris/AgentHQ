@@ -1,0 +1,23 @@
+import {agentCloud} from './agent-cloud-auth.js';
+let generation=0,busy=false;
+let state={host_ready:false,message:'Set up the hosted provider, then check the connection.',missing:[]};
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function statusMarkup(){return '<strong>'+esc(state.host_ready?'Host verified · Facebook not connected':'Setup needed · Facebook not connected')+'</strong><p>'+esc(state.message)+'</p>'+(state.missing?.length?'<p>Required secret names: <code>'+state.missing.map(esc).join('</code> · <code>')+'</code></p>':'')}
+function update(){const el=document.querySelector('#browser-host-status');if(el)el.innerHTML=statusMarkup()}
+window.agentHQSettingsBrowserHost=()=>'<section class="card"><h2>Hosted Browser</h2><p>Use Agent HQ on iPhone or iPad. A browser worker can run remotely without a Mac.</p><div id="browser-host-status" role="status" aria-live="polite">'+statusMarkup()+'</div><button type="button" class="primary" data-host-check'+(busy?' disabled':'')+'>'+(busy?'Checking…':'Check hosted connection')+'</button><p class="notice">This check verifies the provider key and project. It does not start a browser, sign into Facebook, publish, reply, or create a paid subscription.</p></section><section class="card"><h2>Set up from iPhone or iPad</h2><ol><li>Open <a href="https://www.browserbase.com/" target="_blank" rel="noopener noreferrer">Browserbase</a> and create your own account. Start with its free testing allowance; check limits before upgrading.</li><li>Find the API key and project ID in your Browserbase dashboard.</li><li>Open <a href="https://supabase.com/dashboard/project/slekcezduwnygywiiitp/functions/secrets" target="_blank" rel="noopener noreferrer">Agent HQ server secrets</a> and save them as <code>BROWSERBASE_API_KEY</code> and <code>BROWSERBASE_PROJECT_ID</code>.</li><li>Return here and tap Check hosted connection.</li></ol><p class="notice">Keep secret values out of chat and public code. No Facebook password is needed for this setup check.</p><a href="https://www.browserbase.com/pricing" target="_blank" rel="noopener noreferrer">Check current provider pricing</a></section><section class="card"><h2>Facebook personal-profile execution</h2><p>The intended flow is: agent prepares the exact action → you approve or deny → the hosted worker attempts only the approved action.</p><p class="notice">This is not enabled yet. A verified host, secure Facebook sign-in and testing for the correct account, recipient and exact text are required first. Browser hosting does not provide Meta API permission for personal profiles or guarantee that Facebook will allow automated access. Facebook may require you to take over for sign-in or security checks.</p><p class="notice">Your saved Facebook profile under My Accounts is a label, not a signed-in browser session.</p></section>';
+async function check(){
+ if(busy)return;busy=true;const current=generation;const button=document.querySelector('[data-host-check]');if(button){button.disabled=true;button.textContent='Checking…'}
+ try{
+  const {data:auth,error:authError}=await agentCloud.auth.getUser();
+  if(authError||!auth?.user)throw Error('Sign in under Settings → Account & Sign-In, then check again.');
+  if(current!==generation)return;
+  const {data,error}=await agentCloud.functions.invoke('agent-browser-host',{body:{action:'check'}});
+  if(current!==generation)return;
+  if(error){let message=data?.error;try{if(!message&&error.context?.clone)message=(await error.context.clone().json())?.error}catch{}throw Error(message||'The hosted connection check could not finish.')}
+  if(!data||data.error)throw Error(data?.error||'The host did not return a verified status.');
+  state={...data,host_ready:data.host_ready===true};update();
+ }catch(e){if(current===generation){state={host_ready:false,missing:[],message:e.message};update()}}
+ finally{busy=false;if(button?.isConnected){button.disabled=false;button.textContent='Check hosted connection'}}
+}
+document.addEventListener('click',e=>{if(e.target.closest('[data-host-check]'))check()});
+agentCloud.auth.onAuthStateChange(()=>{generation++;state={host_ready:false,missing:[],message:'Sign in and check the hosted provider connection.'};update()});
