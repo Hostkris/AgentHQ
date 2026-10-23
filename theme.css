@@ -182,28 +182,39 @@
 /* Agent HQ: vivid wallpaper, polished home tiles, staff office and pixel portraits */
 :root{--office-ink:#263545}
 .home-shell{
- background-image:linear-gradient(180deg,rgba(252,252,255,.32),rgba(253,251,252,.50)),var(--wallpaper)!important;
+ background-image:linear-gradient(180deg,rgba(252,252,255,.04),rgba(253,251,252,.08)),var(--wallpaper)!important;
  background-color:#f3f2f5;
  background-size:cover!important;background-position:center!important;
 }
-.home-shell header{margin-bottom:7px}
+.home-shell header{margin-bottom:26px}
 .home-brand{border-radius:13px;background:rgba(255,255,255,.68);padding:9px 12px;color:#275273;font-weight:750;border:1px solid rgba(255,255,255,.5);backdrop-filter:blur(13px)}
 .header-brand{font-size:15px;font-weight:800;letter-spacing:.2px}
-.home-shell>h1{font-size:35px;margin-bottom:2px}
-.home-intro{margin:4px 0 18px}
-.home-subtitle{font-size:14px;font-weight:650;margin:0;color:inherit}
-.home-kicker{font-size:12px;opacity:.72;margin:4px 0 0}
-.home-dashboard{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+/* Compact app icons keep the wallpaper visible between controls. */
+.home-dashboard{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:22px 8px;align-content:start}
 .home-dashboard .tile{
- background:rgba(255,255,255,.76)!important;
- min-height:112px;display:flex;flex-direction:column;justify-content:center;gap:10px;
- border:1px solid rgba(255,255,255,.75);border-radius:23px;
- box-shadow:0 8px 22px rgba(22,28,41,.11);
- color:#20323b!important;font-weight:750;font-size:13px;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+ min-width:0;min-height:98px;padding:0;display:flex;flex-direction:column;align-items:center;
+ justify-content:flex-start;gap:7px;background:transparent!important;border:0;border-radius:18px;
+ box-shadow:none!important;color:#20323b!important;font-weight:700;font-size:11px;
+ backdrop-filter:none;-webkit-backdrop-filter:none;
 }
-.home-dashboard .tile .emoji{font-size:31px;animation:none}
-.home-dashboard .tile:focus-visible{outline:3px solid #1687a8}
-.home-dashboard .tile:active{transform:scale(.97)}
+.home-dashboard .tile .emoji{
+ display:grid;place-items:center;flex:0 0 58px;width:58px;height:58px;border-radius:17px;
+ font-size:30px;line-height:1;animation:none;
+ background:rgba(255,255,255,.24);border:1px solid rgba(255,255,255,.55);
+ box-shadow:0 3px 10px rgba(22,28,41,.12);filter:none;
+ backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+}
+.home-dashboard .tile-label{
+ display:flex;align-items:center;justify-content:center;max-width:100%;min-height:30px;
+ padding:4px 6px;border-radius:10px;background:rgba(255,255,255,.76);
+ border:1px solid rgba(255,255,255,.62);color:#172b36;line-height:1.2;text-align:center;
+ overflow-wrap:anywhere;box-shadow:0 2px 7px rgba(22,28,41,.1);
+ backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+}
+.home-dashboard .tile:hover{transform:translateY(-2px)}
+.home-dashboard .tile:focus-visible{outline:3px solid #1687a8;outline-offset:4px}
+.home-dashboard .tile:active{transform:scale(.96)}
+@media(max-width:359px){.home-dashboard{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .rpg-portrait-svg{display:block;width:100%;height:100%;image-rendering:pixelated;shape-rendering:crispEdges}
 .rpg-avatar{background:transparent!important;border-radius:13px;overflow:hidden;animation:none!important;box-shadow:none!important}
 .rpg-avatar .rpg-portrait-svg{border-radius:12px;border:2px solid rgba(255,255,255,.7)}
@@ -241,10 +252,10 @@
 .office-status{font-size:10px;color:#465761;white-space:nowrap;margin-top:7px}
 .office-legend{font-size:11px;line-height:1.7;margin:12px 3px 4px;opacity:.85}
 .office-station.office-working .office-emoji-bubble{outline:2px solid #67a8a4}
-@media(min-width:520px){.office-floor{grid-template-columns:repeat(3,minmax(0,1fr))}.home-dashboard{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(min-width:520px){.office-floor{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(prefers-color-scheme:dark){
- :root:not([data-theme-mode=light]) .home-shell{background-image:linear-gradient(180deg,rgba(18,18,23,.37),rgba(18,18,23,.60)),var(--wallpaper)!important}
- :root:not([data-theme-mode=light]) .home-dashboard .tile{background:rgba(38,40,47,.79)!important;color:#f7f7fb!important;border-color:rgba(255,255,255,.12)}
+ :root:not([data-theme-mode=light]) .home-shell{background-image:linear-gradient(180deg,rgba(18,18,23,.08),rgba(18,18,23,.16)),var(--wallpaper)!important}
+ :root:not([data-theme-mode=light]) .home-dashboard .tile-label{background:rgba(28,33,42,.78);color:#f7f7fb;border-color:rgba(255,255,255,.22)}
  :root:not([data-theme-mode=light]) .home-brand{background:rgba(36,38,43,.74);color:#ecf5ff}
  :root:not([data-theme-mode=light]) .office-banner{background:rgba(39,44,48,.86);color:#f5f8fb}
  :root:not([data-theme-mode=light]) .office-floor{background:linear-gradient(140deg,#344e54,#37465c 58%,#453e50);border-color:#56575e}
@@ -253,8 +264,8 @@
  :root:not([data-theme-mode=light]) .office-summary span{background:#323d4b;color:#f4f7fa}
  :root:not([data-theme-mode=light]) .office-status{color:#dae0eb}
 }
-:root[data-theme-mode=dark] .home-shell{background-image:linear-gradient(180deg,rgba(18,18,23,.37),rgba(18,18,23,.60)),var(--wallpaper)!important}
-:root[data-theme-mode=dark] .home-dashboard .tile{background:rgba(38,40,47,.79)!important;color:#f7f7fb!important;border-color:rgba(255,255,255,.12)}
+:root[data-theme-mode=dark] .home-shell{background-image:linear-gradient(180deg,rgba(18,18,23,.08),rgba(18,18,23,.16)),var(--wallpaper)!important}
+:root[data-theme-mode=dark] .home-dashboard .tile-label{background:rgba(28,33,42,.78);color:#f7f7fb;border-color:rgba(255,255,255,.22)}
 :root[data-theme-mode=dark] .home-brand{background:rgba(36,38,43,.74);color:#ecf5ff}
 :root[data-theme-mode=dark] .office-banner{background:rgba(39,44,48,.86);color:#f5f8fb}
 :root[data-theme-mode=dark] .office-floor{background:linear-gradient(140deg,#344e54,#37465c 58%,#453e50);border-color:#56575e}
@@ -262,6 +273,7 @@
 :root[data-theme-mode=dark] .office-employee{color:#f5f7fb}
 :root[data-theme-mode=dark] .office-summary span{background:#323d4b;color:#f4f7fa}
 :root[data-theme-mode=dark] .office-status{color:#dae0eb}
-:root[data-theme-mode=light] .home-shell{background-image:linear-gradient(180deg,rgba(252,252,255,.32),rgba(253,251,252,.50)),var(--wallpaper)!important}
-:root[data-theme-mode=light] .home-dashboard .tile{background:rgba(255,255,255,.76)!important;color:#20323b!important}
+:root[data-theme-mode=light] .home-shell{background-image:linear-gradient(180deg,rgba(252,252,255,.04),rgba(253,251,252,.08)),var(--wallpaper)!important}
+:root[data-theme-mode=light] .home-dashboard .tile-label{background:rgba(255,255,255,.76);color:#172b36}
 @media(prefers-reduced-motion:reduce){.office-station,.office-emoji-bubble{animation:none!important}}
+
