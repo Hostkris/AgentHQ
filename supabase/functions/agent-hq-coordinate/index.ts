@@ -110,7 +110,7 @@ Deno.serve(async(req:Request)=>{
    .eq("owner_id",owner).eq("assignment_id",assignmentId).eq("status","queued");
   if(deleteError)return reply(req,{error:"Could not clear the rejected plan"},500);
   const {error:resetError}=await admin.from("agent_team_assignments")
-   .update({employee_ids:["alex"],manager_summary:null,coordination_status:"planning",status:"planned",updated_at:new Date().toISOString()})
+   .update({employee_ids:["alex"],manager_summary:"",coordination_status:"planning",status:"planned",updated_at:new Date().toISOString()})
    .eq("owner_id",owner).eq("id",assignmentId);
   if(resetError)return reply(req,{error:"Could not reset Alex's plan"},500);
   const {error:decisionError}=await admin.from("agent_alex_plan_decisions").upsert({
