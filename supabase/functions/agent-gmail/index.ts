@@ -173,11 +173,15 @@ async function check(req:Request,db:DB,owner:string){
  for(let idx=0;idx<refs.length;idx+=3){
   const group=refs.slice(idx,idx+3);
   await Promise.all(group.map(async(ref:any)=>{
+   let phase="validation";
    try{
     if(!messagePattern.test(String(ref.id||""))){skipped++;reasons.invalid_message_id=(reasons.invalid_message_id||0)+1;return}
+    phase="fetch_message";
     const raw=await googleGet("messages/"+encodeURIComponent(ref.id),token,{format:"full"});
+    phase="parse_message";
     const item=extract(raw);
     if(!item||!messagePattern.test(item.gmail_message_id)||!messagePattern.test(item.thread_id)){skipped++;reasons.unusable_sender_or_id=(reasons.unusable_sender_or_id||0)+1;return}
+    phase="read_existing";
     const {data:existing,error:readErr}=await db.from("agent_email_items")
      .select("priority,priority_manual,draft_state,draft_body,needs_reply")
      .eq("owner_id",owner).eq("gmail_message_id",item.gmail_message_id).maybeSingle();
@@ -197,12 +201,19 @@ async function check(req:Request,db:DB,owner:string){
      if(proposed){fields.draft_body=proposed;fields.draft_state="ready";drafted++}
      else{fields.draft_body="";fields.draft_state="none"}
     }else{fields.draft_body="";fields.draft_state="none"}
+    phase="save_message";
     const {error}=await db.from("agent_email_items").upsert(fields,{
      onConflict:"owner_id,gmail_message_id"
     });
     if(error)throw Error("Could not save a prioritized email");
     checked++;
-   }catch(error){failures++;const category=error instanceof Error&&/save a prioritized email/i.test(error.message)?"database_save":error instanceof Error&&/read saved priority/i.test(error.message)?"database_read":"gmail_fetch_or_parse";reasons[category]=(reasons[category]||0)+1}
+   }catch(error){
+    failures++;
+    const safeError=error instanceof Error?error.message:"Unknown error";
+    const httpStatus=/Gmail request failed \\((\\d{3})\\)/.exec(safeError)?.[1];
+    const category=phase+(httpStatus?"_http_"+httpStatus:phase==="parse_message"?"_parse_error":phase==="fetch_message"?"_network_error":"_error");
+    reasons[category]=(reasons[category]||0)+1;
+   }
   }));
  }
  await db.from("agent_gmail_connections").update({last_checked_at:timestamp(),
