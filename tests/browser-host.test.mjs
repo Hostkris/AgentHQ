@@ -29,3 +29,9 @@ test('endpoint enforces sign-in, owner allowlist and origin before checking the 
 test('no create-session, Facebook publishing or messaging action is accepted',async()=>{
  const h=handlerHarness();for(const action of ['connect','start_session','publish','send_message','approve'])assert.equal((await h.call({action})).status,400);assert.equal(h.checks,0);
 });
+
+test('free-only policy is explicit and no project result authorizes billable execution',async()=>{
+ for(const result of [await checkHost('',''),await checkHost('key','project_123',async()=>Response.json({id:'project_123',plan:'paid'}))]){
+  assert.equal(result.free_tier_only,true);assert.equal(result.paid_usage_allowed,false);assert.equal(result.free_plan_verified,false);assert.equal(result.execution_enabled,false);
+ }
+});

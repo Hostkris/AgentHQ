@@ -10,7 +10,7 @@ The connection check never creates a session, stores a Facebook login, grants an
 
 ## Required owner setup
 
-1. Create your own Browserbase account at https://www.browserbase.com/. Start with its free testing allowance; do not upgrade just to run this connection check.
+1. Create your own Browserbase account at https://www.browserbase.com/. Select only the $0 Free plan. No credit card is needed. Do not upgrade, enable paid usage or add paid fallbacks.
 2. Find the API key and project ID in the Browserbase dashboard.
 3. In the Agent HQ Supabase project, open Edge Functions → Secrets and save `BROWSERBASE_API_KEY` and `BROWSERBASE_PROJECT_ID`. Do not paste the values into chat, GitHub, or an app text field.
 4. Sign into Agent HQ on iPhone/iPad and tap Check hosted connection.
@@ -39,3 +39,11 @@ Official references:
 - https://docs.browserbase.com/platform/browser/core-features/contexts
 - https://developers.facebook.com/documentation/pages-api/posts
 - https://developers.facebook.com/documentation/business-messaging/messenger-platform/overview
+
+## Free-tier-only requirement
+
+The owner requires free tiers only, with a $0 spending budget. No paid subscription, metered overage, paid proxy, paid CAPTCHA service or paid fallback is authorized. As checked on October 23, 2026, Browserbase documents one browser hour per month and a maximum of 15 minutes per free session. That is a limited testing allowance, not continuous hosting. Check the linked official plan documentation for changes.
+
+The project-verification API does not report billing plan or free allowance. Its response therefore always includes `free_tier_only: true`, `paid_usage_allowed: false`, and `free_plan_verified: false`. Execution remains disabled on every path, even when the API key and project are valid. These flags describe the hosting policy and verification state; they are not proof of the provider account’s billing settings. The endpoint accepts only a read-only project check.
+
+Before any future browser execution is implemented, the free plan and remaining allowance must be verified, provider-side billing protections confirmed, and session usage reserved and bounded. If the free allowance or billing state cannot be verified, the worker must pause. No automatic upgrade or pay-as-you-go fallback is permitted. This hosted-browser policy does not independently verify billing settings for existing AI or research providers.
