@@ -20,7 +20,7 @@
  const callback=typeof location!=="undefined"?callbackInfo[new URLSearchParams(location.search).get("gmail")]||"":"";
  let status={configured:false,connected:false,ai_drafting_enabled:false,
   message:"Checking your Gmail connection…" };
- let emails=[],filter="all",selected="",messageView=null;
+ let emails=[],filter="all",selected="",messageView=null,detailDismissed=false;
  let busy=false,feedback="",lastCheckResult="",modified=new Map(),error="";
  let lastMarkup="";
  const d=(date)=>{if(!date)return "";const t=new Date(date);return Number.isFinite(t.getTime())?t.toLocaleString():""};
@@ -38,7 +38,7 @@
   status=st||{};
   emails=Array.isArray(rows)?rows:[];
   if(selected&&!get(selected)){selected="";messageView=null}
-  if(!selected&&emails.length)selected=[...emails].sort((a,b)=>
+  if(!selected&&!detailDismissed&&emails.length)selected=[...emails].sort((a,b)=>
    (priorityOrder[a.priority]??4)-(priorityOrder[b.priority]??4)||
    new Date(b.received_at)-new Date(a.received_at))[0]?.gmail_message_id||"";
   if(!feedback)feedback=notice||"";
@@ -141,6 +141,7 @@
   const draft=modified.has(selected)?modified.get(selected):item.draft_body||"";
   const unsaved=draft!==(item.draft_body||"");
   const waiting=busy?" disabled":"";
+  const closeButton='<button type="button" class="email-secondary" data-email-action="no-reply"'+waiting+'>Don’t reply</button>';
   const couldSend=item.draft_state==="ready"&&!unsaved&&!busy;
   let body='<div class="email-detail-head"><strong>'+escape(item.subject||"(No subject)")+'</strong>'+
    '<p>From: '+escape(item.from_name?item.from_name+" <"+item.from_email+">":item.from_email)+'</p>'+
@@ -158,9 +159,9 @@
    '<small>'+(item.draft_state==="sent"?"Sent":item.draft_state==="ready"?"Ready to review":
     item.draft_state==="sending"?"Sending":item.draft_state==="unknown"?"Check Gmail Sent":"No draft yet")+'</small></div>';
   if(item.draft_state==="sent")return body+
-    '<p class="email-success">✓ This response was sent after approval on '+escape(d(item.sent_at))+'.</p></div>';
+    '<p class="email-success">✓ This response was sent after approval on '+escape(d(item.sent_at))+'.</p></div>'+closeButton;
   if(item.draft_state==="unknown"||item.draft_state==="sending")
-    return body+'<p class="email-send-warning">The sending outcome is uncertain. Check Gmail Sent before taking any other action. Agent HQ blocks duplicate attempts.</p></div>';
+    return body+'<p class="email-send-warning">The sending outcome is uncertain. Check Gmail Sent before taking any other action. Agent HQ blocks duplicate attempts.</p></div>'+closeButton;
   body+='<textarea data-email-draft="'+escape(item.gmail_message_id)+
     '" aria-label="Review and edit email reply" maxlength="8000" rows="6" placeholder="Edit the draft, or type a response here."'+waiting+'>'+escape(draft)+'</textarea>'+
    (unsaved?'<p class="email-unsaved">Unsaved changes. Save your draft before sending.</p>':"")+
@@ -169,9 +170,14 @@
    '<button type="button" class="email-primary email-send-approved" data-email-action="send"'+(couldSend?"":" disabled")+'>'+
    'Send approved reply</button></div>'+
    '<p class="email-safety">The send button only works after you review the message and save the exact reply. Nothing sends in the background.</p></div>';
-  return body;
+  return body+closeButton;
  }
  async function run(action){
+  if(action==="no-reply"){
+   selected="";messageView=null;detailDismissed=true;
+   feedback="Email view closed without replying.";
+   return;
+  }
   const service=window.agentHQEmailCloud;
   if(!service)throw Error("Email Center is loading. Refresh Agent HQ.");
   if(action==="refresh"){await service.refresh();feedback="Gmail connection and saved list synchronized."}
@@ -232,16 +238,24 @@
   if(filterButton){filter=filterButton.dataset.emailFilter;show();return}
   const selectButton=event.target.closest("[data-email-open]");
   if(selectButton){
-   selected=selectButton.dataset.emailOpen;messageView=null;show();
+   selected=selectButton.dataset.emailOpen;messageView=null;detailDismissed=false;show();
    return;
   }
   const action=event.target.closest("[data-email-action]");
   if(!action||busy)return;
   const task=action.dataset.emailAction;
+  const closingMessageId=task==="no-reply"?selected:null;
   busy=true;error="";show();
   try{await run(task)}
   catch(exc){error="Email Center: "+(exc?.message||"Action failed")}
-  finally{busy=false;show()}
+  finally{
+   busy=false;show();
+   if(closingMessageId){
+    const row=[...app.querySelectorAll("[data-email-open]")].find(el=>el.dataset.emailOpen===closingMessageId);
+    row?.focus({preventScroll:true});
+    row?.scrollIntoView({block:"nearest",behavior:"auto"});
+   }
+  }
  });
  app.addEventListener("input",event=>{
   const field=event.target.closest("[data-email-draft]");
