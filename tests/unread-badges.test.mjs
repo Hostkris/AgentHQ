@@ -55,10 +55,23 @@ test('Unread SQL is per owner, per conversation and counts worker replies only',
  assert.match(workerOnly,/grant execute on function public\.get_agent_unread_counts\(\) to authenticated/);
 });
 
+test('New worker messages and approval requests refresh without manually checking',()=>{
+ const realtime=read('agent-attention-cloud.js');
+ const index=read('index.html');
+ for(const table of ['agent_messages','agent_permission_requests','agent_team_assignments','agent_task_steps','agent_action_proposals']){
+  assert.match(realtime,new RegExp(table));
+ }
+ assert.match(realtime,/owner_id=eq\./);
+ assert.match(realtime,/postgres_changes/);
+ assert.match(realtime,/agentHQChatCloud\?\.refresh/);
+ assert.match(realtime,/agentHQCloudApprovals\?\.refresh/);
+ assert.match(index,/agent-attention-cloud\.js/);
+});
+
 test('iPhone styling and cache versions include message badges',()=>{
  const css=read('ios-ui.css');
  const index=read('index.html');
  assert.match(css,/\.agent-unread-badge--tile/);
  assert.match(css,/\.agent-unread-badge--thread/);
- assert.match(index,/automatic-attention-2/);
+ assert.match(index,/automatic-attention-3/);
 });
