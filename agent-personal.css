@@ -99,3 +99,14 @@
 :root[data-theme-mode=dark] .personal-privacy{color:#bfe3ef}
 :root[data-theme-mode=dark] .personal-status-approved{color:#9ae2ba}
 @media(max-width:365px){.personal-ad-card{flex-direction:column;align-items:stretch}.personal-ad-card button{max-width:none}}
+.personal-browser-setup{display:grid;gap:10px;border-top:1px solid rgba(106,137,158,.18);padding:14px 0;margin-top:12px;line-height:1.5;font-size:12px}
+.personal-browser-setup h4{margin:0;font-size:14px}
+.personal-browser-setup p{margin:0;overflow-wrap:anywhere}
+.personal-browser-setup [data-facebook-host-status]{padding:12px;border-radius:12px;background:rgba(101,157,174,.09);overflow-wrap:anywhere}
+.personal-browser-setup summary{cursor:pointer;padding:9px 0;min-height:44px;box-sizing:border-box;font-weight:650}
+.personal-browser-setup ol{margin:0;padding-left:22px}
+.personal-browser-setup li{margin:0 0 12px;overflow-wrap:anywhere}
+.personal-browser-setup a{color:inherit;text-decoration:underline;text-underline-offset:3px}
+.personal-browser-setup code{font-size:11px;overflow-wrap:anywhere}
+.personal-browser-setup button:disabled{opacity:.65}
+

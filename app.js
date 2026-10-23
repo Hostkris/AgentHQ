@@ -487,6 +487,7 @@ function renderPersonalAccounts(){
    '<div class="personal-account-title"><strong>'+escapeHTML(account.label)+'</strong><small>'+escapeHTML(names[account.platform]||account.platform)+' · '+escapeHTML(account.handle)+'</small></div>'+
    '<button class="personal-remove" type="button" data-personal-delete="'+escapeHTML(account.id)+'" title="Remove saved profile label" aria-label="Remove '+escapeHTML(account.label)+'">×</button></div>'+
    '<div class="personal-account-status">○ Account label only · Not connected</div>'+
+   (account.platform==='facebook'?'<div data-facebook-host-setup>'+(window.agentHQFacebookSetup?.()||'<p class="personal-muted">Facebook connection controls are loading. Reopen My Accounts in a moment.</p>')+'</div>':'')+
    '<details class="personal-worker-details"'+(hasPending?' open':'')+'><summary>Worker permissions'+(hasPending?' · Approval needed':'')+(grants.length?' ('+grants.length+')':"")+'</summary>'+
    (item||'<p class="personal-muted">No worker permission plans yet.</p>')+
    '<form class="personal-request-form" data-personal-request="'+escapeHTML(account.id)+'">'+

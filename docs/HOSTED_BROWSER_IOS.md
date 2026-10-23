@@ -6,6 +6,8 @@ Agent HQ remains a Safari/Home Screen web app on iPhone and iPad. A hosted worke
 
 Settings → Connected Apps → Hosted Browser contains provider setup instructions and a read-only connection check. The `agent-browser-host` Edge Function verifies an authorized Agent HQ owner with `getUser()` and the existing owner allowlist. It checks the configured project using `GET https://api.browserbase.com/v1/projects/{id}`. The API key stays server-side. Raw project metadata is not returned.
 
+My Accounts also shows the same provider connection check and expandable iPhone/iPad setup steps directly beneath each saved Facebook profile. Existing labels and permission plans are preserved. The check is shared across profiles because it verifies the server's browser provider, not any particular Facebook login. A successful check does not change a profile to connected or enable a planning approval to send anything. Status is cleared on Agent HQ authentication changes, including while a check is in progress.
+
 The connection check never creates a session, stores a Facebook login, grants an agent access, publishes or sends a message. Host verification is explicitly separate from Facebook authentication and execution. All responses report `facebook_connected: false` and `execution_enabled: false` until those capabilities are actually implemented and verified.
 
 ## Required owner setup
