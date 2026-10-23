@@ -1,5 +1,6 @@
 import {createClient} from "npm:@supabase/supabase-js@2.79.0";
 import {createResearchRequest,isResearchInstruction,researchApproval,researchStatus,runResearch} from "./research.ts";
+import {ALEX_DNA,isAlexForbiddenIntent} from "../_shared/alex-dna.ts";
 const ORIGIN="https://hostkris.github.io";
 const EMPLOYEES={
  alex:"General Manager",maya:"Marketing strategist",jordan:"Scripts and content",
@@ -31,7 +32,7 @@ function provider(){
  return null;
 }
 async function decide(ai:NonNullable<ReturnType<typeof provider>>,role:string,context:unknown){
- const system=`You are a friendly, concise AI coworker working as ${role} in Agent HQ. This is the OWNER'S PRIVATE PERSONAL-USE workspace for their own social accounts, advertising accounts and projects, not a commercial agency. This is a casual one-to-one text conversation, not a task dashboard.
+ const system=role==="General Manager"?`You are Alex, General Manager of Agent HQ. Permanent mission: ${ALEX_DNA.mission}. Your ONLY professional work is to clarify assignments, draft proposed work routing, coordinate specialists, monitor progress and report status. You are not a specialist. Do NOT answer as the Research, Marketing, Writing, Social, Communications, Shopify, Analysis, Scheduling or Growth specialist. No web search, Gmail, external account tools, purchase, publication, sending, code editing or permission changes. No actions are executed by this conversation. The backend requires separate owner approval for your plans. For any specialist or external task, classify as "task", briefly describe that you will route it to a specialist, and ask "Should I create a proposed assignment? Yes or no?". If essential assignment details are missing classify as "collect" and ask ONE precise question. For internal workflow/status questions use "answer" to give a concise, factual response without pretending work occurred. Return ONLY valid JSON {"intent":"answer|collect|task","reply":"brief professional response"} with no code fences.`:`You are a friendly, concise AI coworker working as ${role} in Agent HQ. This is the OWNER'S PRIVATE PERSONAL-USE workspace for their own social accounts, advertising accounts and projects, not a commercial agency. This is a casual one-to-one text conversation, not a task dashboard.
 You can answer general knowledge questions, discuss assignments, and ask for missing task details. Public web research is available through a separate owner-approved research flow. You cannot browse in this classification call. Account access, purchasing, posting, and file modification are unavailable. Never imply you actually researched a website or completed external work. Do not fabricate sources.
 Interpret the user's most recent message in context. Reply naturally, warmly but briefly (up to 450 characters) as a human coworker might text, not corporate UI language.
 For a request that appears to be internal text drafting or specialist teamwork, classify as "task" if details suffice, or "collect" when important details are missing; ask ONE focused question. For a general question, classify as "answer" and answer from general knowledge.
@@ -305,7 +306,11 @@ Deno.serve(async(req:Request)=>{
   replyText=researchApproval(topic);
  };
  try{
-  if(input.action==="request_research"){
+  // Alex cannot enter research, account-operation, or permission-approval flows, even from stale saved chat state.
+  if(worker==="alex"&&(input.action==="request_research"||["confirm_research","confirm_action","confirm_permission"].includes(stage))){
+   await state("idle");
+   replyText="My role is managing employee assignments. I cannot research websites or operate accounts myself. I can prepare a request for the appropriate specialist and submit the plan for your approval.";
+  }else if(input.action==="request_research"){
    await proposeResearch(body);
   }else if(stage==="confirm_research"){
    const {data:job,error:jobError}=researchJob?await db.from("agent_research_jobs")
@@ -373,7 +378,7 @@ Deno.serve(async(req:Request)=>{
     });
     await state("idle");
     startAssignment=assignment.id;
-    replyText="Yes, I can take that on. I'll bring Alex in to organize the work and keep you updated here.";
+    replyText=worker==="alex"?"I will draft a specialist assignment plan for your review. The specialists will not start until you approve the plan.":"Yes, I can take that on. I'll bring Alex in to organize the work and keep you updated here.";
    }else if(decision==="no"){
     await state("idle");
     replyText="No problem. We can just talk about it. What would you like to know?";
@@ -411,7 +416,7 @@ Deno.serve(async(req:Request)=>{
     replyText="For "+request.target_url+" ("+request.reason+"), should I record approval for this specific request? Yes or no? It won't start browsing.";
    }
   }else{
-   if(isResearchInstruction(body)&&stage==="idle")await proposeResearch(body);
+   if(worker!=="alex"&&isResearchInstruction(body)&&stage==="idle")await proposeResearch(body);
    const waiting=replyText?null:await currentWaiting();
    if(waiting?.status==="waiting_for_permission"&&decision){
     const {data:requests}=await db.from("agent_permission_requests")
@@ -462,7 +467,7 @@ Deno.serve(async(req:Request)=>{
     replyText="Thanks, that helps. Should I resume this assignment with the team now? Yes or no?";
    }
    if(!replyText){
-    const actual=stage==="idle"?(await liveGmailAnswer(db,owner,worker,body))||(await liveMetaAnswer(db,owner,token,worker,body)):null;
+    const actual=stage==="idle"&&worker!=="alex"?(await liveGmailAnswer(db,owner,worker,body))||(await liveMetaAnswer(db,owner,token,worker,body)):null;
     if(actual){await state("idle");replyText=actual}
    }
    if(!replyText){
@@ -482,7 +487,10 @@ Deno.serve(async(req:Request)=>{
       pending_assignment_details:isCollect?old:null,
       recent_chat:(recent||[]).reverse().map(x=>({sender:x.sender,body:String(x.body).slice(0,1000)}))
      });
-     if(result.intent==="action"){
+     if(worker==="alex"&&isAlexForbiddenIntent(result.intent)){
+      await state("idle");
+      replyText="I cannot perform that work or request those permissions myself. I can create an assignment for the qualified specialist and show you the proposed plan for approval.";
+     }else if(result.intent==="action"){
       const proposed=validatedAction(result.action);
       if(!proposed){
        await state("idle");
