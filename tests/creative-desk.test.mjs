@@ -9,7 +9,7 @@ function createHarness(){
  const callbacks={};
  const host={addEventListener:(name,fn)=>{callbacks[name]=fn}};
  const sandbox={
-  window:{},document:{
+  window:{addEventListener:()=>{}},agentCloud:{auth:{onAuthStateChange:()=>{}}},document:{
    getElementById:name=>name==="app"?host:null,
    addEventListener:()=>{},activeElement:null
   },navigator:{},MutationObserver:class{observe(){}},
