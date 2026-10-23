@@ -193,3 +193,26 @@ button:disabled{cursor:default}
 .research-browser-form{display:flex;gap:10px}.research-browser-form input{min-width:0;flex:1}
 .research-history-item{padding:16px 0;border-top:1px solid #8e8e932b}.research-history-heading{display:flex;justify-content:space-between;gap:12px}.research-history-heading small{color:#737782}
 .research-report{white-space:pre-wrap;overflow-wrap:anywhere;font-size:.94em;line-height:1.55;padding-top:12px}.research-history-item details{margin:12px 0}.research-report a,.ios-message-text a{color:inherit;text-decoration:underline;overflow-wrap:anywhere}
+
+
+/* Agent HQ unread message counts — iOS-style red badges; hidden when read. */
+.home-dashboard .tile{position:relative;overflow:visible}
+.agent-unread-badge{
+ display:inline-flex;align-items:center;justify-content:center;
+ flex:0 0 auto;min-width:22px;height:22px;padding:0 6px;
+ border-radius:999px;background:#ff3b30;color:#fff;
+ font-size:12px;font-weight:750;font-variant-numeric:tabular-nums;
+ line-height:1;white-space:nowrap;
+ box-shadow:0 1px 3px rgba(0,0,0,.22);
+}
+.home-dashboard .agent-unread-badge--tile{
+ position:absolute;z-index:8;
+ top:2px;left:calc(50% + 16px);
+ border:2px solid rgba(255,255,255,.96);height:25px;min-width:25px;
+ font-size:12px;padding:0 5px;
+}
+#contact-list .row>.agent-contact-copy{flex:1;min-width:0}
+#contact-list .row>.agent-unread-badge--thread{margin-left:auto}
+@media(prefers-color-scheme:dark){
+ .home-dashboard .agent-unread-badge--tile{border-color:rgba(28,28,30,.94)}
+}
