@@ -85,7 +85,7 @@ window.agentHQOperationsSync=(rows,notice)=>{
  if(JSON.stringify(businessActions)===JSON.stringify(rows)&&businessActionsNotice===notice)return;
  businessActions.splice(0,businessActions.length,...rows);
  businessActionsNotice=notice;
- if(["operations","office"].includes(screen))renderWithoutInterruptingDraft();
+ updateAttentionIndicators();
 };
 window.agentHQOperationsError=message=>{
  businessActionsNotice=message;
@@ -149,16 +149,17 @@ const totalUnread=()=>[...unreadCounts.values()].reduce((sum,n)=>sum+n,0);
 const pendingRequestsFor=id=>[...approvalRequests.values()].filter(r=>r.status==="pending"&&r.agentId===id).length;
 const employeeAttention=id=>unreadFor(id)+pendingRequestsFor(id);
 const messagesAttention=()=>totalUnread()+pendingCount();
+const operationsAttention=()=>businessActions.filter(a=>a.status==="pending").length;
 const assignmentAttention=()=>[...teamAssignments.values()].filter(a=>{
  if(a.coordination_status==="completed"||a.status==="completed")return false;
  const pendingPlan=Boolean(a.manager_summary)&&a.alex_plan_status!=="approved"&&(coordSteps.get(a.id)||[]).every(t=>t.status==="queued");
- const waiting=a.status==="blocked"||["waiting_for_owner","waiting_for_permission"].includes(a.coordination_status);
+ const waiting=a.coordination_status==="waiting_for_owner"||(a.status==="blocked"&&a.coordination_status!=="waiting_for_permission");
  return pendingPlan||waiting;
 }).length;
-const allAttention=()=>messagesAttention()+assignmentAttention();
+const allAttention=()=>messagesAttention()+assignmentAttention()+operationsAttention();
 const unreadLabel=n=>n>99?"99+":String(n);
 const unreadBadge=(count,variant="thread")=>count>0
- ?'<span class="agent-unread-badge agent-unread-badge--'+variant+'" aria-label="'+count+' unread message'+(count===1?'':'s')+'">'+unreadLabel(count)+'</span>':'';
+ ?'<span class="agent-unread-badge agent-unread-badge--'+variant+'" aria-label="'+count+' item'+(count===1?'':'s')+' needing attention'+'">'+unreadLabel(count)+'</span>':'';
 function syncAppBadge(){
  const count=allAttention();
  try{
@@ -194,7 +195,7 @@ window.agentHQChatCloudNotice=(notice,quiet=false)=>{if(chatNotice===notice)retu
  if(waiting)return " · Waiting for you";
  return "";
 };function renderWithoutInterruptingDraft(){if((screen==="chat"&&(document.activeElement?.id==="draft"||document.activeElement?.hasAttribute?.("data-answer-input")||sendingAgents.has(active)||answeringAssignments.size>0))||((screen==="team"||screen==="assignments")&&(teamSaving||["team-title","team-instructions","team-info","team-note"].includes(document.activeElement?.id)))){const notice=document.querySelector("#chat-sync-status");if(notice)notice.textContent=chatNotice+" Permission requests: "+approvalNotice;return}render()}const button=(label,screenName,emoji)=>{
- const count=screenName==="messages"?messagesAttention():screenName==="approvals"?pendingCount():screenName==="assignments"?assignmentAttention():0;
+ const count=screenName==="messages"?messagesAttention():screenName==="approvals"?pendingCount():screenName==="assignments"?assignmentAttention():screenName==="operations"?operationsAttention():0;
  return `<button class="tile" data-nav="${screenName}" aria-label="${label}${count?", "+count+" items needing attention":""}"><span class="app-icon app-icon--${screenName}" aria-hidden="true">${window.AgentHQIcons?.svg(screenName)||emoji}</span>${unreadBadge(count,"tile")}<span class="tile-label">${label}</span></button>`;
 };
 const teamRows=()=>[...teamAssignments.values()].map(a=>
@@ -628,8 +629,8 @@ const title=isChat?(active==="hq"?"Company Headquarters":staff.find(x=>x[0]===ac
  const matches=x=>[x[2],x[3]].join(" ").toLowerCase().includes(q.toLowerCase());
  const shown=inbox?staff.filter(x=>matches(x)&&hasConversation(x[0])):staff.filter(matches);
  const showHQ=!inbox||hasConversation("hq");
- const headquarters=showHQ&&"company headquarters".includes(q.toLowerCase())?`<button class="row" data-chat="hq" aria-label="Company Headquarters${employeeAttention("hq")?", "+unreadFor("hq")+" unread messages":""}"><span class="avatar">🏢</span><span class="agent-contact-copy"><strong>Company Headquarters</strong><small>All 10 employees</small></span>${unreadBadge(unreadFor("hq"))}</button>`:"";
- const staffRows=shown.map(x=>`<button class="row" data-chat="${x[0]}" aria-label="${escapeHTML(x[2])}${employeeAttention(x[0])?", "+unreadFor(x[0])+" unread messages":""}"><span class="avatar">${x[1]}</span><span class="agent-contact-copy"><strong>${x[2]}</strong><small>${escapeHTML(x[3])}${inbox?getConversationPreview(x[0]):""}</small></span>${unreadBadge(unreadFor(x[0]))}</button>`).join("");
+ const headquarters=showHQ&&"company headquarters".includes(q.toLowerCase())?`<button class="row" data-chat="hq" aria-label="Company Headquarters${employeeAttention("hq")?", "+employeeAttention("hq")+" unread items":""}"><span class="avatar">🏢</span><span class="agent-contact-copy"><strong>Company Headquarters</strong><small>All 10 employees</small></span>${unreadBadge(employeeAttention("hq"))}</button>`:"";
+ const staffRows=shown.map(x=>`<button class="row" data-chat="${x[0]}" aria-label="${escapeHTML(x[2])}${employeeAttention(x[0])?", "+employeeAttention(x[0])+" unread items":""}"><span class="avatar">${x[1]}</span><span class="agent-contact-copy"><strong>${x[2]}</strong><small>${escapeHTML(x[3])}${inbox?getConversationPreview(x[0]):""}</small></span>${unreadBadge(employeeAttention(x[0]))}</button>`).join("");
  const customRows=studioBots.filter(b=>b.status==="active"&&
    (!inbox||studioMessaged.has(b.id))&&[b.name,b.role].join(" ").toLowerCase().includes(q.toLowerCase()))
   .map(b=>'<button class="row" data-studio-worker="'+escapeHTML(b.id)+'"><span class="avatar studio-contact-avatar" data-rpg-worker="'+escapeHTML(b.id)+'"></span>'+
