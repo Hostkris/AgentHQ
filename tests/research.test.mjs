@@ -73,3 +73,15 @@ test('chat saves a scoped proposal, then executes only after Yes and saves one r
 test('No, expiry and unauthenticated messages never start a search',async()=>{
  for(const mode of ['no','expired','invalid']){const h=chatHarness();if(mode==='invalid'){assert.equal((await h.send(topic,'request_research','invalid')).status,401);assert.equal(h.tables.agent_messages.length,0)}else{await h.send(topic,'request_research');if(mode==='expired')h.tables.agent_research_jobs[0].expires_at=new Date(Date.now()-1000).toISOString();await h.send(mode==='no'?'No':'Yes')}assert.equal(h.searchCalls,0)}
 });
+
+test('late research responses cannot repopulate history after sign-out',async()=>{
+ const handlers=[],published=[];let resolveHistory;
+ const history=new Promise(r=>resolveHistory=r);
+ const mock={auth:{getUser:async()=>({data:{user:{id:'owner-a'}}}),onAuthStateChange:fn=>handlers.push(fn)},from(name){const q={select(){return q},eq(){return q},order(){return q},limit(){return history},then(resolve){resolve({data:[],error:null})}};return q}};
+ const window={addEventListener(){},agentHQResearchSync:(rows)=>published.push(rows)};
+ const code=fs.readFileSync(new URL('../agent-messages-cloud.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
+ vm.runInNewContext(code,{agentCloud:mock,window,document:{addEventListener(){}},setInterval(){},setTimeout(){},console});
+ const pending=window.agentHQResearchCloud.refresh();await Promise.resolve();await Promise.resolve();handlers.at(-1)();
+ resolveHistory({data:[{id:'private-owner-a-report'}],error:null});await pending;
+ assert(published.length>0);assert(published.every(rows=>rows.length===0));
+});

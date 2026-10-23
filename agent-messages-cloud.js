@@ -3,7 +3,7 @@ let syncGeneration=0;
 const employees = new Set(['alex','maya','jordan','riley','taylor','casey','morgan','avery','jamie','quinn','hq']);
 async function getUser() {
   const {data,error}=await agentCloud.auth.getUser();
-  if(error)throw Error(error.message);
+  if(error)throw Error(error.name==='AuthSessionMissingError'?'Sign in under Settings to sync messages.':error.message);
   if(!data?.user)throw Error('Sign in under Settings to sync messages.');
   return data.user;
 }
@@ -69,19 +69,24 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
 setInterval(()=>{if(!document.hidden)load()},30000);
 load();
 
+let researchGeneration=0;
 async function researchRefresh(){
+ const generation=researchGeneration;
  try{
-  await getUser();
-  const {data,error}=await agentCloud.from('agent_research_jobs').select('id,employee_id,query,status,created_at,expires_at,report,error').order('created_at',{ascending:false}).limit(30);
+  const user=await getUser();
+  if(generation!==researchGeneration)return [];
+  const {data,error}=await agentCloud.from('agent_research_jobs').select('id,employee_id,query,status,created_at,expires_at,report,error').eq('owner_id',user.id).order('created_at',{ascending:false}).limit(30);
+  if(generation!==researchGeneration)return [];
   if(error)throw Error(error.message);
   const jobs=(data||[]).map(j=>({...j,status:j.status==='pending'&&Date.parse(j.expires_at)<=Date.now()?'expired':j.status}));
   window.agentHQResearchSync?.(jobs,'Saved research requests and reports.');return jobs;
- }catch(e){window.agentHQResearchSync?.([],e.message);throw e}
+ }catch(e){if(generation===researchGeneration)window.agentHQResearchSync?.([],e.message);throw e}
 }
 async function researchStatus(){
- await getUser();const {data,error}=await agentCloud.functions.invoke('agent-hq-converse',{body:{action:'research_status'}});
+ const generation=researchGeneration;
+ await getUser();if(generation!==researchGeneration)return null;const {data,error}=await agentCloud.functions.invoke('agent-hq-converse',{body:{action:'research_status'}});
  if(error||!data){let reason=data?.error;if(!reason&&error?.context?.clone){try{reason=(await error.context.clone().json())?.error}catch{}}throw Error(reason||error?.message||'Research status is unavailable.')}
- window.agentHQResearchConnection?.(data);return data;
+ if(generation!==researchGeneration)return null;window.agentHQResearchConnection?.(data);return data;
 }
 window.agentHQResearchCloud={refresh:researchRefresh,status:researchStatus};
-agentCloud.auth.onAuthStateChange(()=>{window.agentHQResearchSync?.([],'Sign in to view research history.');window.agentHQResearchConnection?.({ready:false,message:'Tap Check connection to verify web research.'})});
+agentCloud.auth.onAuthStateChange(()=>{researchGeneration++;window.agentHQResearchSync?.([],'Sign in to view research history.');window.agentHQResearchConnection?.({ready:false,message:'Tap Check connection to verify web research.'})});
