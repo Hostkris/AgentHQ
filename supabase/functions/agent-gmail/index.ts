@@ -213,8 +213,8 @@ async function check(req:Request,db:DB,owner:string){
    }catch(error){
     failures++;
     const safeError=error instanceof Error?error.message:"Unknown error";
-    const httpStatus=/Gmail request failed \\((\\d{3})\\)/.exec(safeError)?.[1];
-    const dbCode=/Could not read saved priority \\[([A-Za-z0-9_]+)\\]/.exec(safeError)?.[1];
+    const httpStatus=safeError.includes("Gmail request failed (")?safeError.split("Gmail request failed (")[1]?.split(")")[0]:"";
+    const dbCode=safeError.includes("Could not read saved priority [")?safeError.split("Could not read saved priority [")[1]?.split("]")[0]:"";
     const category=phase+(dbCode?"_code_"+dbCode:httpStatus?"_http_"+httpStatus:phase==="parse_message"?"_parse_error":phase==="fetch_message"?"_network_error":"_error");
     reasons[category]=(reasons[category]||0)+1;
    }
