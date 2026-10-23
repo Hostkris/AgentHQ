@@ -1,0 +1,29 @@
+name: Alex DNA guardrails
+
+on:
+  push:
+    paths:
+      - 'app.js'
+      - 'agent-*-cloud.js'
+      - 'supabase/functions/**'
+      - 'supabase/migrations/**'
+      - 'tests/alex-dna.test.mjs'
+      - '.github/workflows/alex-dna-guardrails.yml'
+  pull_request:
+    paths:
+      - 'app.js'
+      - 'agent-*-cloud.js'
+      - 'supabase/functions/**'
+      - 'supabase/migrations/**'
+      - 'tests/alex-dna.test.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  dna-guardrails:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test Alex role and approval boundaries
+        run: node --test tests/alex-dna.test.mjs
