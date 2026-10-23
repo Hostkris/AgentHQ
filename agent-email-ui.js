@@ -20,7 +20,7 @@
  const callback=typeof location!=="undefined"?callbackInfo[new URLSearchParams(location.search).get("gmail")]||"":"";
  let status={configured:false,connected:false,ai_drafting_enabled:false,
   message:"Checking your Gmail connection…" };
- let emails=[],filter="attention",selected="",messageView=null;
+ let emails=[],filter="all",selected="",messageView=null;
  let busy=false,feedback="",lastCheckResult="",modified=new Map(),error="";
  let lastMarkup="";
  const d=(date)=>{if(!date)return "";const t=new Date(date);return Number.isFinite(t.getTime())?t.toLocaleString():""};
