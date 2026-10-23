@@ -28,8 +28,9 @@ async function refresh(){
   await user();
   state=await invoke("status");
  }catch(error){
-  if(current===generation)window.agentHQEmailSync?.({configured:false,connected:false,ai_drafting_enabled:false,
-   message:error.message,auth_error:true},[],error.message);
+  if(current===generation)window.agentHQEmailSync?.({unavailable:true,
+   message:"Gmail service temporarily unavailable. Your connection has not been removed. Please retry.",
+   auth_error:true},[],"Could not check Gmail status: "+error.message);
   return;
  }
  if(current!==generation)return;
