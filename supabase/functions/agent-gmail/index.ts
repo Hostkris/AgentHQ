@@ -166,18 +166,18 @@ async function status(req:Request,db:DB,owner:string){
 async function check(req:Request,db:DB,owner:string){
  const {token,connection}=await accessToken(db,owner);
  if(!connection.scopes.includes(READ_SCOPE))throw Error("Gmail read access was not granted");
- const list=await googleGet("messages",token,{q:"in:inbox newer_than:30d",maxResults:String(BATCH_SIZE)});
+ const list=await googleGet("messages",token,{q:"in:inbox",maxResults:String(BATCH_SIZE)});
  const refs=(Array.isArray(list.messages)?list.messages:[]).slice(0,BATCH_SIZE);
- let drafted=0,checked=0,failures=0;
+ let drafted=0,checked=0,failures=0,skipped=0; const reasons:Record<string,number>={};
  // Fetch only a small bounded batch. Never fetch attachments.
  for(let idx=0;idx<refs.length;idx+=3){
   const group=refs.slice(idx,idx+3);
   await Promise.all(group.map(async(ref:any)=>{
    try{
-    if(!messagePattern.test(String(ref.id||"")))return;
+    if(!messagePattern.test(String(ref.id||""))){skipped++;reasons.invalid_message_id=(reasons.invalid_message_id||0)+1;return}
     const raw=await googleGet("messages/"+encodeURIComponent(ref.id),token,{format:"full"});
     const item=extract(raw);
-    if(!item||!messagePattern.test(item.gmail_message_id)||!messagePattern.test(item.thread_id))return;
+    if(!item||!messagePattern.test(item.gmail_message_id)||!messagePattern.test(item.thread_id)){skipped++;reasons.unusable_sender_or_id=(reasons.unusable_sender_or_id||0)+1;return}
     const {data:existing,error:readErr}=await db.from("agent_email_items")
      .select("priority,priority_manual,draft_state,draft_body,needs_reply")
      .eq("owner_id",owner).eq("gmail_message_id",item.gmail_message_id).maybeSingle();
@@ -202,15 +202,21 @@ async function check(req:Request,db:DB,owner:string){
     });
     if(error)throw Error("Could not save a prioritized email");
     checked++;
-   }catch{failures++}
+   }catch(error){failures++;const category=error instanceof Error&&/save a prioritized email/i.test(error.message)?"database_save":error instanceof Error&&/read saved priority/i.test(error.message)?"database_read":"gmail_fetch_or_parse";reasons[category]=(reasons[category]||0)+1}
   }));
  }
  await db.from("agent_gmail_connections").update({last_checked_at:timestamp(),
   updated_at:timestamp()}).eq("owner_id",owner);
- return respond(req,{checked,drafts_prepared:drafted,failures,
-  ai_drafting_enabled:connection.ai_drafting_enabled,
-  message:checked+" inbox messages reviewed; "+drafted+" new draft replies prepared. Nothing sent.",
-  checked_at:timestamp(),read_only_review:true});
+ const found=refs.length;
+ const message=found===0?
+  "Gmail returned no messages in your Inbox. Only your Inbox is checked, not All Mail or Spam.":
+  checked===0?
+  "Gmail returned "+found+" messages, but Agent HQ couldn't save them. Details: "+Object.entries(reasons).map(([reason,n])=>reason+" "+n).join(", ")+". No messages were sent.":
+  checked+" inbox messages reviewed; "+drafted+" new draft replies prepared."+
+  (failures||skipped?" "+(failures+skipped)+" message(s) could not be processed.":"")+" Nothing sent.";
+ return respond(req,{checked,found,skipped,drafts_prepared:drafted,failures,
+  failure_categories:reasons,ai_drafting_enabled:connection.ai_drafting_enabled,
+  message,checked_at:timestamp(),read_only_review:true});
 }
 async function original(req:Request,db:DB,owner:string,input:Record<string,unknown>){
  const messageId=String(input.message_id||"");
