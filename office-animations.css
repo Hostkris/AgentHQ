@@ -20,15 +20,12 @@
 .handoff-paper{font-size:24px;white-space:nowrap;animation:paper-pass 1.75s ease-in-out infinite}
 @keyframes paper-pass{0%,100%{transform:translateX(-5px) rotate(-8deg)}50%{transform:translateX(7px) rotate(6deg)}}
 .home-shell .header-brand{display:inline-block;max-width:60vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:10px 16px;border:1px solid rgba(255,255,255,.44);border-radius:16px;background:rgba(255,255,255,.51);color:#182d3c;box-shadow:0 6px 19px rgba(23,29,45,.09);backdrop-filter:blur(13px);-webkit-backdrop-filter:blur(13px)}
-.home-dashboard .tile{background:rgba(255,255,255,.61)!important;border-color:rgba(255,255,255,.57);backdrop-filter:blur(11px);-webkit-backdrop-filter:blur(11px)}
 @media(prefers-color-scheme:dark){
  :root:not([data-theme-mode=light]) .home-shell .header-brand{background:rgba(31,34,40,.54);color:#fafbfd;border-color:rgba(255,255,255,.15)}
- :root:not([data-theme-mode=light]) .home-dashboard .tile{background:rgba(38,40,47,.65)!important}
  :root:not([data-theme-mode=light]) .office-handoff-banner{background:rgba(86,70,43,.9);color:#fff3dd;border-color:rgba(244,209,139,.4)}
 }
 :root[data-theme-mode=dark] .home-shell .header-brand{background:rgba(31,34,40,.54);color:#fafbfd;border-color:rgba(255,255,255,.15)}
-:root[data-theme-mode=dark] .home-dashboard .tile{background:rgba(38,40,47,.65)!important}
 :root[data-theme-mode=dark] .office-handoff-banner{background:rgba(86,70,43,.9);color:#fff3dd;border-color:rgba(244,209,139,.4)}
 :root[data-theme-mode=light] .home-shell .header-brand{background:rgba(255,255,255,.51);color:#182d3c}
-:root[data-theme-mode=light] .home-dashboard .tile{background:rgba(255,255,255,.61)!important}
 @media(prefers-reduced-motion:reduce){.rpg-portrait-svg,.rpg-eyelids,.rpg-mouth-pixels,.office-sprite,.office-emoji-bubble,.handoff-paper{animation:none!important}}
+
