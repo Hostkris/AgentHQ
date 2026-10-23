@@ -9,9 +9,18 @@ create table if not exists public.agent_alex_plan_decisions (
  primary key (owner_id,assignment_id)
 );
 alter table public.agent_alex_plan_decisions enable row level security;
-create policy "Owner may read Alex plan decisions"
- on public.agent_alex_plan_decisions for select to authenticated
- using ((select auth.uid())=owner_id);
+do $
+begin
+ if not exists (
+  select 1 from pg_policies
+  where schemaname='public' and tablename='agent_alex_plan_decisions'
+    and policyname='Owner may read Alex plan decisions'
+ ) then
+  create policy "Owner may read Alex plan decisions"
+   on public.agent_alex_plan_decisions for select to authenticated
+   using ((select auth.uid())=owner_id);
+ end if;
+end $;
 revoke all on table public.agent_alex_plan_decisions from anon, authenticated;
 grant select on table public.agent_alex_plan_decisions to authenticated;
 grant all on table public.agent_alex_plan_decisions to service_role;
