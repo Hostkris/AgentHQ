@@ -1,6 +1,7 @@
 import {createClient} from "npm:@supabase/supabase-js@2.79.0";
 import {createResearchRequest,isResearchInstruction,researchApproval,researchStatus,runResearch} from "./research.ts";
 import {ALEX_DNA,isAlexForbiddenIntent} from "../_shared/alex-dna.ts";
+import {alexBrief} from "./alex-brief.ts";
 const ORIGIN="https://hostkris.github.io";
 const EMPLOYEES={
  alex:"General Manager",maya:"Marketing strategist",jordan:"Scripts and content",
@@ -467,7 +468,7 @@ Deno.serve(async(req:Request)=>{
     replyText="Thanks, that helps. Should I resume this assignment with the team now? Yes or no?";
    }
    if(!replyText){
-    const actual=stage==="idle"&&worker!=="alex"?(await liveGmailAnswer(db,owner,worker,body))||(await liveMetaAnswer(db,owner,token,worker,body)):null;
+    const actual=stage!=="idle"?null:worker==="alex"?(/\b(?:daily brief|weekly brief|weekly digest|operations status|status report|team progress|manager brief)\b/i.test(body)?await alexBrief(db,owner,/\bweek(?:ly)?\b/i.test(body)?"weekly":"daily"):null):(await liveGmailAnswer(db,owner,worker,body))||(await liveMetaAnswer(db,owner,token,worker,body));
     if(actual){await state("idle");replyText=actual}
    }
    if(!replyText){
