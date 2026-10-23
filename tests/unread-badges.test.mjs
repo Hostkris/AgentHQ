@@ -1,0 +1,48 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
+
+test('Cloud sync queries owner-scoped unread counts and marks opened threads read',()=>{
+ const c=read('agent-messages-cloud.js');
+ assert.match(c,/rpc\('get_agent_unread_counts'\)/);
+ assert.match(c,/rpc\('mark_agent_conversation_read'/);
+ assert.match(c,/const visible=window\.agentHQVisibleThread\?\.\(\)/);
+ assert.match(c,/await refreshUnread\(\)/);
+});
+
+test('Messages tile and worker conversations have distinct numeric badges',()=>{
+ const app=read('app.js');
+ assert.match(app,/unreadBadge\(totalUnread\(\),"tile"\)/);
+ assert.match(app,/unreadBadge\(unreadFor\(x\[0\]\)\)/);
+ assert.match(app,/unreadFor\(id\)>0/);
+ assert.match(app,/markRead\(active\)/);
+ assert.match(app,/unreadLabel=n=>n>99\?"99\+":String\(n\)/);
+});
+
+test('Home Screen icon badges are optional and require a user gesture',()=>{
+ const app=read('app.js');
+ assert.match(app,/data-enable-icon-badges/);
+ assert.match(app,/Notification\.requestPermission\(\)/);
+ assert.match(app,/navigator\.setAppBadge\(count\)/);
+ assert.match(app,/navigator\.clearAppBadge\(\)/);
+});
+
+test('Unread SQL is per owner, per conversation and counts worker replies only',()=>{
+ const migration=read('supabase/migrations/20261023223939_agent_hq_unread_message_badges.sql');
+ const workerOnly=read('supabase/migrations/20261023224202_worker_only_unread_counts.sql');
+ assert.match(migration,/last_read_at timestamptz not null default now\(\)/);
+ assert.match(migration,/security invoker/);
+ assert.match(migration,/owner_id = \(select auth\.uid\(\)\)/);
+ assert.match(workerOnly,/m\.sender = 'employee'/);
+ assert.match(workerOnly,/m\.created_at > c\.last_read_at/);
+ assert.match(workerOnly,/grant execute on function public\.get_agent_unread_counts\(\) to authenticated/);
+});
+
+test('iPhone styling and cache versions include message badges',()=>{
+ const css=read('ios-ui.css');
+ const index=read('index.html');
+ assert.match(css,/\.agent-unread-badge--tile/);
+ assert.match(css,/\.agent-unread-badge--thread/);
+ assert.match(index,/unread-badges-1/);
+});
