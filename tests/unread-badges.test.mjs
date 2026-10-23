@@ -11,21 +11,37 @@ test('Cloud sync queries owner-scoped unread counts and marks opened threads rea
  assert.match(c,/await refreshUnread\(\)/);
 });
 
-test('Messages tile and worker conversations have distinct numeric badges',()=>{
+test('Home, Messages and worker rows show automatic attention counters',()=>{
  const app=read('app.js');
- assert.match(app,/unreadBadge\(totalUnread\(\),"tile"\)/);
- assert.match(app,/unreadBadge\(unreadFor\(x\[0\]\)\)/);
- assert.match(app,/unreadFor\(id\)>0/);
+ assert.match(app,/screenName==="messages"\?messagesAttention\(\)/);
+ assert.match(app,/screenName==="approvals"\?pendingCount\(\)/);
+ assert.match(app,/screenName==="assignments"\?assignmentAttention\(\)/);
+ assert.match(app,/screenName==="operations"\?operationsAttention\(\)/);
+ assert.match(app,/const employeeAttention=id=>unreadFor\(id\)\+pendingRequestsFor\(id\)/);
+ assert.match(app,/unreadBadge\(employeeAttention\(x\[0\]\)\)/);
+ assert.match(app,/const hasConversation=id=>employeeAttention\(id\)>0/);
  assert.match(app,/markRead\(active\)/);
  assert.match(app,/unreadLabel=n=>n>99\?"99\+":String\(n\)/);
 });
 
-test('Home Screen icon badges are optional and require a user gesture',()=>{
+test('Badge system needs no extra user-facing setup button or permission prompt',()=>{
  const app=read('app.js');
- assert.match(app,/data-enable-icon-badges/);
- assert.match(app,/Notification\.requestPermission\(\)/);
+ const css=read('ios-ui.css');
+ assert.doesNotMatch(app,/data-enable-icon-badges/);
+ assert.doesNotMatch(app,/Notification\.requestPermission\(\)/);
+ assert.doesNotMatch(css,/\.agent-badge-settings/);
  assert.match(app,/navigator\.setAppBadge\(count\)/);
  assert.match(app,/navigator\.clearAppBadge\(\)/);
+});
+
+test('Task and business permission events refresh attention automatically',()=>{
+ const app=read('app.js');
+ assert.match(app,/const pendingRequestsFor=id=>/);
+ assert.match(app,/const assignmentAttention=\(\)=>/);
+ assert.match(app,/const operationsAttention=\(\)=>/);
+ assert.match(app,/const allAttention=\(\)=>messagesAttention\(\)\+assignmentAttention\(\)\+operationsAttention\(\)/);
+ assert.match(app,/window\.agentHQSyncApprovals=\(rows,notice\)=>/);
+ assert.match(app,/updateAttentionIndicators\(\)/);
 });
 
 test('Unread SQL is per owner, per conversation and counts worker replies only',()=>{
@@ -44,5 +60,5 @@ test('iPhone styling and cache versions include message badges',()=>{
  const index=read('index.html');
  assert.match(css,/\.agent-unread-badge--tile/);
  assert.match(css,/\.agent-unread-badge--thread/);
- assert.match(index,/unread-badges-1/);
+ assert.match(index,/automatic-attention-2/);
 });
