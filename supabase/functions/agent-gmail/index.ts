@@ -218,6 +218,8 @@ async function check(req:Request,db:DB,owner:string){
     const httpStatus=safeError.includes("Gmail request failed (")?safeError.split("Gmail request failed (")[1]?.split(")")[0]:"";
     const dbCode=error && typeof error==="object" && "db_code" in error?String(error.db_code).replace(/[^A-Za-z0-9_]/g,"").slice(0,24):"";
     const category=phase+(dbCode?"_code_"+dbCode:httpStatus?"_http_"+httpStatus:phase==="parse_message"?"_parse_error":phase==="fetch_message"?"_network_error":"_error");
+    // Log only a short sanitized failure class. Never log email text, sender, IDs, or credentials.
+    console.error("Agent Gmail import failure",JSON.stringify({phase,kind:error instanceof Error?error.name:typeof error,code:dbCode||"",detail:safeError.slice(0,160).replace(/[\\r\\n]/g," ")}));
     reasons[category]=(reasons[category]||0)+1;
     if(failures===1){
      const diagnostic=safeError.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/gi,"[email]").slice(0,180);
