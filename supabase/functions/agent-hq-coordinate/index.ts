@@ -1,5 +1,5 @@
 import {createClient} from "npm:@supabase/supabase-js@2.79.0";
-import {ALEX_DNA, ALEX_PLAN_APPROVAL_NOTE, SPECIALIST_JOBS, isAlexSpecialist} from "../_shared/alex-dna.ts";
+import {ALEX_DNA, SPECIALIST_JOBS, isAlexSpecialist} from "../_shared/alex-dna.ts";
 
 const ALLOWED=["alex",...Object.keys(SPECIALIST_JOBS)];
 const JOBS=SPECIALIST_JOBS;
@@ -88,20 +88,17 @@ Deno.serve(async(req:Request)=>{
  if(stepLoadError)return reply(req,{error:"Could not read worker steps"},500);
  const existing=steps||[];
  // Approval is a signed-in owner action, separate from creating a plan.
- const {data:approvals,error:approvalError}=await admin.from("agent_team_messages")
-  .select("id").eq("owner_id",owner).eq("assignment_id",assignmentId)
-  .eq("sender_kind","owner").eq("message_type","note")
-  .eq("body",ALEX_PLAN_APPROVAL_NOTE).limit(1);
+ const {data:approvals,error:approvalError}=await admin.from("agent_alex_plan_decisions")
+  .select("status").eq("owner_id",owner).eq("assignment_id",assignmentId).maybeSingle();
  if(approvalError)return reply(req,{error:"Could not verify owner plan approval"},503);
- const approved=Boolean(approvals?.length);
+ const approved=approvals?.status==="approved";
  if(action==="approve"){
   if(!existing.length||!assignment.manager_summary)return reply(req,{error:"Alex has not drafted a plan to approve"},409);
   if(existing.some(s=>s.status!=="queued"))return reply(req,{error:"This plan has already started and cannot be newly approved"},409);
   if(!approved){
-   const {error:saveError}=await admin.from("agent_team_messages").insert({
-    owner_id:owner,assignment_id:assignmentId,sender_kind:"owner",sender_id:"owner",
-    message_type:"note",body:ALEX_PLAN_APPROVAL_NOTE
-   });
+   const {error:saveError}=await admin.from("agent_alex_plan_decisions").upsert({
+    owner_id:owner,assignment_id:assignmentId,status:"approved",decided_at:new Date().toISOString()
+   },{onConflict:"owner_id,assignment_id"});
    if(saveError)return reply(req,{error:"Could not save the owner's approval"},500);
   }
   return reply(req,{state:"ready",message:"You approved Alex's specialist routing plan. Specialists may now draft when you choose Continue teamwork."});
@@ -116,10 +113,10 @@ Deno.serve(async(req:Request)=>{
    .update({employee_ids:["alex"],manager_summary:null,coordination_status:"planning",status:"planned",updated_at:new Date().toISOString()})
    .eq("owner_id",owner).eq("id",assignmentId);
   if(resetError)return reply(req,{error:"Could not reset Alex's plan"},500);
-  await admin.from("agent_team_messages").insert({
-   owner_id:owner,assignment_id:assignmentId,sender_kind:"owner",sender_id:"owner",
-   message_type:"note",body:"Owner rejected Alex's specialist routing plan. A new proposal is required."
-  });
+  const {error:decisionError}=await admin.from("agent_alex_plan_decisions").upsert({
+   owner_id:owner,assignment_id:assignmentId,status:"rejected",decided_at:new Date().toISOString()
+  },{onConflict:"owner_id,assignment_id"});
+  if(decisionError)return reply(req,{error:"Plan reset but rejection log could not be stored"},500);
   return reply(req,{state:"planning",message:"Plan rejected. Ask Alex for a revised plan."});
  }
  if(action==="plan"&&existing.length)return reply(req,{
