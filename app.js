@@ -184,7 +184,7 @@ function updateAttentionIndicators(){
  const total=allAttention();
  document.title=(total?'('+total+') ':'')+'Agent HQ';
  syncAppBadge();
- if(["home","messages","contacts","assignments","approvals"].includes(screen))renderWithoutInterruptingDraft();
+ if(["home","messages","contacts","assignments","approvals","team","chat","office","operations"].includes(screen))renderWithoutInterruptingDraft();
 }
 window.agentHQUnreadError=notice=>{if(screen==="messages")window.agentHQChatCloudNotice?.(notice)};
 window.agentHQChatCloudNotice=(notice,quiet=false)=>{if(chatNotice===notice)return;chatNotice=notice;if(!quiet&&(screen==="chat"||screen==="messages"))renderWithoutInterruptingDraft()};const getConversationPreview=id=>{
