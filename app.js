@@ -973,7 +973,16 @@ const check=e.target.closest("[data-worker-check]");if(check){
   });
   return;
  }
- const teamLink=e.target.closest("[data-team-open]");if(teamLink){const id=teamLink.dataset.teamOpen;if(teamAssignments.has(id)){teamActive=id;teamDraft="";teamPostFeedback="";screen="team";render()}return}const decision=e.target.closest("[data-approval]");if(decision){const req=approvalRequests.get(decision.dataset.approval);if(req&&req.status==="pending"&&req.agentId===active){const choice=decision.dataset.decision;const service=window.agentHQCloudApprovals;if(!service){window.agentHQApprovalCloudError("Permission service unavailable. Try refreshing Agent HQ.");return}const controls=[...decision.closest(".card").querySelectorAll("[data-approval]")];controls.forEach(button=>button.disabled=true);service.decide(req.id,choice).catch(err=>{window.agentHQApprovalCloudError("Decision not saved: "+err.message)}).finally(()=>controls.forEach(button=>button.disabled=false))}return}const nav=e.target.closest("[data-nav]");const chat=e.target.closest("[data-chat]");if(nav){const next=nav.getAttribute("data-nav");settingsReturn=screen==="settings"&&!["home","settings"].includes(next)?true:["home","settings"].includes(next)?false:settingsReturn;screen=next;window.scrollTo(0,0);if(screen==="hq"){active="hq";screen="chat"}render()}if(chat){active=chat.dataset.chat;screen="chat";render()}});render();
+ const teamLink=e.target.closest("[data-team-open]");if(teamLink){const id=teamLink.dataset.teamOpen;if(teamAssignments.has(id)){teamActive=id;teamDraft="";teamPostFeedback="";screen="team";render()}return}const decision=e.target.closest("[data-approval]");if(decision){const req=approvalRequests.get(decision.dataset.approval);if(req&&req.status==="pending"&&req.agentId===active){const choice=decision.dataset.decision;const service=window.agentHQCloudApprovals;if(!service){window.agentHQApprovalCloudError("Permission service unavailable. Try refreshing Agent HQ.");return}const controls=[...decision.closest(".card").querySelectorAll("[data-approval]")];controls.forEach(button=>button.disabled=true);service.decide(req.id,choice).catch(err=>{window.agentHQApprovalCloudError("Decision not saved: "+err.message)}).finally(()=>controls.forEach(button=>button.disabled=false))}return}const nav=e.target.closest("[data-nav]");const chat=e.target.closest("[data-chat]");if(nav){
+ const next=nav.getAttribute("data-nav");
+ // Apple needs a user gesture for the one-time native Home Screen badge permission.
+ // No separate Agent HQ setup button, onboarding banner or repeated prompt.
+ if(next==="messages"&&(navigator.standalone===true||window.matchMedia?.("(display-mode: standalone)")?.matches)
+    &&typeof Notification!=="undefined"&&Notification.permission==="default"
+    &&typeof navigator.setAppBadge==="function"){
+  try{Notification.requestPermission().then(()=>syncAppBadge()).catch(()=>{});}catch{}
+ }
+ settingsReturn=screen==="settings"&&!["home","settings"].includes(next)?true:["home","settings"].includes(next)?false:settingsReturn;screen=next;window.scrollTo(0,0);if(screen==="hq"){active="hq";screen="chat"}render()}if(chat){active=chat.dataset.chat;screen="chat";render()}});render();
 
 window.agentHQSocialReadSync=()=>{if((screen==='chat'&&active==='riley')||screen==='accounts')renderWithoutInterruptingDraft()};
 window.agentHQSocialReadOpen=()=>{active='riley';screen='chat';render()};
