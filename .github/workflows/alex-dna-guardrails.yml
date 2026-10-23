@@ -4,6 +4,8 @@ on:
   push:
     paths:
       - 'app.js'
+      - 'agent-creative-desk.js'
+      - 'tests/creative-desk.test.mjs'
       - 'agent-*-cloud.js'
       - 'supabase/functions/**'
       - 'supabase/migrations/**'
@@ -15,6 +17,8 @@ on:
   pull_request:
     paths:
       - 'app.js'
+      - 'agent-creative-desk.js'
+      - 'tests/creative-desk.test.mjs'
       - 'agent-*-cloud.js'
       - 'supabase/functions/**'
       - 'supabase/migrations/**'
@@ -32,3 +36,5 @@ jobs:
         run: node --test tests/alex-dna.test.mjs
       - name: Test unread message badges
         run: node --test tests/unread-badges.test.mjs
+      - name: Test Creative Desk owner approvals and draft escaping
+        run: node --test tests/creative-desk.test.mjs
