@@ -1,3 +1,5 @@
+import {PROJECT_AUTONOMY_POLICY} from '../agent-project-autonomy.js';
+import {PUBLIC_WEB_CAPABILITY,explicitPublicResearch,planRoleQuery,publicQueryPlanner,researchForRole} from '../supabase/functions/_shared/role-research.ts';
 import {test} from 'node:test';
 import {routeProjectChat} from '../supabase/functions/_shared/project-chat.ts';
 import assert from 'node:assert/strict';
@@ -58,21 +60,25 @@ function chatHarness(){
    if(update)rows.forEach(r=>Object.assign(r,update));return {data:one?rows[0]||null:rows,error:null,count:rows.length};
   }};return q;
  },async rpc(name,args){
+  if(name==='begin_agent_role_research'){const row={id:'role-'+(++serial),owner_id:owner,employee_id:'riley',conversation_id:args.p_context.conversation_id,query:args.p_query,status:'running'};(tables.agent_role_research??=[]).push(row);return {data:{state:'claimed',job_id:row.id}};}
+  if(name==='finish_agent_role_research'){const row=tables.agent_role_research.find(r=>r.id===args.p_job);Object.assign(row,{status:'completed',report:args.p_report});tables.agent_messages.push({owner_id:owner,conversation_id:row.conversation_id,sender:'employee',body:args.p_summary});return {data:{state:'completed',job_id:row.id}};}
   const job=tables.agent_research_jobs.find(j=>j.id===args.p_job&&j.owner_id===args.p_owner&&j.employee_id===args.p_worker);
   if(name==='claim_agent_research'){if(job?.status!=='approved')return {error:{message:'Already used'}};job.status='running';return {data:job}}
   if(name==='finish_agent_research'){assert.equal(job.status,'running');job.status='completed';job.report=args.p_report;tables.agent_messages.push({owner_id:owner,conversation_id:job.conversation_id,sender:'employee',body:'The full report, sources and limitations are saved in this thread.'});return {data:true}}
  }};
- const fakeFetch=async()=>{searchCalls++;return Response.json(evidence)};let handler;
+ const fakeFetch=async(url,request)=>{const input=JSON.parse(request.body);if(input.tools){searchCalls++;return Response.json(evidence);}return Response.json({choices:[{message:{content:JSON.stringify({kind:'research',query:'small business website public options',purpose:'Compare public sources for the owner request'})}}]});};let handler;
  const code=stripTypeScriptTypes(fs.readFileSync(new URL('../supabase/functions/agent-hq-converse/index.ts',import.meta.url),'utf8').replace(/^import .*;\n/gm,''));
- vm.runInNewContext(code,{createClient:()=>db,routeProjectChat,createResearchRequest,isResearchInstruction,researchApproval,researchStatus:key=>researchStatus(key,fakeFetch),runResearch:(...args)=>runResearch(...args,fakeFetch),Deno:{env:{get:k=>({SUPABASE_URL:'https://test.supabase.co',SUPABASE_SERVICE_ROLE_KEY:'test',GROQ_API_KEY:'test',AGENT_HQ_ALLOWED_OWNER_IDS:owner})[k]},serve:fn=>handler=fn},URL,Request,Response,AbortController,AbortSignal,setTimeout,clearTimeout,console});
+ vm.runInNewContext(code,{createClient:()=>db,routeProjectChat,PROJECT_AUTONOMY_POLICY,PUBLIC_WEB_CAPABILITY,explicitPublicResearch,planRoleQuery,publicQueryPlanner:key=>publicQueryPlanner(key,fakeFetch),researchForRole:args=>researchForRole({...args,fetcher:fakeFetch}),createResearchRequest,isResearchInstruction,researchApproval,researchStatus:key=>researchStatus(key,fakeFetch),runResearch:(...args)=>runResearch(...args,fakeFetch),Deno:{env:{get:k=>({SUPABASE_URL:'https://test.supabase.co',SUPABASE_SERVICE_ROLE_KEY:'test',GROQ_API_KEY:'test',AGENT_HQ_ALLOWED_OWNER_IDS:owner})[k]},serve:fn=>handler=fn},URL,Request,Response,AbortController,AbortSignal,setTimeout,clearTimeout,console});
  return {tables,get searchCalls(){return searchCalls},async send(text,action,token='valid'){const response=await handler(new Request('https://test.supabase.co/functions/v1/agent-hq-converse',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({employee_id:'riley',text,action})}));return {status:response.status,...await response.json()}}};
 }
-test('chat saves a scoped proposal, then executes only after Yes and saves one report',async()=>{
- const h=chatHarness();let r=await h.send(topic,'request_research');assert.match(r.reply,/reply yes or no/i);assert.equal(h.searchCalls,0);assert.equal(h.tables.agent_chat_states[0].stage,'confirm_research');
- r=await h.send('Yes');assert.equal(h.searchCalls,1);assert.match(r.reply,/saved the full report/i);assert.equal(h.tables.agent_research_jobs[0].status,'completed');assert.match(h.tables.agent_research_jobs[0].report,/Verified search sources/);assert.equal(h.tables.agent_messages.filter(m=>m.body.includes('Verified search sources')).length,0);
+test('ordinary public research starts under standing authorization and saves one source-backed report',async()=>{
+ const h=chatHarness(),r=await h.send(topic,'request_research');assert.equal(r.status,200);assert(!r.error,r.error);assert.equal(h.searchCalls,1);assert.equal(h.tables.agent_chat_states[0].stage,'idle');
+ assert.equal(h.tables.agent_role_research[0].status,'completed');assert.match(h.tables.agent_role_research[0].report,/example.com\/research/);assert(!h.tables.agent_messages.some(m=>/reply yes or no/i.test(m.body)));
 });
-test('No, expiry and unauthenticated messages never start a search',async()=>{
- for(const mode of ['no','expired','invalid']){const h=chatHarness();if(mode==='invalid'){assert.equal((await h.send(topic,'request_research','invalid')).status,401);assert.equal(h.tables.agent_messages.length,0)}else{await h.send(topic,'request_research');if(mode==='expired')h.tables.agent_research_jobs[0].expires_at=new Date(Date.now()-1000).toISOString();await h.send(mode==='no'?'No':'Yes')}assert.equal(h.searchCalls,0)}
+test('legacy refusal, expiry and unauthenticated messages never start a search',async()=>{
+ for(const mode of ['no','expired','invalid']){const h=chatHarness();if(mode==='invalid'){assert.equal((await h.send(topic,'request_research','invalid')).status,401);assert.equal(h.tables.agent_messages.length,0);}else{
+  const owner='11111111-1111-4111-8111-111111111111',id='legacy';h.tables.agent_research_jobs.push({id,owner_id:owner,employee_id:'riley',query:topic,status:'pending',expires_at:new Date(Date.now()+(mode==='expired'?-1000:900000)).toISOString()});h.tables.agent_chat_states.push({owner_id:owner,employee_id:'riley',stage:'confirm_research',research_job_id:id});await h.send(mode==='no'?'No':'Yes');
+ }assert.equal(h.searchCalls,0);}
 });
 
 test('late research responses cannot repopulate history after sign-out',async()=>{

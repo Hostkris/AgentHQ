@@ -1,5 +1,5 @@
 import {agentCloud} from './agent-cloud-auth.js';
-import {threadActivities,activityHTML} from './agent-activity-view.js?v=20261024-response-recovery-1';
+import {threadActivities,activityHTML} from './agent-activity-view.js?v=20261024-autonomy-1';
 let ownerId=null,generation=0,serial=0,pollTimer=null,polling=null,lastSync=0,labels={},workerRuns=[],research=[],legacyResearch=[],pollError=false;
 const requests=new Map();
 function projects(){return (window.agentHQProjects?.all?.()||[]).filter(s=>ownerId&&s.owner_id===ownerId);}

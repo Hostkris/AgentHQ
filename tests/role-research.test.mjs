@@ -1,3 +1,4 @@
+import {PROJECT_AUTONOMY_POLICY} from '../agent-project-autonomy.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -64,7 +65,7 @@ test('research completion requires an atomic save and a failure stays visibly fa
  assert(db.calls.some(c=>c.table==='agent_role_research'&&c.value.status==='failed'));
 });
 
-function chatHarness({privatePlan=false}={}){
+function chatHarness({privatePlan=false,providerFailure=false}={}){
  const tables={agent_conversations:[],agent_messages:[],agent_chat_states:[],agent_project_sessions:[],agent_role_research:[]},requests=[];let serial=0,handler;
  const db={auth:{getUser:async token=>({data:{user:token==='valid'?{id:owner}:null}})},from(name){const list=tables[name]??(tables[name]=[]);let filters=[],op='',value,one=false;
   const q={select(){return q},eq(k,v){filters.push(r=>r[k]===v);return q},in(k,v){filters.push(r=>v.includes(r[k]));return q},order(){return q},limit(){return q},insert(v){op='insert';value=v;return q},upsert(v){op='upsert';value=v;return q},update(v){op='update';value=v;return q},single(){one=true;return finish()},maybeSingle(){one=true;return finish()},then(a,b){return finish().then(a,b)}};
@@ -72,13 +73,13 @@ function chatHarness({privatePlan=false}={}){
  },async rpc(name,args){if(name==='begin_agent_role_research'){const row={id:'web-'+(++serial),owner_id:args.p_owner,employee_id:args.p_worker,query:args.p_query,conversation_id:args.p_context.conversation_id,status:'running'};tables.agent_role_research.push(row);return {data:{state:'claimed',job_id:row.id}};}
   if(name==='finish_agent_role_research'){const row=tables.agent_role_research.find(r=>r.id===args.p_job);Object.assign(row,{status:'completed',report:args.p_report,sources:args.p_sources});tables.agent_messages.push({id:'result-'+(++serial),owner_id:owner,conversation_id:row.conversation_id,sender:'employee',body:args.p_summary});return {data:{state:'completed',job_id:row.id}};}}
  };
- const fetcher=async(url,request)=>{const body=JSON.parse(request.body);requests.push(body);if(body.tools)return Response.json(evidence);
+ const fetcher=async(url,request)=>{if(providerFailure)throw Error('Temporary connection failure');const body=JSON.parse(request.body);requests.push(body);if(body.tools)return Response.json(evidence);
   if(privatePlan)return Response.json({choices:[{message:{content:JSON.stringify({kind:'private',question:'Private inbox access needs its existing connector permission.'})}}]});
   const role=JSON.parse(body.messages[1].content).worker_role,p=Object.values(ROLE_WEB_SCOPE).find(p=>p.title===role)||{topics:'engineering technical design'};
   return Response.json({choices:[{message:{content:JSON.stringify({kind:'research',query:p.topics.split(' ').slice(0,5).join(' '),purpose:'Evidence for this role’s assigned task'})}}]});};
  const source=stripTypeScriptTypes(readFileSync(new URL('../supabase/functions/agent-hq-converse/index.ts',import.meta.url),'utf8').replace(/^import .*;\n/gm,''));
  const scopedResearch=args=>researchForRole({...args,fetcher});
- vm.runInNewContext(source,{createClient:()=>db,routeProjectChat,PUBLIC_WEB_CAPABILITY,explicitPublicResearch,planRoleQuery,publicQueryPlanner:key=>publicQueryPlanner(key,fetcher),researchForRole:scopedResearch,fetch:fetcher,URL,Request,Response,AbortController,AbortSignal,setTimeout,clearTimeout,console,Deno:{serve:f=>handler=f,env:{get:k=>({SUPABASE_URL:'https://synthetic.supabase.co',SUPABASE_SERVICE_ROLE_KEY:'synthetic',GROQ_API_KEY:'synthetic',AGENT_HQ_ALLOWED_OWNER_IDS:owner})[k]}}});
+ vm.runInNewContext(source,{createClient:()=>db,routeProjectChat,PROJECT_AUTONOMY_POLICY,PUBLIC_WEB_CAPABILITY,explicitPublicResearch,planRoleQuery,publicQueryPlanner:key=>publicQueryPlanner(key,fetcher),researchForRole:scopedResearch,fetch:fetcher,URL,Request,Response,AbortController,AbortSignal,setTimeout,clearTimeout,console,Deno:{serve:f=>handler=f,env:{get:k=>({SUPABASE_URL:'https://synthetic.supabase.co',SUPABASE_SERVICE_ROLE_KEY:'synthetic',GROQ_API_KEY:'synthetic',AGENT_HQ_ALLOWED_OWNER_IDS:owner})[k]}}});
  return {tables,requests,async send(worker,text,token='valid'){const response=await handler(new Request('https://synthetic.supabase.co',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({employee_id:worker,text,action:'role_research'})}));return {status:response.status,...await response.json()};}};
 }
 for(const [worker,p] of Object.entries(ROLE_WEB_SCOPE))test(worker+' can research their actual specialty directly in Messages',async()=>{
@@ -89,6 +90,10 @@ for(const [worker,p] of Object.entries(ROLE_WEB_SCOPE))test(worker+' can researc
 test('invalid login and private-account request never call the public search tool',async()=>{
  let h=chatHarness();assert.equal((await h.send('casey','Research social media engagement','invalid')).status,401);assert.equal(h.requests.length,0);
  h=chatHarness({privatePlan:true});const r=await h.send('taylor','Research the responses needed in my private inbox');assert.match(r.reply,/connector permission/);assert.equal(h.requests.filter(r=>r.tools).length,0);assert.equal(h.tables.agent_role_research.length,0);
+});
+test('a direct research connection failure becomes one saved project without asking the owner to resend it',async()=>{
+ const h=chatHarness({providerFailure:true}),topic='Research current Instagram social media engagement';
+ const r=await h.send('casey',topic);assert.equal(r.status,200);assert.equal(h.tables.agent_team_assignments.length,1);assert.equal(h.tables.agent_team_assignments[0].instructions,topic);assert.equal(r.start_assignment_id,h.tables.agent_team_assignments[0].id);assert.equal(r.project_workflow,true);assert.match(r.reply,/continue automatically/);assert(!/retry|resend|yes or no/i.test(r.reply));
 });
 test('team research uses the real worker’s lease, then reuses source-backed evidence in later turns',async()=>{
  const calls=[],s={revision:1,phase:'drafting',active_worker:'jordan',lead_worker:'jordan',team_order:['jordan','casey'],peer_exchanges:1};
@@ -114,7 +119,7 @@ function customHarness(status='active'){
  };
  const fetcher=async(url,req)=>{const body=JSON.parse(req.body);requests.push(body);return body.tools?Response.json(evidence):Response.json({choices:[{message:{content:JSON.stringify({kind:'research',query:'engineering technical design',purpose:'Evidence for the assigned design'})}}]});};
  const source=stripTypeScriptTypes(readFileSync(new URL('../supabase/functions/agent-bot-studio/index.ts',import.meta.url),'utf8').replace(/^import .*;\n/gm,''));
- vm.runInNewContext(source,{createClient:()=>db,PUBLIC_WEB_CAPABILITY,explicitPublicResearch,planRoleQuery,publicQueryPlanner:key=>publicQueryPlanner(key,fetcher),researchForRole:args=>researchForRole({...args,fetcher}),fetch:fetcher,URL,Request,Response,AbortController,AbortSignal,setTimeout,clearTimeout,console,Deno:{serve:f=>handler=f,env:{get:k=>({SUPABASE_URL:'https://synthetic.supabase.co',SUPABASE_SERVICE_ROLE_KEY:'synthetic',GROQ_API_KEY:'synthetic',AGENT_HQ_ALLOWED_OWNER_IDS:owner})[k]}}});
+ vm.runInNewContext(source,{createClient:()=>db,PROJECT_AUTONOMY_POLICY,PUBLIC_WEB_CAPABILITY,explicitPublicResearch,planRoleQuery,publicQueryPlanner:key=>publicQueryPlanner(key,fetcher),researchForRole:args=>researchForRole({...args,fetcher}),fetch:fetcher,URL,Request,Response,AbortController,AbortSignal,setTimeout,clearTimeout,console,Deno:{serve:f=>handler=f,env:{get:k=>({SUPABASE_URL:'https://synthetic.supabase.co',SUPABASE_SERVICE_ROLE_KEY:'synthetic',GROQ_API_KEY:'synthetic',AGENT_HQ_ALLOWED_OWNER_IDS:owner})[k]}}});
  return {messages,reports,requests,async send(message){const r=await handler(new Request('https://synthetic.supabase.co',{method:'POST',headers:{Authorization:'Bearer synthetic','Content-Type':'application/json'},body:JSON.stringify({action:'chat',bot_id:bot.id,message})}));return {status:r.status,...await r.json()};}};
 }
 test('an active custom worker can actually research through its saved Messages endpoint',async()=>{

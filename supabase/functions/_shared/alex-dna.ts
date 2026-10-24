@@ -16,7 +16,8 @@ export const ALEX_DNA = Object.freeze({
     "review_specialist_handoffs", "verify_stored_completion_evidence",
     "prepare_owner_approval_requests", "record_blockers",
     "prepare_daily_activity_brief", "prepare_weekly_operations_digest",
-    "escalate_unassigned_work", "conduct_role_scoped_public_research"
+    "escalate_unassigned_work", "conduct_role_scoped_public_research",
+    "diagnose_workflow_failure", "coordinate_automatic_recovery"
   ]),
   deniedActions: Object.freeze([
     "execute_specialist_step", "operate_authenticated_browser",
@@ -35,6 +36,9 @@ export const ALEX_DNA = Object.freeze({
   completionProof: Object.freeze(["source_link", "created_file", "integration_response_id", "task_log"]),
   noProofStatus: "unverified",
   approvalRequired: true,
+  internalWorkAuthorization: "standing_owner_assignment",
+  routineRecovery: "automatic_within_existing_usage_limits",
+  ownerInterruptions: "essential_owner_only_information_sensitive_authorization_and_final_review",
   defaultExternalTools: Object.freeze(["public_web_research"] as string[])
 });
 export const SPECIALIST_JOBS: Readonly<Record<string,string>> = Object.freeze({

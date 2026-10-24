@@ -1,0 +1,4 @@
+# The private project scheduler uses its own 256-bit Vault credential; it is not
+# a browser endpoint. Other functions retain their existing JWT verification.
+[functions.agent-hq-project-runner]
+verify_jwt = false

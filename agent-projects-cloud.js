@@ -1,9 +1,10 @@
 import {agentCloud} from './agent-cloud-auth.js';
-import {projectRoomHTML,projectPrivateHTML,projectIsTyping} from './agent-project-view.js?v=20261024-response-recovery-1';
+import {projectRoomHTML,projectPrivateHTML,projectIsTyping} from './agent-project-view.js?v=20261024-autonomy-1';
+import {connectionRetryDelay} from './agent-project-autonomy.js?v=20261024-autonomy-1';
 let rows=[],ownerId=null,generation=0,refreshing=null,timer=null,inFlight=null,selected=null,answerTarget=null;
 const wanted=new Set();
 const localFailures=new Map();
-function recordFailure(id,message){const s=rows.find(s=>s.assignment_id===id);localFailures.set(id,{message,phase:s?.phase,revision:s?.revision,turn_count:s?.turn_count});changed();}
+function recordFailure(id,message){const s=rows.find(s=>s.assignment_id===id),attempt=(localFailures.get(id)?.attempt||0)+1;localFailures.set(id,{message,phase:s?.phase,revision:s?.revision,turn_count:s?.turn_count,attempt,retryAt:Date.now()+connectionRetryDelay(attempt)});changed();}
 function changed(){window.agentHQProjectsChanged?.();document.dispatchEvent(new CustomEvent('agenthq-project-activity'));}
 async function owner(){const {data,error}=await agentCloud.auth.getUser();if(error||!data?.user)throw Error('Sign in to Agent HQ to work with the team.');return data.user;}
 function schedule(ms=12000){clearTimeout(timer);if(document.hidden)return;timer=setTimeout(tick,ms);}
@@ -39,7 +40,7 @@ async function invoke(action,id,extra={}){
  return data;
 }
 async function sync(){await Promise.allSettled([refresh(),window.agentHQTeamCloud?.refresh(),window.agentHQCoordCloud?.refresh(),window.agentHQChatCloud?.refresh(),window.agentHQCloudApprovals?.refresh()]);}
-function runnable(s){return ['planning','discussion','drafting','checking','polishing'].includes(s.phase)&&!s.assignment?.owner_paused&&!s.last_error&&!localFailures.has(s.assignment_id)&&!projectIsTyping(s)&&Date.parse(s.next_run_at||0)<=Date.now();}
+function runnable(s){return navigator.onLine!==false&&['planning','discussion','drafting','checking','polishing'].includes(s.phase)&&!s.assignment?.owner_paused&&!s.last_error&&(!localFailures.has(s.assignment_id)||localFailures.get(s.assignment_id).retryAt<=Date.now())&&!projectIsTyping(s)&&Date.parse(s.next_run_at||0)<=Date.now();}
 async function tick(){
  if(document.hidden)return;
  if(inFlight){
@@ -64,7 +65,7 @@ async function tick(){
   wanted.delete(id);
   if(result.state==='failed'){
    recordFailure(id,result.message||'The team paused. Retry this turn in the project.');
-   window.agentHQProjectsError?.(result.message||'The team paused. Retry this turn in the project.');
+   window.agentHQProjectsError?.(result.message||'The team will reconnect and continue automatically.');
   }else localFailures.delete(id);
   await sync();
  }catch(error){if(epoch===generation){wanted.delete(id);recordFailure(id,error.message);window.agentHQProjectsError?.(error.message);}}
@@ -97,7 +98,7 @@ function select(id){if(rows.some(s=>s.assignment_id===id)){selected=id;answerTar
 function selectAnswer(id){const s=rows.find(s=>s.assignment_id===id);if(!s)return null;answerTarget=id;return s.waiting_worker;}
 window.agentHQProjects={refresh,start,review,answer,control,context,select,selectAnswer,decidePermission,
  all:()=>rows,isProject:id=>rows.some(s=>s.assignment_id===id),
- renderHQ:options=>projectRoomHTML({...options,projects:rows.map(s=>!s.last_error&&localFailures.has(s.assignment_id)?{...s,last_error:localFailures.get(s.assignment_id).message}:s),selected}),
+ renderHQ:options=>projectRoomHTML({...options,projects:rows.map(s=>{const f=localFailures.get(s.assignment_id);return !s.last_error&&f?{...s,recovery_error:f.message,recovery_state:'reconnecting',next_run_at:new Date(f.retryAt).toISOString()}:s;}),selected}),
  renderPrivate:(worker,options)=>projectPrivateHTML({...options,projects:rows,worker})};
 agentCloud.auth.onAuthStateChange((_event,session)=>{
  const next=session?.user?.id||null;
@@ -105,5 +106,6 @@ agentCloud.auth.onAuthStateChange((_event,session)=>{
  schedule(0);
 });
 window.addEventListener('focus',()=>schedule(0));
+window.addEventListener('online',()=>{for(const f of localFailures.values())f.retryAt=Date.now();schedule(0);});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)clearTimeout(timer);else schedule(0);});
 schedule(0);

@@ -63,7 +63,7 @@ test('model or commit failure leaves a visible saved failure, never a fake compl
  for(const failure of ['provider','commit']){
   const db=dbMock();db.rpc=async(name,args)=>{db.calls.push({name,args});if(name==='claim_agent_project_turn')return {data:{state:'claimed',run_id:version,session:{...base,peer_exchanges:1}}};if(name==='commit_agent_project_turn')return {error:{message:'stopped'}};return {data:true};};
   const result=await runProjectTurn({db,owner:'owner',ai:{},jobs:{},policyFor:()=>'',issues:draftIssues,call:async()=>{if(failure==='provider')throw Error('Provider unavailable');return {kind:'contribute',text:'Concrete contribution'};}},{id},{action:'next'});
-  assert.equal(result.state,'failed');assert(db.calls.some(c=>c.name==='fail_agent_project_turn'));
+  assert.equal(result.state,'recovering');assert(db.calls.some(c=>c.name==='fail_agent_project_turn'));
  }
 });
 test('owner replies go only to the private worker who asked, and ambiguity changes nothing',async()=>{

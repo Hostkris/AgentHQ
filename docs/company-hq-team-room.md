@@ -17,7 +17,7 @@ New owner-assigned projects use workflow version 2. Earlier work orders and save
 - Existing Groq/OpenRouter configuration is reused. No new paid service, browser host, recurring job, or outside execution tool was added.
 - One real model call per team turn; owner-wide reservation and the existing ten worker calls/hour cap apply. There are at most eighteen turns per revision and three teammate question exchanges. No recursive agent loop.
 - A four-second gap between saved turns makes messages readable. Typing dots appear only while an actual worker holds a live model-call lease, with that worker’s name. They are not a staged thinking animation and do not expose hidden reasoning.
-- Work advances while Agent HQ is open. Safari/iPadOS can suspend web apps in the background. An in-flight server request can commit its result; reopening the app resumes from saved state. This release does not claim unattended 24/7 execution or phone push delivery.
+- A private server runner advances due projects once per minute even when Agent HQ is closed. The app can also advance work while open; both use the same lease and usage checks. This does not add phone push delivery.
 - All assigned workers can request role-scoped public browser research and share dated source reports in the project. Saved evidence remains labelled by date; it never implies a fresh search. Private-account gaps still use the requesting worker’s individual Messages and existing connector permissions. See all-worker-public-research.md.
 
 ## Integrity
@@ -42,10 +42,6 @@ New owner-assigned projects use workflow version 2. Earlier work orders and save
 Browser tests use synthetic projects and model responses, with phone/iPad/landscape viewports. They do not claim physical signed-in iPhone testing or live Facebook access.
 ## Response validation and recovery
 
-Each model turn must match the saved stage, speaker and assigned teammates. A final result returned during discussion is rejected before it can replace the shared draft. Questions, answers and reviews that address their own sender or an inconsistent teammate are also rejected.
+Wrong-stage, self-addressed, malformed and incomplete replies are rejected before they can replace saved work. Routine errors now correct and retry automatically. Repeated faults go to Alex for a workflow diagnosis, then back to the responsible specialist. The project, draft, review feedback and version remain intact. A delayed retry notice is informational: no owner click is needed.
 
-Company HQ explains the problem and offers **Correct response & retry** or **Correct recipient & retry**. Retrying keeps the assignment, revision, team messages, saved draft and previous output. The server reads the last failed run and adds correction instructions only when its worker, stage and revision still match. A valid retry is checked again before committing. Older generic stage and recipient failures also have a correction path.
-
-Each retry reserves one normal worker run and obeys the existing allowance, lease and turn limits. There is no automatic model correction loop. If another invalid response arrives, the project pauses with its correction action still available. Connection errors also stop automatic requests in that tab until the owner retries. At the revision turn limit, the notice directs the owner to Alex to narrow the scope. Internal failure codes stay out of the visible conversation and activity indicator.
-
-Regression checks: `node --test tests/project-response-recovery.test.mjs tests/company-hq.test.mjs`; `node tests/company-hq.browser.mjs`; `node tests/live-activity.browser.mjs`. These use synthetic responses and do not access external accounts or call a paid model.
+An essential private fact or sensitive authorization still pauses the exact project in the requesting worker's thread. Answering it resumes automatically. Finished combined work waits for the owner's final review. See [PROJECT_AUTONOMY.md](PROJECT_AUTONOMY.md) for the scheduler, approval categories and verification details.

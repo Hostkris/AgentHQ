@@ -23,7 +23,7 @@ test('Riley chat remains research-only, and cannot request outside account actio
  assert.match(chat,/role==="Research analyst"\?RILEY_CHAT_POLICY/);
  assert.match(chat,/worker==="riley"&&result\.intent==="action"/);
  assert.match(chat,/await proposeRoleResearch\(composed\)/);
- assert.match(chat,/worker!=="alex"&&worker!=="riley"&&explicitPublicResearch/);
+ assert.match(chat,/worker!=="alex"&&explicitPublicResearch/);
  assert.match(chat,/stage==="confirm_research"/);
  assert.match(chat,/runResearch\(db,owner,worker,job\.id,env\("GROQ_API_KEY"\)\)/);
 });

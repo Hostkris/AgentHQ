@@ -13,6 +13,7 @@ on:
       - 'agent-*-cloud.js'
       - 'agent-project-*.js'
       - 'tests/project-response-recovery.test.mjs'
+      - 'tests/project-autonomy.test.mjs'
       - 'tests/company-hq.test.mjs'
       - 'supabase/functions/**'
       - 'supabase/migrations/**'
@@ -51,6 +52,7 @@ on:
       - 'agent-*-cloud.js'
       - 'agent-project-*.js'
       - 'tests/project-response-recovery.test.mjs'
+      - 'tests/project-autonomy.test.mjs'
       - 'tests/company-hq.test.mjs'
       - 'supabase/functions/**'
       - 'supabase/migrations/**'
@@ -78,7 +80,7 @@ jobs:
       - name: Test Alex role and approval boundaries
         run: node --test tests/alex-dna.test.mjs
       - name: Test project response validation and recovery
-        run: node --test tests/company-hq.test.mjs tests/project-response-recovery.test.mjs
+        run: node --test tests/company-hq.test.mjs tests/project-response-recovery.test.mjs tests/project-autonomy.test.mjs
       - name: Test unread message badges
         run: node --test tests/unread-badges.test.mjs
       - name: Test conversation-first manager workflow

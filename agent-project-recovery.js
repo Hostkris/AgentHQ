@@ -1,7 +1,7 @@
 // Shared, deterministic rules. Model output never chooses its own stage or speaker.
 const phases={planning:'team planning',discussion:'team discussion',drafting:'drafting',checking:'peer review',polishing:'final editing'};
 const kinds={planning:'plan',discussion:'contribute',drafting:'draft',checking:'check',polishing:'final'};
-const codes=new Set(['invalid_response','empty_response','wrong_stage','wrong_worker','self_address','invalid_recipient','recipient_mismatch','invalid_plan','invalid_query','missing_question','unsafe_site','incomplete_deliverable']);
+const codes=new Set(['invalid_response','empty_response','wrong_stage','wrong_worker','self_address','invalid_recipient','recipient_mismatch','invalid_plan','invalid_query','missing_question','unsafe_site','incomplete_deliverable','unnecessary_approval','nonessential_question','invalid_diagnosis']);
 const label=id=>String(id||'worker').replace(/^./,c=>c.toUpperCase());
 export class ProjectResponseError extends Error{
  constructor(code,message){super(message);this.name='ProjectResponseError';this.code=codes.has(code)?code:'invalid_response';this.responseKind='';}
@@ -31,7 +31,7 @@ export function projectResponseRecovery(s,message=s.last_error){
   String(message).startsWith('The question must be addressed to another assigned teammate')?'invalid_recipient':null;
  const summary=match?String(message).slice(match[0].length):String(message);
  const target=['self_address','invalid_recipient','recipient_mismatch'].includes(code);
- const required=match?.[5]&&c.allowed.includes(match[5])?match[5]:target&&c.allowed.includes('ask_team')&&s.phase==='discussion'?'ask_team':code==='invalid_query'?'research':code==='unsafe_site'?'permission':c.primary;
+ const required=['unnecessary_approval','nonessential_question'].includes(code)?c.primary:match?.[5]&&c.allowed.includes(match[5])?match[5]:target&&c.allowed.includes('ask_team')&&s.phase==='discussion'?'ask_team':code==='invalid_query'?'research':code==='unsafe_site'?'permission':c.primary;
  const recipients=required==='answer'?[s.peer_return_worker]:required==='check'?[s.lead_worker]:c.recipients;
  let instruction='Retry '+label(c.worker)+"’s saved turn in "+c.stage+'.';
  if(code){
@@ -39,6 +39,7 @@ export function projectResponseRecovery(s,message=s.last_error){
   if(c.allowed.includes('ask_team'))instruction+=' For ask_team, set recipient to '+c.recipients.join(' or ')+', address that teammate in the text, and never address yourself.';
   if(s.peer_target)instruction+=' Answer the saved question from '+s.peer_return_worker+'; do not start another team question.';
   if(required==='check')instruction+=' Address the review to the lead '+s.lead_worker+'.';
+  if(['unnecessary_approval','nonessential_question'].includes(code))instruction+=' Do the already-authorized work using saved context, teammates and public research. Do not repeat this unnecessary owner interruption.';
   instruction+=' Keep the owner brief, saved draft, teammate feedback and current revision. Do not skip ahead, restart the project or claim outside actions.';
  }
  const hint=code?(target?'The retry will ask '+label(c.worker)+' to address '+(recipients.map(label).join(' or ')||'the assigned teammate')+'.':

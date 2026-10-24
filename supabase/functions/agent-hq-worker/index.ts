@@ -1,3 +1,4 @@
+import {PROJECT_AUTONOMY_POLICY} from "../../../agent-project-autonomy.js";
 import { createClient } from "npm:@supabase/supabase-js@2.79.0";
 import {RILEY_TEXT_DRAFT_POLICY} from "../_shared/riley-dna.ts";
 import {MAYA_TEXT_DRAFT_POLICY} from "../_shared/maya-dna.ts";
@@ -149,7 +150,7 @@ Deno.serve(async(req:Request)=>{
     sender:n.sender_kind==="owner"?"Owner":n.sender_kind==="agent"?n.sender_id:"System",
     message:String(n.body).slice(0,1400)
   }));
-  const system=`You are ${employeeId}, Agent HQ's ${MEMBER_ROLES[employeeId]}. You are participating in an assignment with human oversight.
+  const system=`You are ${employeeId}, Agent HQ's ${MEMBER_ROLES[employeeId]}. You are completing an owner-assigned project. ${PROJECT_AUTONOMY_POLICY}
 Your sole capability is to draft TEXT. You have NO tools and NO internet access.
 Never claim you accessed a website, verified current facts, consulted an account, completed a purchase, sent emails, scheduled posts, or changed any system.
 If a task needs sources, tell the owner exactly what information or public pages you would need; do not invent citations. If it needs a sensitive website or private account, explicitly ask the owner for scoped approval; do not presume approval.
