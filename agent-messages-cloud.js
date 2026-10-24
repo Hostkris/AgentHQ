@@ -146,6 +146,11 @@ async function researchStatus(){
  if(generation!==researchGeneration)return null;window.agentHQResearchConnection?.(data);return data;
 }
 window.agentHQResearchCloud={refresh:researchRefresh,status:researchStatus};
+const refreshSavedReports=()=>researchRefresh().catch(()=>{});
+window.addEventListener('focus',refreshSavedReports);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshSavedReports()});
+setInterval(()=>{if(!document.hidden)refreshSavedReports()},60000);
+refreshSavedReports();
 agentCloud.auth.onAuthStateChange(()=>{researchGeneration++;window.agentHQResearchSync?.([],'Sign in to view research history.');window.agentHQResearchConnection?.({ready:false,message:'Tap Check connection to verify web research.'})});
 
 
