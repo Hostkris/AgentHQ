@@ -36,6 +36,6 @@ test("Quinn cannot independently contact leads, sign contracts, spend or schedul
 test("Quinn's upgraded staff title appears and app version is refreshed",()=>{
  const app=read("app.js"),html=read("index.html");
  assert.match(app,/\["quinn","💡","Quinn","Chief Growth Officer"\]/);
- assert.match(html,/src="\.\/app\.js\?v=20261024-all-workers-web-1"/);
+ assert.match(html,/src="\.\/app\.js\?v=20261024-live-activity-1"/);
 });
 

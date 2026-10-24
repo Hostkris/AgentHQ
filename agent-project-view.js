@@ -5,7 +5,7 @@ export function projectIsTyping(s,now=Date.now()){
  return !!s.active_run&&!!s.active_worker&&Date.parse(s.lease_until)>now&&!s.assignment?.owner_paused&&
   ['planning','discussion','drafting','checking','polishing'].includes(s.phase);
 }
-export function projectRoomHTML({projects,selected,notes,escape,format,remove,label,deleted}){
+export function projectRoomHTML({projects,selected,notes,escape,format,remove,label,deleted,inlineTyping=true}){
  if(!projects.length)return '<div class="hq-project-empty"><span aria-hidden="true">✧</span><h2>A room for your team</h2><p>Assign a project in Alex’s conversation. The team will work together here, ask you questions privately, and bring back the finished result.</p><button type="button" data-chat="alex">Message Alex</button></div>';
  const s=projects.find(p=>p.assignment_id===selected)||projects[0],a=s.assignment||{};
  const chips=projects.map(p=>'<button type="button" data-project-open="'+escape(p.assignment_id)+'" class="hq-project-chip'+(p.assignment_id===s.assignment_id?' selected':'')+'" aria-pressed="'+(p.assignment_id===s.assignment_id)+'">'+
@@ -18,7 +18,7 @@ export function projectRoomHTML({projects,selected,notes,escape,format,remove,la
    '<div class="hq-team-speaker"><strong>'+escape(label(n.sender_id))+'</strong>'+(n.recipient_id?'<span>to '+escape(label(n.recipient_id))+'</span>':'')+
    '<time datetime="'+escape(n.created_at||'')+'">'+escape(new Date(n.created_at).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}))+'</time></div>'+
    '<div class="hq-team-copy">'+((n.project_kind==='research'||String(n.body).startsWith('PUBLIC_RESEARCH_V1\n'))?'<p>Here are the findings and sources for my part of this project.</p><details><summary>Read public research and sources</summary>'+format(String(n.body).replace(/^PUBLIC_RESEARCH_V1\n/,''))+'</details>':format(n.body))+'</div>'+(n.project_revision<s.revision?'<small class="hq-turn-version">Version '+escape(n.project_revision)+'</small>':'')+'</div></article>').join('');
- const typing=projectIsTyping(s)?'<div class="hq-team-typing" role="status" aria-label="'+escape(label(s.active_worker))+' is preparing a response"><span>'+escape(label(s.active_worker))+'</span><div class="ios-typing" aria-hidden="true"><span></span><span></span><span></span></div></div>':'';
+ const typing=inlineTyping&&projectIsTyping(s)?'<div class="hq-team-typing" role="status" aria-label="'+escape(label(s.active_worker))+' is preparing a response"><span>'+escape(label(s.active_worker))+'</span><div class="ios-typing" aria-hidden="true"><span></span><span></span><span></span></div></div>':'';
  const notice=s.last_error?'<div class="hq-project-notice" role="status">'+escape(s.last_error)+' <button type="button" data-project-control="retry" data-project-id="'+escape(s.assignment_id)+'">Retry this turn</button></div>':
   Date.parse(s.next_run_at)>Date.now()+15000&&!['review','approved','waiting_owner','waiting_permission'].includes(s.phase)?'<p class="hq-project-notice">Work is saved. The free worker allowance resets '+escape(new Date(s.next_run_at).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}))+'. Keep Agent HQ open to continue then.</p>':
   ['waiting_owner','waiting_permission'].includes(s.phase)?'<p class="hq-project-notice">'+escape(label(s.waiting_worker))+' has sent you a private '+(s.phase==='waiting_permission'?'approval request':'question')+'. <button type="button" data-project-answer-thread="'+escape(s.assignment_id)+'">Open their message</button></p>':'';

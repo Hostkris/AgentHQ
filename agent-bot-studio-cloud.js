@@ -8,7 +8,9 @@ async function getUser(){
  return data.user;
 }
 async function invoke(action,extra={}){
- await getUser();
+ const user=await getUser();
+ const activity=action==='chat'?window.agentHQActivity?.begin(extra.bot_id,'Preparing a response',{ownerId:user.id}):null;
+ try{
  const {data,error}=await agentCloud.functions.invoke('agent-bot-studio',{body:{action,...extra}});
  if(error){
   let message=data?.error;
@@ -19,6 +21,7 @@ async function invoke(action,extra={}){
  }
  if(data?.error)throw Error(data.error);
  return data;
+ }finally{activity?.end();}
 }
 async function refresh(){
  const serial=++generation;
@@ -35,6 +38,7 @@ async function refresh(){
  if(serial!==generation)return [];
  if(error){window.agentHQBotStudioError?.(error.message);return []}
  const bots=data||[];
+ window.agentHQActivity?.rememberWorkers(bots);
  const {data:messages,error:messageError}=await agentCloud.from('agent_custom_bot_messages')
   .select('bot_id').order('created_at',{ascending:false}).limit(500);
  if(serial!==generation)return [];

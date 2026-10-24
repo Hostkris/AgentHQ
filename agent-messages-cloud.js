@@ -85,7 +85,9 @@ async function converse(employeeId,body,options={}){
  if(!employees.has(employeeId))throw Error('Unknown employee');
  body=String(body||'').trim();
  if(!body||body.length>10000)throw Error('Message must be 1–10,000 characters.');
- await getUser();
+ const user=await getUser();
+ const activity=window.agentHQActivity?.begin(employeeId,options.research?'Preparing public research':'Preparing a response',{ownerId:user.id});
+ try{
  if(!options.research&&employeeId==='riley'){
   if(window.agentHQSocialReadCloud?.handleChat){const result=await window.agentHQSocialReadCloud.handleChat(body);if(result.handled)return result;}
   else if(/\b(facebook|messenger)\b/i.test(body))throw Error('Riley’s Facebook reader is loading. Refresh this conversation and try again.');
@@ -101,9 +103,11 @@ async function converse(employeeId,body,options={}){
   throw Error(reason||error.message||'Worker chat is unavailable.');
  }
  if(!data?.success)throw Error(data?.error||'The worker chat was not confirmed.');
+ activity?.update('Updating the conversation');
  await refresh();
  await window.agentHQResearchCloud?.refresh?.().catch(()=>{});
  return data;
+ }finally{activity?.end();}
 }
 async function deleteMessage(messageId){
  await getUser();

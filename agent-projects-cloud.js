@@ -1,8 +1,8 @@
 import {agentCloud} from './agent-cloud-auth.js';
-import {projectRoomHTML,projectPrivateHTML,projectIsTyping} from './agent-project-view.js?v=20261024-all-workers-web-1';
+import {projectRoomHTML,projectPrivateHTML,projectIsTyping} from './agent-project-view.js?v=20261024-live-activity-1';
 let rows=[],ownerId=null,generation=0,refreshing=null,timer=null,inFlight=null,selected=null,answerTarget=null;
 const wanted=new Set();
-function changed(){window.agentHQProjectsChanged?.();}
+function changed(){window.agentHQProjectsChanged?.();document.dispatchEvent(new CustomEvent('agenthq-project-activity'));}
 async function owner(){const {data,error}=await agentCloud.auth.getUser();if(error||!data?.user)throw Error('Sign in to Agent HQ to work with the team.');return data.user;}
 function schedule(ms=12000){clearTimeout(timer);if(document.hidden)return;timer=setTimeout(tick,ms);}
 async function refresh(){
@@ -36,14 +36,24 @@ async function invoke(action,id,extra={}){
 async function sync(){await Promise.allSettled([refresh(),window.agentHQTeamCloud?.refresh(),window.agentHQCoordCloud?.refresh(),window.agentHQChatCloud?.refresh(),window.agentHQCloudApprovals?.refresh()]);}
 function runnable(s){return ['planning','discussion','drafting','checking','polishing'].includes(s.phase)&&!s.assignment?.owner_paused&&!s.last_error&&!projectIsTyping(s)&&Date.parse(s.next_run_at||0)<=Date.now();}
 async function tick(){
- if(document.hidden||inFlight){schedule(3000);return;}
+ if(document.hidden)return;
+ if(inFlight){
+  const epoch=generation;
+  // Observe the saved lease and new team contributions throughout the request.
+  // These are metadata reads, never another model invocation.
+  await Promise.allSettled([refresh(),window.agentHQTeamCloud?.refresh()]);
+  if(epoch===generation)schedule(1800);
+  return;
+ }
+ const before=generation;
  await refresh();
+ if(before!==generation||inFlight)return;
  const id=[...wanted].find(id=>!rows.some(s=>s.assignment_id===id))||rows.filter(runnable).at(-1)?.assignment_id;
  if(!id){schedule(rows.some(s=>projectIsTyping(s))?2500:12000);return;}
  inFlight=id;const epoch=generation;
  try{
   // One model request at a time. No synthetic typing delay or continuous model polling.
-  const promise=invoke('next',id);setTimeout(()=>{if(inFlight===id&&epoch===generation)refresh();},700);
+  const promise=invoke('next',id);schedule(200);
   const result=await promise;
   if(epoch!==generation)return;
   wanted.delete(id);
@@ -81,7 +91,11 @@ window.agentHQProjects={refresh,start,review,answer,control,context,select,selec
  all:()=>rows,isProject:id=>rows.some(s=>s.assignment_id===id),
  renderHQ:options=>projectRoomHTML({...options,projects:rows,selected}),
  renderPrivate:(worker,options)=>projectPrivateHTML({...options,projects:rows,worker})};
-agentCloud.auth.onAuthStateChange(()=>{generation++;rows=[];ownerId=null;selected=null;answerTarget=null;wanted.clear();refreshing=null;inFlight=null;clearTimeout(timer);changed();schedule(0);});
+agentCloud.auth.onAuthStateChange((_event,session)=>{
+ const next=session?.user?.id||null;
+ if(next!==ownerId){generation++;rows=[];ownerId=next;selected=null;answerTarget=null;wanted.clear();refreshing=null;inFlight=null;clearTimeout(timer);changed();}
+ schedule(0);
+});
 window.addEventListener('focus',()=>schedule(0));
 document.addEventListener('visibilitychange',()=>{if(document.hidden)clearTimeout(timer);else schedule(0);});
 schedule(0);

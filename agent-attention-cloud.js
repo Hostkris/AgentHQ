@@ -26,6 +26,7 @@ function dispatch(){
  if(changed.includes('agent_team_messages'))calls.push(window.agentHQTeamCloud?.refresh?.());
  if(changed.includes('agent_project_sessions'))calls.push(window.agentHQProjects?.refresh?.());
  if(changed.includes('agent_role_research'))calls.push(window.agentHQResearchCloud?.refresh?.());
+ if(changed.some(t=>['agent_project_sessions','agent_role_research'].includes(t)))calls.push(window.agentHQActivity?.refresh?.());
  if(changed.includes('agent_action_proposals'))calls.push(window.agentHQOperationsCloud?.refresh?.());
  Promise.allSettled(calls.filter(Boolean)).catch(()=>{});
 }

@@ -133,8 +133,8 @@
       history.map(m=>m.type==='photo'?window.agentHQCamera.renderPhotoItem(m):'<div class="studio-chat-row '+(m.sender==="owner"?"mine":"theirs")+(m.sender==="handoff"?" handoff":"")+'"><div class="studio-chat-bubble">'+
        (window.agentHQMessageControls?.button('bot',m.id)||'')+E(m.body)+'</div></div>').join(""))+
      (window.agentHQRenderResearchForWorker?.(bot.id)||'')+
-     (busy?'<div class="studio-chat-row theirs"><div class="studio-typing">● ● ●</div></div>':"")+
-     '</div><form class="studio-chat-composer photo-enabled-composer" id="studio-message-form" data-studio-thread="'+E(bot.id)+'"><div class="photo-composer-drafts" data-photo-drafts="'+E(bot.id)+'">'+(window.agentHQCamera?.renderDrafts(bot.id)||'')+'</div><button type="button" class="ios-camera-attach" data-camera-open-chat="'+E(bot.id)+'" aria-label="Take or attach a photo">+</button><textarea name="message" maxlength="4500" rows="2" placeholder="Text '+E(bot.name)+'…"'+(busy?" disabled":"")+'></textarea>'+
+     '</div><div class="agent-thread-activity" data-agent-activity-thread="'+E(bot.id)+'" data-agent-activity-name="'+E(bot.name)+'" role="status" aria-live="polite" aria-atomic="true">'+(window.agentHQActivity?.render(bot.id)||'')+'</div>'+
+     '<form class="studio-chat-composer photo-enabled-composer" id="studio-message-form" data-studio-thread="'+E(bot.id)+'"><div class="photo-composer-drafts" data-photo-drafts="'+E(bot.id)+'">'+(window.agentHQCamera?.renderDrafts(bot.id)||'')+'</div><button type="button" class="ios-camera-attach" data-camera-open-chat="'+E(bot.id)+'" aria-label="Take or attach a photo">+</button><textarea name="message" maxlength="4500" rows="2" placeholder="Text '+E(bot.name)+'…"'+(busy?" disabled":"")+'></textarea>'+
      '<button type="submit" class="studio-primary studio-photo-send" aria-label="Send message"'+(busy?" disabled":"")+'>↑</button></form>'+
      (bots.filter(b=>b.status==="active"&&b.id!==bot.id).length?
        '<details class="studio-handoff-box"><summary>📄➡️🤝 Pass paperwork to another worker</summary>'+

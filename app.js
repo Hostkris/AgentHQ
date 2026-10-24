@@ -191,6 +191,9 @@ window.agentHQCameraRefreshUI=()=>{
   const template=document.createElement("template");template.innerHTML=renderIPhoneChat();
   const next=template.content.querySelector("#chat-scroll");if(!next)return;
   list.replaceChildren(...next.childNodes);list.scrollTop=atBottom?list.scrollHeight:top;
+  const dock=document.querySelector('[data-agent-activity-thread]'),nextDock=template.content.querySelector('[data-agent-activity-thread]');
+  if(dock&&nextDock){dock.dataset.activityLocal=nextDock.dataset.activityLocal;dock.hidden=nextDock.hidden;if(dock.innerHTML!==nextDock.innerHTML)dock.innerHTML=nextDock.innerHTML;}
+  window.agentHQActivity?.paint();
  }else if(["messages","contacts"].includes(screen))renderWithoutInterruptingDraft();
 };
 window.agentHQCameraNotice=(message,target=active)=>{sendFeedback.set(target,String(message));if(screen==="chat"&&active===target){const el=document.querySelector("#send-feedback");if(el)el.textContent=String(message)}else if(screen==="studio"){const form=document.querySelector("#studio-message-form");if(form?.dataset.studioThread===target){const el=document.querySelector(".studio-feedback");if(el)el.textContent=String(message)}}};
@@ -524,7 +527,8 @@ function renderIPhoneChat(){
  const person=staff.find(s=>s[0]===active);
  const title=active==="hq"?"Company HQ":(person?.[2]||"Worker");
  const role=active==="hq"?"AI team":(person?.[3]||"AI worker");
- const projectOptions={notes:[...teamNotes.values()].flat(),escape:escapeHTML,format:naturalResearchHTML,remove:messageDeleteButton,label:workerLabel,deleted:messageIsDeleted};
+ const projectOptions={notes:[...teamNotes.values()].flat(),escape:escapeHTML,format:naturalResearchHTML,remove:messageDeleteButton,label:workerLabel,deleted:messageIsDeleted,inlineTyping:false};
+ const activity=window.agentHQActivity?.render(active)||(sendingAgents.has(active)?'<div class="agent-activity-row" data-activity-running="true"><div class="agent-typing-dots ios-typing" aria-hidden="true"><span></span><span></span><span></span></div><div class="agent-activity-copy"><strong>Preparing a response…</strong></div></div>':'');
  const initial=active==="hq"?"HQ":title.slice(0,1).toUpperCase();
  const items=[...(messages.get(active)||[]).filter(m=>!messageIsDeleted(m.type==="approval"?"approval":"message",m.id)),...(window.agentHQCamera?.getThreadItems(active)||[])].sort((a,b)=>(Date.parse(a.createdAt)||0)-(Date.parse(b.createdAt)||0));
  let previousDay="";
@@ -574,7 +578,7 @@ function renderIPhoneChat(){
   renderConversationResearch(active)+
   '<div data-social-read-thread>'+(window.agentHQSocialReadThread?.(active)||'')+'</div>'+
   '</div>'+
-  (sendingAgents.has(active)?'<div class="ios-typing" aria-live="polite"><span></span><span></span><span></span></div>':"")+
+  '<div class="agent-thread-activity" data-agent-activity-thread="'+escapeHTML(active)+'" data-activity-local="'+sendingAgents.has(active)+'" role="status" aria-live="polite" aria-atomic="true"'+(activity?'':' hidden')+'>'+activity+'</div>'+
   '<form id="composer" class="ios-composer photo-enabled-composer" autocomplete="off">'+
    '<div class="photo-composer-drafts" data-photo-drafts="'+escapeHTML(active)+'">'+(window.agentHQCamera?.renderDrafts(active)||'')+'</div>'+
    '<button type="button" class="ios-camera-attach" data-camera-open-chat="'+escapeHTML(active)+'" aria-label="Take or attach a photo">+</button>'+

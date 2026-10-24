@@ -182,8 +182,11 @@ async function uploadOne(target,p,caption,current,u){
  if(result.error)throw Error('Photo delivery was not confirmed. Your photo is kept. Check the thread, then try again.');return result.data;
 }
 async function reviewPhoto(id,target,current){
+ const activity=window.agentHQActivity?.begin(target,'Reviewing your photo',{ownerId:owner?.id});
+ try{
  const {data,error:e}=await agentCloud.functions.invoke('agent-hq-image-review',{body:{attachment_id:id,target_id:target}});still(current);
  if(e||data?.error)return 'Photo delivered. Image understanding is unavailable right now.';return '';
+ }finally{activity?.end();}
 }
 async function sendDraft(target,caption=''){
  if(!isPhotoTarget(target)||!draftList(target).length)throw Error('Add a photo first.');

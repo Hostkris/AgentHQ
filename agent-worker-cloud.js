@@ -74,10 +74,12 @@ async function runs() {
 }
 
 async function run(assignmentId,employeeId) {
- await getUser();
+ const user=await getUser();
  if(!/^[0-9a-f-]{36}$/i.test(assignmentId))throw new Error('Invalid assignment ID');
  if(!['alex','maya','jordan','riley','taylor','casey','morgan','avery','jamie','quinn'].includes(employeeId))
   throw new Error('Invalid employee');
+ const activity=window.agentHQActivity?.begin(employeeId,'Preparing assigned work',{ownerId:user.id});
+ try{
  const {data,error}=await agentCloud.functions.invoke('agent-hq-worker',{
    body:{action:'run',assignment_id:assignmentId,employee_id:employeeId}
  });
@@ -86,6 +88,7 @@ async function run(assignmentId,employeeId) {
  if(!data?.success)throw new Error('The worker step was not confirmed by the server');
  await runs();
  return data;
+ }finally{activity?.end();}
 }
 
 window.agentHQWorkerCloud={status,runs,run};
@@ -98,3 +101,4 @@ window.addEventListener('focus',refresh);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()});
 setInterval(()=>{if(!document.hidden)runs().catch(()=>{})},30000);
 refresh();
+
