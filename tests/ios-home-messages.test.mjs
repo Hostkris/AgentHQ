@@ -106,6 +106,7 @@ test('Home Screen hides editing chrome and enters jiggle mode on long press',()=
  assert.ok(output.includes('>Done</button>'),'Only edit mode shows Done');
  assert.ok(output.includes('data-home-widget-menu'));
  assert.ok(!output.includes('Edit Home Screen'));
+ assert.ok(source.includes("const blank=e.target.closest?.('.home-pages')"));
 });
 
 test('Home captions fit their grid cell with frosted background',()=>{
