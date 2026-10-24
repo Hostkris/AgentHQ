@@ -17,6 +17,8 @@ on:
       - 'tests/unread-badges.test.mjs'
       - 'tests/messages-workflow.test.mjs'
       - 'tests/riley-dna.test.mjs'
+      - 'tests/ios-home-messages.test.mjs'
+      - 'agent-home-layout.js'
       - 'ios-ui.css'
       - 'index.html'
       - '.github/workflows/alex-dna-guardrails.yml'
@@ -50,6 +52,10 @@ jobs:
         run: node --test tests/messages-workflow.test.mjs
       - name: Test Riley researcher-only DNA
         run: node --test tests/riley-dna.test.mjs
+      - name: Test iPhone Home Screen and natural Messages
+        run: node --test tests/ios-home-messages.test.mjs
+      - name: Verify Home Screen JavaScript syntax
+        run: node --check agent-home-layout.js && node --check app.js
       - name: Test Creative Desk owner approvals and draft escaping
         run: node --test tests/creative-desk.test.mjs
       - name: Test account Settings and publishing opt-in
