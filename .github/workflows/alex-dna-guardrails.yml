@@ -25,6 +25,7 @@ on:
       - 'tests/morgan-dna.test.mjs'
       - 'tests/avery-dna.test.mjs'
       - 'tests/jamie-dna.test.mjs'
+      - 'tests/quinn-dna.test.mjs'
       - 'tests/ios-home-messages.test.mjs'
       - 'tests/camera-messages.test.mjs'
       - 'agent-camera-cloud.js'
@@ -55,6 +56,7 @@ on:
       - 'tests/morgan-dna.test.mjs'
       - 'tests/avery-dna.test.mjs'
       - 'tests/jamie-dna.test.mjs'
+      - 'tests/quinn-dna.test.mjs'
 
 permissions:
   contents: read
@@ -86,6 +88,8 @@ jobs:
         run: node --test tests/avery-dna.test.mjs
       - name: Test Jamie essential scheduling DNA
         run: node --test tests/jamie-dna.test.mjs
+      - name: Test Quinn essential strategic partnerships DNA
+        run: node --test tests/quinn-dna.test.mjs
       - name: Test iPhone Home Screen and natural Messages
         run: node --test tests/ios-home-messages.test.mjs
       - name: Test camera, photo messages and private access
