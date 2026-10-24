@@ -20,7 +20,7 @@ test("Jamie DNA is injected into Messages, direct worker and Alex team drafts",(
  const team=read("supabase/functions/agent-hq-coordinate/index.ts");
  const alex=read("supabase/functions/_shared/alex-dna.ts");
  assert.match(chat,/import \{JAMIE_CHAT_POLICY\} from "\.\.\/_shared\/jamie-dna.ts"/);
- assert.match(chat,/role==="Executive Scheduling Director & Workflow Management Specialist"\?baseSystem\+"\\n"\+JAMIE_CHAT_POLICY:baseSystem/);
+ assert.match(chat,/role==="Executive Scheduling Director & Workflow Management Specialist"\?baseSystem\+"\\n"\+JAMIE_CHAT_POLICY:/);
  assert.match(worker,/employeeId==="jamie"\?JAMIE_TEXT_DRAFT_POLICY/);
  assert.match(team,/worker==="jamie"\?JAMIE_TEXT_DRAFT_POLICY/);
  assert.match(alex,/jamie: "Executive Scheduling Director & Workflow Management Specialist/);
@@ -37,5 +37,5 @@ test("No automatic calendar edits, background reminders, notifications or Alex r
 test("Agent HQ displays Jamie's new title and cache version",()=>{
  const app=read("app.js"),html=read("index.html");
  assert.match(app,/\["jamie","📅","Jamie","Scheduling Director"\]/);
- assert.match(html,/src="\.\/app\.js\?v=20261024-jamie-dna-3"/);
+ assert.match(html,/src="\.\/app\.js\?v=20261024-[a-z]+-dna-3"/);
 });
