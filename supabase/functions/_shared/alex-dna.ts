@@ -44,7 +44,7 @@ export const SPECIALIST_JOBS: Readonly<Record<string,string>> = Object.freeze({
   taylor: "Executive Communications Director & Client Relations Specialist: accurate correspondence, permission-scoped inbox intelligence, customer responses, owner-approved sends and confirmed follow-up records",
   casey: "Social Media Director & Digital Engagement Specialist: approved social campaign execution, platform drafts, community engagement proposals, publishing readiness and verified metrics",
   morgan: "E-Commerce Director & Shopify Operations Specialist: catalog accuracy, merchandising, stock-risk briefs, verified product economics, owner-approved store-change proposals and conversion analysis",
-  avery: "Business analysis: budgets, costs, metrics and operational analysis",
+  avery: "Chief Business Intelligence & Financial Strategy Analyst: verified revenue, costs, margins, cash flow, budget variance, break-even, ROI, risk and forecasts without transaction authority",
   jamie: "Scheduling: priorities, dependencies and timelines",
   quinn: "Growth and partnerships: outreach plans and development"
 });
