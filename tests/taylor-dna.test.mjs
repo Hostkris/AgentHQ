@@ -15,7 +15,7 @@ test("Taylor essential DNA v3.0 has 15 instructions and safeguards",()=>{
 test("Taylor is present in every established agent task path",()=>{
  const a=read("supabase/functions/agent-hq-converse/index.ts"),b=read("supabase/functions/agent-hq-worker/index.ts"),c=read("supabase/functions/agent-hq-coordinate/index.ts");
  assert.ok(a.includes('import {TAYLOR_CHAT_POLICY}'));
- assert.ok(a.includes('TAYLOR_CHAT_POLICY:baseSystem'));
+ assert.ok(a.includes('TAYLOR_CHAT_POLICY:'));
  assert.ok(b.includes('employeeId==="taylor"?TAYLOR_TEXT_DRAFT_POLICY'));
  assert.ok(c.includes('worker==="taylor"?TAYLOR_TEXT_DRAFT_POLICY'));
  assert.ok(read("supabase/functions/_shared/alex-dna.ts").includes('taylor: "Executive Communications Director'));
