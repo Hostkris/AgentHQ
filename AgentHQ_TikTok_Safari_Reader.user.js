@@ -6,8 +6,8 @@
 // @match        https://www.tiktok.com/*
 // @match        https://m.tiktok.com/*
 // @match        https://tiktok.com/*
-// @downloadURL  https://hostkris.github.io/AgentHQ/AgentHQ_TikTok_Safari_Reader.user.js
-// @updateURL    https://hostkris.github.io/AgentHQ/AgentHQ_TikTok_Safari_Reader.user.js
+// @downloadURL  https://raw.githubusercontent.com/Hostkris/AgentHQ/main/AgentHQ_TikTok_Safari_Reader.user.js
+// @updateURL    https://raw.githubusercontent.com/Hostkris/AgentHQ/main/AgentHQ_TikTok_Safari_Reader.user.js
 // @grant        none
 // @noframes
 // @run-at       document-idle
