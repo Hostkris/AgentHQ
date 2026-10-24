@@ -105,9 +105,38 @@ Deno.serve(async(req:Request)=>{
        if(matches.length&&!selected)sawBroken=true;
        if(json.connections.length<100)break;
      }
-     if(!selected)return sawMatching||sawBroken
-       ?output("needs_reconnect","Nango found a GitHub authorization with reported errors. Reconnection may be needed.")
-       :output("not_found","Nango did not return a GitHub connection tagged to this Agent HQ account. Check the Nango environment or connected account; do not authorize again until confirmed.");
+     if(!selected){
+       if(sawMatching||sawBroken)return output("needs_reconnect","Nango found a GitHub authorization linked to this Agent HQ account, but it reports authorization errors. Inspect that connection in Nango; do not reconnect until its error is understood.",{authorizationFound:true});
+       // Diagnostic only. An unfiltered list cannot authorize access to any other user's connection.
+       // Return no connection IDs, tags, emails or other cross-account details.
+       let githubExists=false;
+       let githubExistsInAnotherAccount=false;
+       let diagnosisComplete=false;
+       try{
+         for(let page=1;page<=5;page++){
+           const u=new URL("https://api.nango.dev/connections");
+           u.searchParams.set("limit","100");
+           u.searchParams.set("page",String(page));
+           const res=await fetch(u.toString(),{method:"GET",headers:requestHeaders,signal:AbortSignal.timeout(12000)});
+           if(!res.ok)break;
+           const json=await res.json();
+           if(!Array.isArray(json?.connections))break;
+           for(const c of json.connections){
+             if(!c||typeof c!=="object")continue;
+             const record=c as Record<string,unknown>;
+             if(!integrations().includes(String(record.provider_config_key||"")))continue;
+             githubExists=true;
+             const tags=record.tags&&typeof record.tags==="object"?record.tags as Record<string,unknown>:{};
+             if(tags.end_user_id!==owner)githubExistsInAnotherAccount=true;
+           }
+           if(json.connections.length<100){diagnosisComplete=true;break;}
+         }
+       }catch{}
+       if(githubExistsInAnotherAccount)return output("owner_tag_mismatch","Nango has a GitHub connection in this environment, but it is not tagged to this Agent HQ account. Agent HQ will not use an unlinked connection. Inspect the connection's end_user_id tag in Nango. Do not authorize again yet.");
+       if(githubExists)return output("matching_details_mismatch","Nango has a GitHub integration connection, but its details did not pass Agent HQ's exact owner-and-provider checks. Inspect the connection details and provider in Nango; nothing was marked verified.");
+       if(diagnosisComplete)return output("environment_no_connection","Nango lists no connection for the configured GitHub integration in this API key's environment. Check the Dev/Prod environment and the Nango Connections tab, not the Integrations tab. An OAuth success page alone does not establish API access.");
+       return output("diagnostic_incomplete","No owner-matched GitHub connection was returned. The environment-wide diagnostic did not finish, so Agent HQ cannot determine whether the issue is an environment mismatch or an owner tag mismatch. No reauthorization is recommended yet.");
+     }
      // A fixed GET only: never accept provider URLs, paths, or connection IDs from the browser.
      const connectionId=String(selected.connection_id);
      const integrationId=String(selected.provider_config_key);
