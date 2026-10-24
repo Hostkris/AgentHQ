@@ -5,6 +5,7 @@ import {RILEY_CHAT_POLICY} from "../_shared/riley-dna.ts";
 import {MAYA_CHAT_POLICY} from "../_shared/maya-dna.ts";
 import {JORDAN_CHAT_POLICY} from "../_shared/jordan-dna.ts";
 import {CASEY_CHAT_POLICY} from "../_shared/casey-dna.ts";
+import {CASEY_CHAT_POLICY} from "../_shared/casey-dna.ts";
 import {alexBrief} from "./alex-brief.ts";
 const ORIGIN="https://hostkris.github.io";
 const EMPLOYEES={
