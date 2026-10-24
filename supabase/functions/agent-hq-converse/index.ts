@@ -1,5 +1,6 @@
 import {createClient} from "npm:@supabase/supabase-js@2.79.0";
 import {routeProjectChat} from "../_shared/project-chat.ts";
+import {PROJECT_AUTONOMY_POLICY} from "../../../agent-project-autonomy.js";
 import {PUBLIC_WEB_CAPABILITY,explicitPublicResearch,planRoleQuery,publicQueryPlanner,researchForRole} from "../_shared/role-research.ts";
 import {createResearchRequest,isResearchInstruction,researchApproval,researchStatus,runResearch} from "./research.ts";
 import {ALEX_DNA,isAlexForbiddenIntent} from "../_shared/alex-dna.ts";
@@ -55,7 +56,7 @@ function provider(){
 }
 async function decide(ai:NonNullable<ReturnType<typeof provider>>,role:string,context:unknown){
  const baseSystem=role==="Research analyst"?RILEY_CHAT_POLICY:role==="General Manager"?`You are Alex, General Manager of Agent HQ. Permanent mission: ${ALEX_DNA.mission}. Your ONLY professional work is to clarify assignments, draft proposed work routing, coordinate specialists, monitor progress and report status. You are not a specialist. Do NOT answer as the Research, Marketing, Writing, Social, Communications, Shopify, Analysis, Scheduling or Growth specialist. You may request read-only public research about management, coordination and delivery for this task. No Gmail, private-account tools, purchase, publication, sending, code editing or permission changes. No actions are executed by this conversation. The owner’s direct message already authorizes a safe, internal text-drafting assignment. Coordinate and begin specialist drafting without another yes/no question. Outside accounts, publishing, purchases and spending still need separate explicit scoped owner approval and supported tools. For specialist work classify as "task"; use clearly labeled placeholders for missing marketing facts. Classify "collect" only if a concrete deliverable is truly impossible, and ask just ONE blocking question. For internal workflow/status questions use "answer" to give a concise, factual response without pretending work occurred. Return ONLY valid JSON {"intent":"answer|collect|task|research","reply":"brief professional response"} with no code fences.`:`You are a friendly, concise AI coworker working as ${role} in Agent HQ. This is the OWNER'S PRIVATE PERSONAL-USE workspace for their own social accounts, advertising accounts and projects, not a commercial agency. This is a casual one-to-one text conversation, not a task dashboard.
-You can answer general knowledge questions, discuss assignments, and ask for missing task details. Public web research is available through a separate owner-approved research flow. You cannot browse in this classification call. Account access, purchasing, posting, and file modification are unavailable. Never imply you actually researched a website or completed external work. Do not fabricate sources.
+You can answer general knowledge questions, discuss assignments, and ask for essential missing task details. Ordinary public web research is already authorized through the role-scoped research tool. You cannot browse in this classification call. Account access, purchasing, posting, and file modification are unavailable. Never imply you actually researched a website or completed external work. Do not fabricate sources.
 Read the recent conversation carefully: casual check-ins such as "anything yet?" and "what did you find?" refer to existing tasks, never new research topics.
 Write the way a capable, attentive professional coworker would text: friendly, specific, natural and concise. Use one to three short sentences in an ordinary reply, ideally under 300 characters. Do not paste long markdown reports, headings, repeated disclosures, or numbered lists into chat. Put substantial deliverables in their saved expandable attachments instead. Ask only one important question when necessary. Never impersonate a real human or claim to have used unavailable tools.
 For an internal text drafting or specialist request, classify as "task", even for "Create a promotional post". Make an editable first draft with placeholders rather than asking routine questions; classify "collect" only when the task cannot proceed responsibly, and ask ONE blocker question. For a general question, classify as "answer" and answer from general knowledge.
@@ -67,7 +68,7 @@ manychat: create_automation
 email: send_email
 other: other.
 For "action", return {"intent":"action","reply":"short conversational approval question ending Yes or no?","action":{"provider":"meta_ads","kind":"change_ad_budget","summary":"specific proposed change","scope":"named account, target and amount; mention missing information explicitly"}}. Never assume an account, ID, price or spend amount. If amount/target is missing, ask to clarify instead of issuing an incomplete budget change.
-For requests to research online, search the web, look something up, find current public information, or compare current public options, classify as "research". The server will ask approval before searching; do not claim to have searched. For requests requiring account data or actions, still use "action".
+For requests to research online, search the web, look something up, find current public information, or compare current public options, classify as "research". The server will conduct already-authorized role-scoped public research; do not claim to have searched before actual evidence is saved. For requests requiring account data or actions, still use "action".
 For "task", state that the safe internal assignment is starting. Do not ask "Should I start?" or repeat a confirmation.
 Return ONLY valid JSON with {"intent":"answer|collect|task|action|research","reply":"short natural message","action":optional object as above} and no code fences.`;
  const system=role==="Chief Marketing Strategist"?baseSystem+"\n"+MAYA_CHAT_POLICY:role==="Creative Content Director & Scriptwriting Specialist"?baseSystem+"\n"+JORDAN_CHAT_POLICY:role==="Social Media Director & Digital Engagement Specialist"?baseSystem+"\n"+CASEY_CHAT_POLICY:role==="Executive Communications Director & Client Relations Specialist"?baseSystem+"\n"+TAYLOR_CHAT_POLICY:role==="E-Commerce Director & Shopify Operations Specialist"?baseSystem+"\n"+MORGAN_CHAT_POLICY:role==="Chief Business Intelligence & Financial Strategy Analyst"?baseSystem+"\n"+AVERY_CHAT_POLICY:role==="Executive Scheduling Director & Workflow Management Specialist"?baseSystem+"\n"+JAMIE_CHAT_POLICY:role==="Chief Growth Officer & Strategic Partnerships Director"?baseSystem+"\n"+QUINN_CHAT_POLICY:baseSystem;
@@ -78,7 +79,7 @@ Return ONLY valid JSON with {"intent":"answer|collect|task|action|research","rep
     ...(ai.name==="openrouter"?{"HTTP-Referer":ORIGIN,"X-Title":"Agent HQ"}:{})},
    body:JSON.stringify({model:ai.model,stream:false,temperature:0.35,max_tokens:850,
     ...(ai.name==="groq"&&ai.model.startsWith("openai/gpt-oss")?{reasoning_effort:"low"}:{}),
-    messages:[{role:"system",content:system+"\n"+PUBLIC_WEB_CAPABILITY+"\nWhen the primary request is a deliverable or a team assignment (even when research is requested as part of it), classify as task so the team can research AND produce the work. When the primary request is public information that needs fresh evidence, classify as research. Alex may research management and coordination only, keeping specialist execution with the specialists."},{role:"user",content:JSON.stringify(context)}]})
+    messages:[{role:"system",content:system+"\n"+PUBLIC_WEB_CAPABILITY+"\n"+PROJECT_AUTONOMY_POLICY+"\nWhen the primary request is a deliverable or a team assignment (even when research is requested as part of it), classify as task so the team can research AND produce the work. When the primary request is public information that needs fresh evidence, classify as research. Alex may research management and coordination only, keeping specialist execution with the specialists."},{role:"user",content:JSON.stringify(context)}]})
   });
   if(!response.ok)throw Error("AI connection returned HTTP "+response.status);
   const raw=await response.json(),answer=raw?.choices?.[0]?.message?.content;
@@ -349,18 +350,26 @@ Deno.serve(async(req:Request)=>{
   if(!env("GROQ_API_KEY")){
    await state("idle");replyText="Web research needs the Groq server connection. Open Settings → Web Research and tap Check connection. A GROQ_API_KEY must be configured in Supabase Secrets; don't send API keys in chat.";return;
   }
-  const id=await createResearchRequest(db,owner,worker,cid,topic);
-  await state("confirm_research","",null,null,null,id);
-  replyText=researchApproval(topic);
+  await proposeRoleResearch(topic);
  };
  const proposeRoleResearch=async(topic:string)=>{
+  let queueProject=false,connectionFailed=false;
+  try{
   const key=env("GROQ_API_KEY"),plan=await planRoleQuery(worker,topic,publicQueryPlanner(key));
   if(plan.kind!=="research"){replyText=plan.question;return;}
   const researched=await researchForRole({db,owner,worker,task:topic,query:plan.query,purpose:plan.purpose,key,
    context:{conversation_id:cid,message_id:ownerMessage.id,request_key:"chat:"+ownerMessage.id}});
   await state("idle");
   if(researched?.state==="completed"){replyText=researched.summary;replySaved=true;}
-  else replyText=researched?.message||"This public research request is already being handled. Check the saved report before retrying.";
+  else if(['budget','busy','failed','limit'].includes(researched?.state)){
+   queueProject=true;
+  }else replyText=researched?.message||"This public research request is already being handled. The verified report will stay in this conversation.";
+  }catch{
+   // A temporary search failure becomes queued work, never a request to resend
+   // the owner's task. The normal project runner owns recovery and usage caps.
+   queueProject=true;connectionFailed=true;
+  }
+  if(queueProject){await createAssignment(topic);replyText=connectionFailed?"I hit a research connection problem and saved the request as a project. The team will work through it and continue automatically.":"I’ve kept this research request as a saved project. The team will continue automatically within the existing allowance and bring back the finished result.";}
  };
  try{
   const projectReply=input.action==="role_research"?null:await routeProjectChat(db,owner,worker,body,{project_id:input.project_id,output_version:input.output_version,project_revision:input.project_revision,stage});
@@ -372,7 +381,7 @@ Deno.serve(async(req:Request)=>{
   }
   if(input.action==="role_research"||(stage==="idle"&&input.action!=="request_research"&&explicitPublicResearch(body))){
    await proposeRoleResearch(body);if(!replySaved)await append(replyText);
-   return reply(req,{success:true,owner_message_id:ownerMessage.id,reply:replyText,start_assignment_id:null,resume_assignment_id:null,approved_assignment_id:null});
+   return reply(req,{success:true,owner_message_id:ownerMessage.id,reply:replyText,start_assignment_id:startAssignment,resume_assignment_id:null,approved_assignment_id:null,project_workflow:Boolean(startAssignment)});
   }
   // Chat approval is limited to a single saved routing plan awaiting its owner's decision.
   // "Yes" in confirm_task confirms task creation; it does not approve its later plan.
@@ -514,7 +523,8 @@ Deno.serve(async(req:Request)=>{
   // Alex cannot enter research, account-operation, or permission-approval flows, even from stale saved chat state.
   if(worker==="alex"&&(input.action==="request_research"||["confirm_research","confirm_action","confirm_permission"].includes(stage))){
    await state("idle");
-   replyText="My role is managing employee assignments. I cannot research websites or operate accounts myself. I can prepare a request for the appropriate specialist and submit the plan for your approval.";
+   if(input.action==="request_research")await createAssignment(body);
+   else replyText="I coordinate the specialists. Ordinary internal work and public research do not need another plan approval. Sensitive account actions still require the specific account authorization.";
   }else if(input.action==="request_research"){
    await proposeResearch(body);
   }else if(stage==="confirm_research"){
@@ -605,7 +615,7 @@ Deno.serve(async(req:Request)=>{
     replyText="For "+request.target_url+" ("+request.reason+"), should I record approval for this specific request? Yes or no? It won't start browsing.";
    }
   }else{
-   if(worker!=="alex"&&worker!=="riley"&&explicitPublicResearch(body)&&stage==="idle")await proposeRoleResearch(body);
+   if(worker!=="alex"&&explicitPublicResearch(body)&&stage==="idle")await proposeRoleResearch(body);
    const waiting=replyText?null:await currentWaiting();
    if(waiting?.status==="waiting_for_permission"&&decision){
     const {data:requests}=await db.from("agent_permission_requests")

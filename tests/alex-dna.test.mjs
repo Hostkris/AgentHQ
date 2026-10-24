@@ -38,7 +38,7 @@ test('iPhone interface requires separate plan approval before specialist continu
 test('Alex chat is manager-only even when research or external action is requested',()=>{
  const chat=source('supabase/functions/agent-hq-converse/index.ts');
  assert.match(chat,/worker==="alex"&&isAlexForbiddenIntent\(result\.intent\)/);
- assert.match(chat,/worker!=="alex"&&worker!=="riley"&&explicitPublicResearch/);
+ assert.match(chat,/worker!=="alex"&&explicitPublicResearch/);
  assert.match(chat,/worker==="alex"&&\(input\.action==="request_research"/);
 });
 

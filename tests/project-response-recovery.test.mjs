@@ -17,9 +17,10 @@ function fixture(s=initial){
   if(name==='control_agent_project'){session.last_error='';return {data:{state:'ready'}};}
   if(name==='claim_agent_project_turn'){
    if(session.last_error)return {data:{state:'failed',message:session.last_error}};
+   if(Date.parse(session.next_run_at)>Date.now())return {data:{state:'ready',retry_at:session.next_run_at}};
    const run={id:'run-'+runs.length,status:'running',error_summary:''};runs.push(run);session.active_worker=session.next_worker;session.active_run=run.id;return {data:{state:'claimed',run_id:run.id,session:structuredClone(session)}};
   }
-  if(name==='fail_agent_project_turn'){runs.at(-1).status='failed';runs.at(-1).error_summary=args.p_error.slice(0,300);session.last_error=args.p_error;session.active_run=null;session.active_worker=null;return {data:true};}
+  if(name==='fail_agent_project_turn'){runs.at(-1).status='failed';runs.at(-1).error_summary=args.p_error.slice(0,300);session.last_error='';session.recovery_error=args.p_error;session.recovery_state='correcting';session.recovery_attempts=(session.recovery_attempts||0)+1;session.next_run_at=new Date(Date.now()+5000).toISOString();session.active_run=null;session.active_worker=null;return {data:true};}
   if(name==='commit_agent_project_turn'){runs.at(-1).status='completed';session.last_error='';session.active_run=null;return {data:{state:'ready'}};}
   throw Error('Unexpected RPC: '+name);
  }};
@@ -57,18 +58,18 @@ test('answers and reviews reject self-addressed text or inconsistent recipients'
  let failure;try{normalizeProjectTurn({kind:'check',text:'Casey, the opening is clear.'},reviewer);}catch(error){failure=projectResponseFailure(error,reviewer);}
  const correction=projectResponseRecovery(reviewer,failure);assert.match(correction.instruction,/kind check/);assert.match(correction.hint,/Casey to address Jordan/);
 });
-test('a rejected reply changes only failure metadata and cannot commit or silently retry',async()=>{
+test('a rejected reply queues automatic recovery without replacing work or making an immediate extra model call',async()=>{
  for(const raw of [{kind:'final',text:'wrong stage'},{kind:'ask_team',recipient:'jordan',text:'Question'}]){
   const f=fixture();f.respond(raw);const result=await f.next();
-  assert.equal(result.state,'failed');assert.equal(result.recovery_saved,true);assert.equal(f.prompts.length,1);
+  assert.equal(result.state,'recovering');assert.equal(result.recovery_saved,true);assert.equal(f.prompts.length,1);
   assert(!f.calls.some(c=>c.name==='commit_agent_project_turn'));
   for(const key of ['revision','phase','next_worker','team_order','shared_draft','feedback','final_output','output_version','turn_count'])assert.deepEqual(f.session[key],initial[key],key);
-  assert.equal((await f.next()).state,'failed');assert.equal(f.prompts.length,1);
+  assert.equal((await f.next()).state,'ready');assert.equal(f.prompts.length,1);
  }
 });
 test('retry restores the exact saved context and supplies a scoped correction from the run ledger',async()=>{
  const f=fixture();f.respond({kind:'ask_team',recipient:'jordan',text:'Which opening?'},{kind:'ask_team',recipient:'casey',text:'Casey, is the agreed opening clear?'});
- await f.next();assert.match(f.session.last_error,/self_address\/discussion\/jordan\/2/);
+ await f.next();assert.match(f.session.recovery_error,/self_address\/discussion\/jordan\/2/);f.session.next_run_at=new Date(0).toISOString();
  await runProjectTurn(f.deps,assignment,{action:'project_control',control:'retry'});assert.equal(f.session.last_error,'');
  assert.equal((await f.next()).state,'ready');assert.equal(f.prompts.length,2);
  assert.match(f.prompts[1],/CORRECTION FOR THIS RETRY/);assert.match(f.prompts[1],/recipient to casey/);assert.match(f.prompts[1],/never address yourself/);
@@ -77,8 +78,8 @@ test('retry restores the exact saved context and supplies a scoped correction fr
 });
 test('repeated invalid corrections stay recoverable without replacing the saved deliverable',async()=>{
  const f=fixture();f.respond({kind:'final',text:'wrong stage'},{kind:'final',text:'still wrong'});
- await f.next();await runProjectTurn(f.deps,assignment,{action:'project_control',control:'retry'});await f.next();
- assert.equal(f.prompts.length,2);assert.equal(f.session.shared_draft,initial.shared_draft);assert.equal(f.session.final_output,initial.final_output);assert.equal(projectResponseRecovery(f.session).code,'wrong_stage');
+ await f.next();f.session.next_run_at=new Date(0).toISOString();await f.next();
+ assert.equal(f.prompts.length,2);assert.equal(f.session.shared_draft,initial.shared_draft);assert.equal(f.session.final_output,initial.final_output);assert.equal(projectResponseRecovery(f.session,f.session.recovery_error).code,'wrong_stage');
 });
 test('stale corrections never influence a different revision, stage or worker',()=>{
  const saved=projectResponseFailure(new ProjectResponseError('self_address','Bad recipient'),initial);

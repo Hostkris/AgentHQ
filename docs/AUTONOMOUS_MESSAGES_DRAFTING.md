@@ -12,9 +12,9 @@ On completing a single unambiguously identified assignment, a Messages reply of 
 
 ## Limits and security
 
-The new workflow is **not an autonomous background worker**, and **90% hands-off completion is a goal, not a measured guarantee**. AI work runs only when a user initiates the assignment or replies to a blocker while the session is active. Server limits cap each set of worker drafting steps and model use. The workers have text-only capabilities unless specifically integrated otherwise. They must escalate unavailable systems, owner-only factual input, safety issues or authenticated sites they cannot access.
+Current team projects use a private server runner and automatic recovery, including when the app is closed. See [PROJECT_AUTONOMY.md](PROJECT_AUTONOMY.md). Hands-off completion percentages are goals, not measured guarantees. Server limits still cap each set of worker drafting steps and model use. The workers have text-only capabilities unless specifically integrated otherwise. They must escalate unavailable systems, owner-only factual input, safety issues or authenticated sites they cannot access.
 
-External websites, platform sign-ins, sending email, social publishing, money/spending, purchases, and changes to accounts still require a **specific separate owner approval** and a genuinely working connection. A green light on a draft never authorizes them. The sensitive-action confirmation function deliberately **does not accept emoji likes/dislikes**, even though editorial approval does.
+Ordinary role-scoped public web research is already authorized. Platform sign-ins, new private-account access, sending email, social publishing outside existing authorization, money/spending, purchases, and material account changes still require a **specific scoped human authorization** and a genuinely working connection. A green light on a draft never authorizes them. The sensitive-action confirmation function deliberately **does not accept emoji likes/dislikes**, even though editorial approval does.
 
 ## Implementation
 
