@@ -39,7 +39,7 @@ export const ALEX_DNA = Object.freeze({
 });
 export const SPECIALIST_JOBS: Readonly<Record<string,string>> = Object.freeze({
   maya: "Chief Marketing Strategist: positioning, customer acquisition, campaign strategy, conversion, retention and measurement",
-  jordan: "Scripts and content: writing, copy and editorial production",
+  jordan: "Creative Content Director & Scriptwriting Specialist: original scripts, copywriting, storytelling, editorial craft and production briefs",
   riley: "Research: sources, evidence and approved public research",
   taylor: "Communications: email drafts and correspondence",
   casey: "Social media: platform-specific posts and content plans",
