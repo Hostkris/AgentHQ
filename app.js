@@ -373,6 +373,38 @@ function messageHTML(value){
  for(const match of text.matchAll(pattern)){const raw=match[0].replace(/[.,;]+$/,'');out+=escapeHTML(text.slice(last,match.index));try{const url=new URL(raw);out+='<a href="'+escapeHTML(url.href)+'" target="_blank" rel="noopener noreferrer">'+escapeHTML(raw)+'</a>'}catch{out+=escapeHTML(raw)}last=match.index+raw.length}
  return out+escapeHTML(text.slice(last));
 }
+function renderConversationWork(worker){
+ const relevant=[...teamAssignments.values()].filter(a=>
+  worker==="alex"||worker==="hq"||a.source_employee_id===worker||(a.employee_ids||[]).includes(worker));
+ relevant.sort((a,b)=>Date.parse(b.updated_at||b.created_at||0)-Date.parse(a.updated_at||a.created_at||0));
+ return relevant.slice(0,3).map(a=>{
+  const steps=coordSteps.get(a.id)||[];
+  const completed=steps.filter(x=>x.status==="completed").length;
+  const approved=a.alex_plan_status==="approved";
+  const waiting=steps.length>0&&steps.every(x=>x.status==="queued")&&!approved;
+  const finished=steps.length>0&&completed===steps.length;
+  const label=finished?"Drafts ready for review":waiting?"Awaiting your approval":
+   approved?"Approved — drafting in progress":a.coordination_status==="planning"?"Alex is preparing a plan":
+   a.coordination_status==="waiting_for_owner"?"Question awaiting your reply":
+   a.coordination_status==="waiting_for_permission"?"Permission awaiting your decision":"Assignment saved";
+  const work=steps.map((step,i)=>{
+   const title=escapeHTML(workerLabel(step.employee_id))+" — "+escapeHTML(step.title);
+   const written=step.output?'<details class="ios-work-draft"><summary>View completed draft from '+
+    escapeHTML(workerLabel(step.employee_id))+'</summary><div class="ios-work-draft-body">'+messageHTML(step.output)+'</div></details>':'';
+   return '<div class="ios-work-step"><strong>'+(i+1)+'. '+title+'</strong><small>'+
+    escapeHTML(step.status.replace(/_/g," "))+'</small><p>'+escapeHTML(step.instructions)+'</p>'+
+    written+(step.question?'<p class="ios-work-question">Question: '+escapeHTML(step.question)+'</p>':'')+'</div>';
+  }).join("");
+  const prompt=waiting?'<p class="ios-work-prompt">Text <b>green light</b> or <b>approved</b> to authorize these drafts. Text <b>red light</b> or <b>stop</b> to reject. This never authorizes publishing or outside account access.</p>':
+   finished?'<p class="ios-work-prompt">Written drafts saved for review. No external publishing occurred.</p>':'';
+  return '<div class="ios-message-row incoming"><article class="ios-work-card">'+
+   '<div class="ios-work-type">📎 Team work order · Alex</div><h3>'+escapeHTML(a.title)+'</h3>'+
+   '<div class="ios-work-status">'+escapeHTML(label)+(steps.length?' · '+completed+'/'+steps.length:'')+'</div>'+
+   (a.manager_summary?'<p class="ios-work-summary">'+escapeHTML(a.manager_summary)+'</p>':'')+
+   '<div class="ios-work-steps">'+(work||'<p>Alex is selecting the appropriate specialists.</p>')+'</div>'+
+   prompt+'</article></div>';
+ }).join("");
+}
 function renderIPhoneChat(){
  const person=staff.find(s=>s[0]===active);
  const title=active==="hq"?"Company HQ":(person?.[2]||"Worker");
@@ -404,6 +436,7 @@ function renderIPhoneChat(){
   '<div class="ios-chat-list" id="chat-scroll" aria-label="Conversation" aria-live="polite">'+
   (rows||'<div class="ios-empty-chat">Send a message to start the conversation.</div>')+
   renderChatConnectorCard(items)+
+  renderConversationWork(active)+
   '<div data-social-read-thread>'+(window.agentHQSocialReadThread?.(active)||'')+'</div>'+
   '</div>'+
   (sendingAgents.has(active)?'<div class="ios-typing" aria-live="polite"><span></span><span></span><span></span></div>':"")+
@@ -677,10 +710,14 @@ if(screen==="research"||screen==="browser"){
    drafts.set(worker,"");
    messages.set(worker,(messages.get(worker)||[]).filter(msg=>msg.id!==optimisticId));
    sendFeedback.delete(worker);
+   if(result.approved_assignment_id){
+    window.agentHQCoordCloud?.runTeam(result.approved_assignment_id,{planFirst:false,maxSteps:4})
+     .catch(error=>window.agentHQCoordError?.("Team paused: "+error.message));
+   }
    if(result.start_assignment_id||result.resume_assignment_id){
     const id=result.start_assignment_id||result.resume_assignment_id;
     const planFirst=Boolean(result.start_assignment_id);
-    window.agentHQCoordCloud?.runTeam(id,{planFirst,maxSteps:3}).catch(error=>{
+    window.agentHQCoordCloud?.runTeam(id,{planFirst,maxSteps:4}).catch(error=>{
      window.agentHQCoordError?.("AI team paused: "+error.message);
     });
    }
