@@ -52,7 +52,7 @@ await page.addInitScript(()=>{
 });
 async function check(name,fn){await fn();results.push(name);console.log('PASS:',name);}
 async function open(id){await page.evaluate(id=>window.agentHQCameraReturnToChat(id),id);await page.locator('#composer').waitFor();}
-async function refresh(){await page.evaluate(()=>agentHQProjects.refresh());}
+async function refresh(){await page.evaluate(async()=>{await agentHQProjects.refresh();await agentHQActivity.refresh();});}
 try{
  await page.goto(base+'/index.html');await page.waitForFunction(()=>!!window.agentHQProjects);await page.evaluate(async()=>{const m=await import('./agent-message-controls.js?v=20261024-delete-1');m.connectMessageControls(window.__cloud);});await refresh();await page.evaluate(()=>__projectMock.sync());
  await check('HQ shows named agent questions and answers without work-order instructions or private source material',async()=>{
