@@ -3,8 +3,7 @@
 import {agentCloud} from "./agent-cloud-auth.js";
 const esc=(s)=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 let result=null,message="",busy=false,lastCheck=0,checking=false;
-// Protect the limited free-plan connection slots while Nango owner-tag diagnostics are resolved.
-const newNangoAuthorizationsPaused=true;
+// Keep new authorizations available while confirming intent before consuming free-plan slots.
 let nangoLink="",nangoLinkExpiresAt="",nangoVerification=null,cleanupReview=null;
 function render(){
  const root=document.getElementById("agenthq-automation-root");
@@ -25,8 +24,8 @@ function render(){
   '<div class="ah-automation-row"><strong>Nango · New Accounts</strong><span class="ah-badge '+(verified?'ah-verified':n?.configured?'ah-pending':'')+'">'+esc(!n?'Status unknown':nangoLabel)+'</span>'+
   '<small>'+esc(n?.integrations?.length?'Allowed integrations: '+n.integrations.join(", "):"Provider authorizations require a Nango server configuration.")+'</small>'+
   (v?'<small class="ah-connect-feedback" role="status">'+esc(v.message||"Live connection test returned no detail.")+(v.githubLogin?' GitHub user: '+esc(v.githubLogin)+'.':'')+'</small>':'')+
-  '<button type="button" data-ah-automation="connect" '+(busy||!n?.configured||newNangoAuthorizationsPaused?'disabled':'')+'>'+(newNangoAuthorizationsPaused?'New authorizations paused':'Authorize a new account')+'</button>'+
-  (newNangoAuthorizationsPaused?'<small>New Nango connections are paused to protect the remaining free-plan quota. Existing GitHub connections can be reviewed without creating more.</small>':'')+
+  '<button type="button" data-ah-automation="connect" '+(busy||!n?.configured?'disabled':'')+'>Authorize a new account</button>'+
+  '<small>Your existing GitHub connection is verified. Starting another authorization may use an additional Nango connection; Agent HQ will ask before proceeding.</small>'+
   '<button type="button" class="ah-review-button" data-ah-automation="inventory" '+(busy||checking||!verified?'disabled':'')+'>Review existing GitHub connections (read-only)</button>'+
   (cleanupReview?'<div class="ah-connection-review" role="status">'+
     '<strong>'+esc(cleanupReview.state==="ready"?"GitHub connection cleanup review":"Connection review needs attention")+'</strong>'+
@@ -96,8 +95,9 @@ document.addEventListener("click",async(e)=>{
  const button=e.target.closest?.("[data-ah-automation]");
  if(!button||busy)return;
  const action=button.dataset.ahAutomation;
- if(action==="connect"&&newNangoAuthorizationsPaused){
-  message="New Nango authorizations are paused to protect your free-plan quota. Use Check both integrations to diagnose the existing GitHub connection.";render();return;
+ if(action==="connect"){
+  const proceed=window.confirm("Your GitHub connection is already verified. Connecting a new account may use another Nango free-plan slot. Do you want to start a new authorization?");
+  if(!proceed){message="New account authorization canceled. Your verified GitHub connection was not changed.";render();return;}
  }
  if(action==="status"){await refresh(true);return}
  if(action==="inventory"){
