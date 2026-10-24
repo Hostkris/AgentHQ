@@ -460,3 +460,23 @@ button:disabled{cursor:default}
 @media(prefers-reduced-motion:reduce){
  .home-drag-ghost{transition:none}
 }
+
+
+/* 2026-10-23 premium Home Screen: independently sliding pages and GPU animations. */
+.home-slide-viewport{width:100%;max-width:100%;overflow:hidden;touch-action:pan-y;overscroll-behavior-x:contain;clip-path:inset(-6px 0 -12px 0)}
+.home-slide-track{display:flex;align-items:stretch;width:100%;transform:translate3d(0,0,0);will-change:transform;transition:transform .46s cubic-bezier(.22,.72,.22,1)}
+.home-slide{box-sizing:border-box;flex:0 0 100%;min-width:0;width:100%;padding:2px 2px 16px;align-self:flex-start}
+.home-slide .home-dashboard{grid-template-columns:repeat(4,minmax(0,1fr));min-height:280px;touch-action:pan-y}
+.home-slide .home-tile-wrap{transition:none;transform:translate3d(0,0,0);will-change:transform}
+.home-slide .home-tile-wrap>.tile{touch-action:none!important;-webkit-touch-callout:none;user-select:none;-webkit-user-select:none}
+.home-slide .home-tile-wrap>.tile *{pointer-events:none}
+.home-slide .home-tile-wrap.home-drag-placeholder{opacity:.12;pointer-events:none}
+.home-drag-ghost{left:0!important;top:0!important;transform:translate3d(0,0,0) scale(1.07);transition:none!important;will-change:transform;contain:layout style;touch-action:none}
+.home-slide .home-tile-wrap>.tile:active .app-icon{filter:brightness(1.06)}
+.home-page-navigation>button{display:none!important}
+.home-pages .home-page-navigation{padding:0;margin:7px 0 12px;min-height:27px;touch-action:pan-y}
+.home-page-dots .home-page-dot{width:7px;height:7px;min-width:7px;min-height:7px;border-radius:999px;transition:background .3s,width .3s}
+.home-page-dots .home-page-dot.active{width:16px;height:7px;border-radius:6px}
+@media(prefers-reduced-motion:reduce){
+ .home-slide-track,.home-page-dots .home-page-dot{transition-duration:.01ms!important}
+}
