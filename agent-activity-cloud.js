@@ -39,7 +39,9 @@ async function refresh(){
 }
 async function tick(){
  if(document.hidden)return;
- await Promise.allSettled([refresh(),window.agentHQProjects?.refresh?.()]);paint();
+ // The project coordinator and Realtime already refresh project content. Keep
+ // this frequent poll limited to small activity records on the free tier.
+ await refresh();paint();
  const active=requests.size||workerRuns.length||research.length||legacyResearch.length||projects().some(s=>!['review','approved','waiting_owner','waiting_permission'].includes(s.phase)&&!s.assignment?.owner_paused&&!s.last_error);
  schedule(active?1800:document.querySelector('[data-agent-activity-thread]')?5000:15000);
 }
