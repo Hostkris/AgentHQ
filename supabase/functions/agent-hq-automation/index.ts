@@ -155,6 +155,78 @@ Deno.serve(async(req:Request)=>{
      return output("unavailable","Nango or GitHub did not complete the verification request. Nothing was marked verified; retry the check.");
    }
  }
+
+ // Read-only cleanup review, available only to the authenticated Agent HQ owner.
+ // Never returns credentials, full connection IDs, or cross-owner connection details.
+ if(input.action==="nango_cleanup_preview"){
+   const out=(state:string,message:string,extra:Record<string,unknown>={})=>
+     response(req,{state,message,readOnly:true,checkedAt:new Date().toISOString(),...extra});
+   if(!nangoReady())return out("unavailable","Nango must be configured before reviewing connections.");
+   const key=env("AGENT_HQ_NANGO_VERIFY_KEY")||env("AGENT_HQ_NANGO_SECRET_KEY");
+   const hdr={"authorization":"Bearer "+key,"accept":"application/json"};
+   type Candidate={id:string,created:string,errors:boolean,integration:string};
+   const candidates:Candidate[]=[];
+   let complete=false;
+   try{
+     for(let page=1;page<=5;page++){
+       const u=new URL("https://api.nango.dev/connections");
+       u.searchParams.set("tags[end_user_id]",owner);
+       u.searchParams.set("limit","100");
+       if(page>1)u.searchParams.set("page",String(page));
+       const res=await fetch(u.toString(),{headers:hdr,method:"GET",signal:AbortSignal.timeout(12000)});
+       if(!res.ok)return out("unavailable","Nango connection inventory failed (HTTP "+res.status+"). No connections were modified.");
+       const json=await res.json();
+       if(!Array.isArray(json?.connections))return out("unavailable","Nango returned an unexpected inventory format. No connections were modified.");
+       for(const item of json.connections){
+         if(!item||typeof item!=="object")continue;
+         if(item.tags?.end_user_id!==owner||String(item.provider||"").toLowerCase()!=="github"||
+            !integrations().includes(String(item.provider_config_key||""))||
+            typeof item.connection_id!=="string"||!item.connection_id)continue;
+         if(candidates.some(c=>c.id===item.connection_id))continue;
+         candidates.push({id:item.connection_id,created:String(item.created||""),errors:Array.isArray(item.errors)&&item.errors.length>0,
+           integration:String(item.provider_config_key)});
+       }
+       if(json.connections.length<100){complete=true;break;}
+     }
+   }catch{return out("unavailable","Could not finish a read-only Nango connection inventory. No connections were modified.");}
+   if(!complete)return out("incomplete","Nango connection inventory was truncated. Review cancelled to avoid identifying the wrong connection.");
+   if(!candidates.length)return out("no_linked","No GitHub connections tagged to this Agent HQ owner were found. Do not delete anything.");
+   // Mirror the successful nango_verify selection algorithm, then prove its identity again.
+   candidates.sort((a,b)=>Date.parse(b.created||"0")-Date.parse(a.created||"0"));
+   const preferred=candidates.find(c=>!c.errors);
+   if(!preferred)return out("unavailable","All linked GitHub connections report errors; nothing has been marked safe to retain or delete.");
+   const profile=async(c:Candidate):Promise<string|null>=>{
+     if(c.errors)return null;
+     try{
+       const r=await fetch("https://api.nango.dev/proxy/user",{
+         method:"GET",headers:{...hdr,"Provider-Config-Key":c.integration,"Connection-Id":c.id,"Accept":"application/vnd.github+json"},
+         signal:AbortSignal.timeout(12000)});
+       if(!r.ok)return null;
+       const data=await r.json();
+       return typeof data?.login==="string"&&data.login?data.login:null;
+     }catch{return null;}
+   };
+   const login=await profile(preferred);
+   if(!login)return out("unavailable","The preferred GitHub connection failed its live profile check. Nothing was marked safe to delete.");
+   // Parallelism is capped to avoid bursts against GitHub while still checking all small personal inventories.
+   if(candidates.length>12)return out("incomplete","Too many linked connections for automatic duplicate review. No deletion candidates were marked.");
+   const checks:(string|null)[]=[];
+   for(let i=0;i<candidates.length;i+=3){
+     checks.push(...await Promise.all(candidates.slice(i,i+3).map(c=>c.id===preferred.id?Promise.resolve(login):profile(c))));
+   }
+   const label=(id:string)=>id.slice(0,8)+"…"+id.slice(-4);
+   const keep={ref:label(preferred.id),created:preferred.created,githubLogin:login};
+   const duplicates=candidates.filter(c=>c.id!==preferred.id).map(c=>{
+     const match=checks[candidates.indexOf(c)];
+     return {ref:label(c.id),created:c.created,state:match&&match.toLowerCase()===login.toLowerCase()?"same_github_user":"review_required"};
+   });
+   const verifiedDuplicates=duplicates.filter(c=>c.state==="same_github_user").length;
+   return out("ready","Found the GitHub connection that Agent HQ can keep. All other entries are review-only until individually deleted in Nango.",{
+     keep,linkedCount:candidates.length,verifiedDuplicateCount:verifiedDuplicates,
+     reviewRequiredCount:duplicates.length-verifiedDuplicates,duplicates,
+     requiresManualDeletion:true
+   });
+ }
  if(input.action==="activepieces_pilot"){
    if(!activepiecesReady())return response(req,{error:"Activepieces pilot webhook and secret are not configured."},503);
    // This is a non-sensitive delivery probe, NOT permission to publish, transfer data, or spend money.
