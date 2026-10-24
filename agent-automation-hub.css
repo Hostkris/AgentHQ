@@ -13,3 +13,12 @@
 
 .ah-automation-hub .ah-badge.ah-verified{display:inline-block;border:1px solid rgba(27,101,70,.5);background:rgba(34,142,90,.10);color:#176944;padding:6px 9px;border-radius:9px;font-weight:750}
 .ah-automation-hub .ah-automation-row .ah-connect-feedback{display:block;line-height:1.55;white-space:normal;font-weight:600;font-size:12px;overflow-wrap:anywhere}
+
+/* Nango quota-safe, read-only cleanup review. */
+.ah-automation-hub .ah-review-button{min-height:44px;max-width:100%;padding:10px 13px;border:1px solid rgba(41,85,121,.4);border-radius:10px;background:rgba(68,128,191,.17);font-weight:650;touch-action:manipulation}
+.ah-automation-hub .ah-review-button:disabled{opacity:.54}
+.ah-connection-review{display:grid;gap:8px;padding:12px;border:1px solid rgba(69,108,150,.32);border-radius:12px;background:rgba(69,108,150,.075);overflow-wrap:anywhere;line-height:1.45}
+.ah-connection-review strong{font-size:13px}
+.ah-connection-review p{font-size:12px;margin:0}
+.ah-connection-review small{font-size:12px}
+.ah-connection-review ul{margin:3px 0;padding-left:20px;display:grid;gap:6px;font-size:12px}
