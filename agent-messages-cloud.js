@@ -113,6 +113,8 @@ async function deleteMessage(messageId){
 async function clearConversation(employeeId){
  if(!employees.has(employeeId))throw Error('Unknown worker conversation');
  await getUser();
+ // Owner-initiated thread deletion also clears its private image attachments.
+ await window.agentHQCamera?.clearThread?.(employeeId);
  const {data,error}=await agentCloud.rpc('clear_agent_conversation',{p_employee_id:employeeId});
  if(error)throw Error('Could not clear this conversation: '+error.message);
  await refresh();
