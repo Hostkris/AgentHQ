@@ -18,7 +18,7 @@
  let settingsView="home",wallpaperRequest=0;
  const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
  const symbol=name=>window.AgentHQIcons?.svg(name)||"";
- const titles={home:"Settings",account:"Account & Sign-In",appearance:"Appearance",icons:"App Icons",wallpaper:"Wallpaper",accessibility:"Text & Accessibility",connections:"Connected Apps",ai:"AI Connection",research:"Web Research",hosted:"Hosted Browser",permissions:"Privacy & Permissions",voice:"Voice & Dictation",about:"About Agent HQ"};
+ const titles={home:"Settings",account:"Agent HQ Sign-In",integrations:"Accounts & Sign-Ins",publishing:"Social Publishing",appearance:"Appearance",icons:"App Icons",wallpaper:"Wallpaper",accessibility:"Text & Accessibility",connections:"Connected Apps",ai:"AI Connection",research:"Web Research",hosted:"Hosted Browser",permissions:"Privacy & Permissions",voice:"Voice & Dictation",about:"About Agent HQ"};
  const modeNames={auto:"Automatic",light:"Light",dark:"Dark"};
  function save(){try{localStorage.setItem(KEY,JSON.stringify(prefs));return true}catch{alert("This change could not be saved on this device. Try a smaller photo or free some browser storage.");return false}}
  function apply(){
@@ -45,12 +45,13 @@
    row('wallpaper','Wallpaper','Landscapes & your photos','wallpaper','background photo picture')+
    row('studio','App Icons',({color:'Color',clear:'Clear',tinted:'Tinted'})[prefs.iconStyle]||'Color','icons','home screen')+
    row('accessibility','Text & Accessibility','Text size & motion','accessibility','larger reduced'))+
-  group('Workspace',row('accounts','Account & Sign-In','','account','login password recovery sync')+
-   row('email','Connected Apps','Gmail, profiles & Meta Ads','connections','email social')+
+  group('Workspace',row('accounts','Accounts & Sign-Ins','ChatGPT, Gmail, Facebook, Instagram, TikTok, YouTube, iCloud','integrations','social login accounts authorize')+
+   row('accounts','Agent HQ Sign-In','Your password & sync','account','login password recovery sync')+
    row('ai','AI Connection','Provider status & connection check','ai','groq openrouter workers')+
    row('research','Web Research','Public web search & reports','research','browser internet sources groq')+
    row('approvals','Privacy & Permissions','Access requests & worker approvals','permissions','security accounts'))+
-  group('General',row('voice','Voice & Dictation','','voice','microphone speech read aloud')+
+  group('General','<div id="agenthq-settings-publishing-compact">'+(window.agentHQSettingsIntegrations?.renderPublishingCompact()||'<p class="settings-footnote">Loading publishing control…</p>')+'</div>'+row('approvals','Social Publishing Details','Review publishing permissions','publishing','publish authorization social enable toggle')+
+   row('voice','Voice & Dictation','','voice','microphone speech read aloud')+
    row('info','About Agent HQ','','about','version information')+
    '<button type="button" class="settings-entry settings-blue" data-settings-action="refresh" data-search="refresh app update reload"><span class="settings-entry-icon app-icon--refresh">'+symbol('refresh')+'</span><span class="settings-entry-copy">Refresh Agent HQ</span></button>')+
   '<p id="settings-no-results" class="settings-footnote" hidden>No matching settings.</p>'+
@@ -83,8 +84,9 @@
   if(view==='appearance')return appearance();
   if(view==='icons')return appearance(false);
   if(view==='wallpaper')return wallpaper();
-  if(view==='account')return note('Sign in to access your saved conversations, assignments and connected services.')+'<div data-settings-account-host><p class="settings-footnote">Loading account controls…</p></div>';
-  if(view==='connections')return group('Apps & Accounts',row('browser','Hosted Browser','iPhone & iPad · Facebook setup','hosted','cloud browser personal profile')+row('email','Gmail','Inbox, drafts & email connection','email','',true)+row('accounts','My Profiles','Social profiles & worker permissions','accounts','',true)+row('operations','Meta Ads','Advertising connection & reporting','operations','',true))+note('Open a service to review its connection. Nothing connects until you choose to authorize it.');
+  if(view==='account')return note('Sign in to access your saved conversations and account integrations.')+'<div data-settings-account-host><p class="settings-footnote">Loading account controls…</p></div>'+group('Connected Services',row('accounts','Accounts & Sign-Ins','ChatGPT, Gmail, social accounts & iCloud','integrations',''));
+  if(view==='connections'||view==='integrations')return '<section id="agenthq-settings-integrations-root">'+(window.agentHQSettingsIntegrations?.renderConnections()||note('Loading account connections…'))+'</section>'; 
+  if(view==='publishing')return '<section id="agenthq-settings-publishing-root">'+(window.agentHQSettingsIntegrations?.renderPublishing()||note('Loading publishing permissions…'))+'</section>';
   if(view==='permissions')return group('Your Control',row('approvals','Access Requests','Review pending requests and saved decisions','approvals','',true)+row('accounts','Worker Permissions','Review or revoke planning permissions','accounts','',true)+row('email','Email Permissions','Gmail connection & AI drafting controls','email','',true))+note('You control account connections and approvals. Appearance settings and photos are saved in this browser on this device.');
   if(view==='hosted')return window.agentHQSettingsBrowserHost?.()||note('Hosted browser controls are loading. Return to Settings and try again.');
   if(view==='research')return (window.agentHQSettingsResearch?.()||'')+group('Reports',row('research','Research History','Request research or read saved reports','research','',true))+note('Approve one topic at a time in Messages. A report is saved only when live search returns source links.');
@@ -109,6 +111,7 @@
   if(back){if(settingsView==='home'){back.setAttribute('data-nav','home');back.removeAttribute('data-settings-view');back.innerHTML=symbol('back')+'<span>Home</span>'}else{back.removeAttribute('data-nav');back.setAttribute('data-settings-view','home');back.innerHTML=symbol('back')+'<span>Settings</span>'}back.setAttribute('aria-label',settingsView==='home'?'Go back':'Back to Settings')}
   if(settingsView==='wallpaper')wallpaperSelection(panel);
   window.agentHQMountAccount?.();
+  window.agentHQSettingsDidOpen?.(settingsView);
  }
  function pickPhoto(input,panel){
   const file=input.files?.[0];if(!file)return;
@@ -148,6 +151,7 @@
   });
   renderSettings(settingsView);
  }
+ window.agentHQSettingsNavigate=view=>renderSettings(view);
  const app=document.getElementById('app');
  app.addEventListener('click',event=>{const choice=event.target.closest('[data-settings-view]');if(choice){renderSettings(choice.getAttribute("data-settings-view"));window.scrollTo(0,0)}});
  apply();
