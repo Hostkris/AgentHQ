@@ -30,7 +30,7 @@ test('other employees do not inherit unrelated events and no content executes as
  assert.match(activityHTML(all),/&lt;script&gt;/);
 });
 test('the migration restricts inserts to backend triggers and owner-scoped reads',()=>{
- const sql=readFileSync(new URL('../supabase/migrations/20261024170000_verified_execution_events.sql',import.meta.url),'utf8');
+ const sql=readFileSync(new URL('../supabase/migrations/20261024170842_verified_execution_events.sql',import.meta.url),'utf8');
  assert.match(sql,/enable row level security/i);
  assert.match(sql,/grant select on public\.agent_execution_events to authenticated/i);
  assert.match(sql,/owner_id=\(select auth\.uid\(\)\)/i);
