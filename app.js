@@ -488,6 +488,13 @@ function naturalChatText(text){
  }
  return messageHTML(raw);
 }
+let chatSelectionWorker=null,chatSelected=new Set(),chatSelectionBusy=false;
+const chatSelecting=()=>chatSelectionWorker===active;
+const chatSelectionKey=(kind,id)=>kind+':'+id;
+function repaintChatPreservingScroll(){
+ const scroll=document.querySelector('#chat-scroll'),top=scroll?.scrollTop||0;
+ render();const updated=document.querySelector('#chat-scroll');if(updated)updated.scrollTop=top;
+}
 function renderIPhoneChat(){
  const person=staff.find(s=>s[0]===active);
  const title=active==="hq"?"Company HQ":(person?.[2]||"Worker");
@@ -495,12 +502,17 @@ function renderIPhoneChat(){
  const initial=active==="hq"?"HQ":title.slice(0,1).toUpperCase();
  const items=[...(messages.get(active)||[]).filter(m=>!messageIsDeleted(m.type==="approval"?"approval":"message",m.id)),...(window.agentHQCamera?.getThreadItems(active)||[])].sort((a,b)=>(Date.parse(a.createdAt)||0)-(Date.parse(b.createdAt)||0));
  let previousDay="";
+ const selectable=items.filter(item=>(item.type==='text'&&!item.pending)||item.type==='photo');
+ const choices=selectable.map(item=>chatSelectionKey(item.type==='photo'?'photo':'message',item.id));
+ const editingMessages=chatSelecting();
+ const choiceButton=(kind,id)=>editingMessages?
+  '<button type="button" data-chat-select-kind="'+kind+'" data-chat-select-id="'+escapeHTML(id)+'" class="ios-chat-select-button" aria-label="Select message" aria-pressed="'+(chatSelected.has(chatSelectionKey(kind,id))?'true':'false')+'">'+(chatSelected.has(chatSelectionKey(kind,id))?'✓':'')+'</button>':'';
  const rows=items.map(item=>{
   const date=new Date(item.createdAt||Date.now());
   const day=isNaN(date.getTime())?"":date.toDateString();
   const label=day&&day!==previousDay?'<div class="ios-date">'+escapeHTML(date.toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"}))+'</div>':"";
   if(day)previousDay=day;
-  if(item.type==="photo")return label+(window.agentHQCamera?.renderPhotoItem(item)||"");
+  if(item.type==="photo")return label+(window.agentHQCamera?.renderPhotoItem(item,editingMessages,chatSelected.has(chatSelectionKey("photo",item.id)))||"");
   if(item.type==="approval"){
    const r=approvalRequests.get(item.id);if(!r)return "";
    const message="Website request: "+r.website+"\nReason: "+r.reason+
@@ -510,8 +522,10 @@ function renderIPhoneChat(){
   const social=window.agentHQSocialReadMessage?.(active,item.id);
   if(social)return label+social;
   const mine=item.sender==="owner",system=item.sender==="system";
-  return label+'<div class="ios-message-row '+(mine?"outgoing":"incoming")+'"><div class="ios-message-bubble '+(mine?"mine":"theirs")+(item.pending?" sending":"")+'">'+
-    messageDeleteButton("message",item.id,item.pending)+
+  return label+'<div class="ios-message-row '+(mine?"outgoing":"incoming")+'" data-chat-kind="message" data-chat-item="'+escapeHTML(item.id)+'">'+
+    choiceButton("message",item.id)+
+    '<div class="ios-message-bubble '+(mine?"mine":"theirs")+(item.pending?" sending":"")+'">'+
+    (editingMessages?"":messageDeleteButton("message",item.id,item.pending))+
     (system?'<span class="ios-message-source">Team handoff</span>':"")+
     '<span class="ios-message-text">'+(mine?messageHTML(item.text||""):naturalChatText(item.text||""))+'</span>'+
 
@@ -519,7 +533,13 @@ function renderIPhoneChat(){
  }).join("");
  const status=sendFeedback.get(active)||"";
  const errors=/not saved|failed|unavailable|error|could not/i.test(status);
- return '<div class="ios-thread">'+
+ return '<div class="ios-thread'+(editingMessages?' ios-thread-selecting':'')+'">'+
+  '<div class="ios-chat-edit-bar">'+
+  (editingMessages?'<button type="button" data-chat-select-all>Select All ('+choices.length+')</button>'+
+  '<button type="button" data-chat-delete-selected '+(!chatSelected.size||chatSelectionBusy?'disabled':'')+'>Delete Selected ('+chatSelected.size+')</button>'+
+  '<button type="button" data-chat-delete-all class="ios-chat-danger" '+(chatSelectionBusy?'disabled':'')+'>Delete All</button>'+
+  '<button type="button" data-chat-cancel-select>Done</button>':
+  '<button type="button" data-chat-enter-select>Select Messages</button>')+'</div>'+
   '<div class="ios-chat-list" id="chat-scroll" aria-label="Conversation" aria-live="polite">'+
   (rows||'<div class="ios-empty-chat">Send a message to start the conversation.</div>')+
   renderChatConnectorCard(items)+
@@ -529,7 +549,8 @@ function renderIPhoneChat(){
   '</div>'+
   (sendingAgents.has(active)?'<div class="ios-typing" aria-live="polite"><span></span><span></span><span></span></div>':"")+
   '<form id="composer" class="ios-composer" autocomplete="off">'+
-   '<button type="button" class="ios-camera-attach" data-camera-open-chat="'+escapeHTML(active)+'" aria-label="Take or attach a photo">+</button>'+
+   '<button type="button" class="ios-camera-attach" data-camera-open-chat="'+escapeHTML(active)+'" aria-label="Take photo">+</button>'+
+   '<button type="button" class="ios-photo-library" data-camera-pick-chat="'+escapeHTML(active)+'" aria-label="Attach Agent HQ photo">▧</button>'+
    '<textarea id="draft" aria-label="Text message" placeholder="Text Message" rows="1" maxlength="10000"></textarea>'+
    '<button class="ios-send" id="send-message" type="submit" aria-label="Send message" '+(sendingAgents.has(active)?"disabled":"")+'><span aria-hidden="true">↑</span></button>'+
   '</form>'+
@@ -723,6 +744,7 @@ window.agentHQResearchConnection=data=>{researchConnection=data;const status=doc
 app.addEventListener('click',async e=>{const refresh=e.target.closest('[data-research-refresh]');if(refresh){refresh.disabled=true;try{await window.agentHQResearchCloud?.refresh()}catch{}finally{refresh.disabled=false}return}const button=e.target.closest('[data-research-check]');if(!button)return;button.disabled=true;button.textContent='Checking…';try{if(!window.agentHQResearchCloud)throw Error('Research connection is loading. Refresh Agent HQ.');await window.agentHQResearchCloud.status()}catch(err){window.agentHQResearchConnection({ready:false,message:err.message})}finally{button.disabled=false;button.textContent='Check connection'}});
 let settingsReturn=false;
 function render(){window.agentHQCamera?.onScreenChange(screen);const isChat=screen==="chat";
+ if(!isChat||(chatSelectionWorker&&chatSelectionWorker!==active)){chatSelectionWorker=null;chatSelected.clear()}
  if(!isChat)lastViewedThread=null;
  else if(active&&active!==lastViewedThread){lastViewedThread=active;window.agentHQChatCloud?.markRead(active).catch(()=>{});}
 const title=isChat?(active==="hq"?"Company Headquarters":staff.find(x=>x[0]===active)?.[2]):screen==="team"?(teamAssignments.get(teamActive)?.title||"Team discussion"):({home:"Agent HQ",office:"Office",studio:"Worker Studio",accounts:"My Accounts",operations:"Operations",creative:"Creative Desk",email:"Email Center",contacts:"Contacts",messages:"Messages",assignments:"Assignments",approvals:"Approvals",research:"Research",browser:"Browser",reminders:"Reminders",camera:"Camera",settings:"Settings"})[screen];let body="";if(screen==="home")body=renderHomeScreen(button,{messages:messagesAttention(),approvals:pendingCount(),assignments:assignmentAttention(),research:researchJobs.filter(j=>j.status==="completed").length});else if(screen==="office")body=renderOffice();else if(screen==="studio")body='<section class="bot-studio-page" id="agent-bot-studio-root"><p class="muted">Loading your AI worker marketplace…</p></section>';else if(screen==="camera")body=window.agentHQCamera?.renderCamera?.()||'<div class="card">Camera is starting…</div>';else if(screen==="creative")body='<section id="agent-creative-root" aria-label="Creative Desk">'+(window.agentHQCreativeDeskRender?.()||'<p class="muted">Loading Creative Desk…</p>')+'</section>';else if(screen==="accounts")body=renderPersonalAccounts();else if(screen==="email")body='<section class="email-center-page" id="email-center"><p class="email-loading">Loading your private Email Center…</p></section>';else if(screen==="operations")body=renderOperations();else if(screen==="browser"||screen==="research")body=renderResearchPage(screen==="browser");else if(screen==="approvals")body=`<p class="notice">${escapeHTML(approvalNotice)} These records do not grant real browsing access.</p><div class="card"><strong>Pending requests: ${pendingCount()}</strong><p class="muted">Open the employee's individual message to approve or deny.</p></div>${[...approvalRequests.values()].filter(r=>r.status==="pending"&&!messageIsDeleted("approval",r.id)).map(r=>`<button class="row" data-chat="${escapeHTML(r.agentId)}"><span class="avatar">⚠️</span><span><strong>${escapeHTML(staff.find(s=>s[0]===r.agentId)?.[2]||r.agentId)}</strong><small>${escapeHTML(r.website)}</small></span></button>`).join("")}<h2>Saved decisions</h2><p class="muted">Approved and denied requests remain visible in the employee conversation.</p>${[...approvalRequests.values()].filter(r=>r.status!=="pending"&&!messageIsDeleted("approval",r.id)).reverse().slice(0,25).map(r=>`<button class="row" data-chat="${escapeHTML(r.agentId)}"><span class="avatar">${r.status==="approved"?"✅":r.status==="denied"?"⛔":"🕒"}</span><span><strong>${escapeHTML(staff.find(s=>s[0]===r.agentId)?.[2]||r.agentId)} · ${escapeHTML(r.status)}</strong><small>${escapeHTML(r.website)}</small></span></button>`).join("")}`;else if(screen==="assignments")body=renderAssignments();else if(screen==="team")body=renderTeamThread();else if(screen==="contacts"||screen==="messages")body=`<input id="search" aria-label="Search workers" placeholder="Search" style="width:100%;padding:12px;border:1px solid #d2d2d7;border-radius:14px"><div id="contact-list"></div>`;else if(isChat)body=renderIPhoneChat();else if(screen==="settings")body='<section id="settings-root" aria-label="Agent HQ settings"></section>';else body=`<div class="card"><strong>Planned feature</strong><p class="muted">This screen will be connected in a later development phase. No live service is connected yet.</p></div>`;if(isChat){
