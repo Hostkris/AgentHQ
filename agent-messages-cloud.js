@@ -83,7 +83,10 @@ async function converse(employeeId,body,options={}){
  body=String(body||'').trim();
  if(!body||body.length>10000)throw Error('Message must be 1–10,000 characters.');
  await getUser();
- if(!options.research&&window.agentHQSocialReadCloud?.matches(employeeId,body))return window.agentHQSocialReadCloud.requestFromChat(body);
+ if(!options.research&&employeeId==='riley'){
+  if(window.agentHQSocialReadCloud?.handleChat){const result=await window.agentHQSocialReadCloud.handleChat(body);if(result.handled)return result;}
+  else if(/\b(facebook|messenger)\b/i.test(body))throw Error('Riley’s Facebook reader is loading. Refresh this conversation and try again.');
+ }
  const {data,error}=await agentCloud.functions.invoke('agent-hq-converse',{
   body:{employee_id:employeeId,text:body,...(options.research?{action:"request_research"}:{})}
  });
@@ -132,3 +135,4 @@ async function researchStatus(){
 }
 window.agentHQResearchCloud={refresh:researchRefresh,status:researchStatus};
 agentCloud.auth.onAuthStateChange(()=>{researchGeneration++;window.agentHQResearchSync?.([],'Sign in to view research history.');window.agentHQResearchConnection?.({ready:false,message:'Tap Check connection to verify web research.'})});
+

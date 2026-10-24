@@ -1,6 +1,7 @@
 const staff=[["alex","👔","Alex","General Manager"],["maya","📣","Maya","Marketing"],["jordan","🎬","Jordan","Scripts & Content"],["riley","🔎","Riley","Research"],["taylor","📧","Taylor","Communications"],["casey","📱","Casey","Social Media"],["morgan","🛍️","Morgan","Shopify"],["avery","📊","Avery","Business Analysis"],["jamie","📅","Jamie","Scheduling"],["quinn","💡","Quinn","Growth & Partnerships"]];const app=document.querySelector("#app");const oauthReturnWorker=(()=>{
  try{
   const callback=new URLSearchParams(location.search);
+  if(callback.get("chat")==="riley")return "riley";
   const saved=sessionStorage.getItem("agenthq_gmail_chat_return");
   const valid=['alex','maya','jordan','riley','taylor','casey','morgan','avery','jamie','quinn'];
   if(callback.has("gmail")&&valid.includes(saved)){
@@ -316,11 +317,12 @@ function renderWorkerTeamLinks(employeeId){
 function renderChatConnectorCard(items){
  const latest=[...items].reverse().find(m=>m.sender==="owner"&&m.type==="text");
  const request=String(latest?.text||"");
- const email=/\b(gmail|inbox|emails?|e-mail)\b/i.test(request)&&
+ const socialRead=active==="riley"&&/\b(facebook|messenger)\b/i.test(request);
+ const email=!socialRead&&/\b(gmail|inbox|emails?|e-mail)\b/i.test(request)&&
    /\b(check|review|scan|read|sort|prioriti[sz]e|rank|summari[sz]e|organize|organise|respond|reply|connect|access)\b/i.test(request);
  const icloud=/\b(icloud|apple mail)\b/i.test(request)&&
    /\b(mail|emails?|inbox|connect|access|check|review|login|sign.?in)\b/i.test(request);
- const facebook=/\b(facebook|instagram)\b/i.test(request)&&
+ const facebook=!(active==="riley"&&/\bfacebook\b/i.test(request))&&/\b(facebook|instagram)\b/i.test(request)&&
    /\b(connect|authorize|authorization|permission|login|sign.?in|account access|grant access)\b/i.test(request);
  const metaAds=/\b(meta ads|facebook ads|advertising account|ad account|ad spend)\b/i.test(request);
  if(!email&&!icloud&&!facebook&&!metaAds)return "";
@@ -423,6 +425,8 @@ function renderIPhoneChat(){
     "\n"+(r.status==="pending"?"Please reply yes or no if you want to discuss approval for this specific website. No browsing will start.":"Request "+r.status+".");
    return label+'<div class="ios-message-row incoming"><div class="ios-message-bubble theirs">'+escapeHTML(message)+'</div></div>';
   }
+  const social=window.agentHQSocialReadMessage?.(active,item.id);
+  if(social)return label+social;
   const mine=item.sender==="owner",system=item.sender==="system";
   return label+'<div class="ios-message-row '+(mine?"outgoing":"incoming")+'"><div class="ios-message-bubble '+(mine?"mine":"theirs")+(item.pending?" sending":"")+'">'+
     (system?'<span class="ios-message-source">Team handoff</span>':"")+
@@ -974,3 +978,4 @@ const check=e.target.closest("[data-worker-check]");if(check){
 
 window.agentHQSocialReadSync=()=>{if((screen==='chat'&&active==='riley')||screen==='accounts')renderWithoutInterruptingDraft()};
 window.agentHQSocialReadOpen=()=>{active='riley';screen='chat';render()};
+

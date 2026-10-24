@@ -1,6 +1,7 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.79.0';
 import {socialUrl,capturePacket} from './policy.ts';
 import {analyzeSocialPage} from '../_shared/social-read-analysis.ts';
+import {readChatInput} from './chat-policy.ts';
 const ORIGIN='https://hostkris.github.io';
 const env=(s:string)=>Deno.env.get(s)?.trim()||'';
 const headers={'Access-Control-Allow-Origin':ORIGIN,'Access-Control-Allow-Headers':'authorization,apikey,content-type,x-client-info','Access-Control-Allow-Methods':'OPTIONS,POST','Content-Type':'application/json','Cache-Control':'no-store','Vary':'Origin'};
@@ -23,12 +24,23 @@ Deno.serve(async(req:Request)=>{
   const input=JSON.parse(body);if(!input||Array.isArray(input))throw Error('Invalid reading request.');
   if(input.employee_id&&input.employee_id!=='riley')throw Error('Riley handles these reading requests.');
   const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if(input.action==='chat'){
+   const parsed=readChatInput(input.text);
+   const result=await db.rpc('agent_social_read_chat',{p_owner:owner,p_data:parsed});
+   if(result.error||!result.data)throw Error(result.error?.message||'Riley could not confirm this chat request.');
+   return reply({success:true,...result.data});
+  }
   if(input.action==='request'){
    if(!uuid.test(input.account_id||''))throw Error('Choose a saved Facebook profile.');
    const purpose=String(input.purpose||'').trim();if(purpose.length<5||purpose.length>1000)throw Error('Describe the research task in 5–1,000 characters.');
    return reply({success:true,request:await transition('request',{account_id:input.account_id,purpose,source_url:socialUrl(input.source_url)})});
   }
   id=String(input.id||'');if(!uuid.test(id))throw Error('Choose a valid reading request.');
+  if(input.action==='chat_notice'){
+   const result=await db.rpc('agent_social_read_chat_notice',{p_owner:owner,p_request:id});
+   if(result.error)throw Error(result.error.message);
+   return reply({success:true});
+  }
   if(['approve','deny','revoke'].includes(input.action))return reply({success:true,request:await transition(input.action,{id})});
   if(input.action==='handoff'){
    const token=Array.from(crypto.getRandomValues(new Uint8Array(32)),b=>b.toString(16).padStart(2,'0')).join('');
