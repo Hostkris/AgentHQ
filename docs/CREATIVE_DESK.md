@@ -31,3 +31,7 @@ Sources: https://developers.openai.com/siwc/token-sharing-open-source and https:
 - No new paid services are activated. Worker draft usage depends on existing Groq/OpenRouter setup and provider limits.
 - The app has no connected automatic publishing engine for Creative Desk.
 - GitHub changes update only the front end. Existing Supabase Edge Functions and database migrations must already be deployed for backend generation. 
+
+## Owner-mediated ChatGPT drafts (Stage 1)
+
+Creative Desk now provides **Copy request for ChatGPT**, **Open ChatGPT**, and **Save text to this assignment**. These actions are an intentionally manual bridge. The person signed in to ChatGPT makes the request and manually pastes text back; Agent HQ never automatically calls their ChatGPT subscription. The returned content is labeled as an **owner-imported draft**, not independently verified as a ChatGPT output. Owner approval applies to the current draft version and is not permission to publish. For official hosted integration and OAuth restrictions see `docs/OPENAI_STAGE1_HANDOFF_AND_SIWC.md`.

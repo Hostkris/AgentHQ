@@ -6,6 +6,7 @@ import {agentCloud} from "./agent-cloud-auth.js";
 const host=document.getElementById("app");
 const MARKER="Agent HQ Creative Request v1\n";
 const REVIEW="CREATIVE_REVIEW_V1";
+const CHATGPT_IMPORT="CHATGPT_OWNER_IMPORT_V1";
 const specialists=[
  ["casey","Casey · Social Media"],["jordan","Jordan · Scripts & Content"],
  ["maya","Maya · Marketing"],["morgan","Morgan · Shopify"],
@@ -27,12 +28,31 @@ function projectInfo(job){
  const get=key=>text.split("\n").find(line=>line.startsWith(key+": "))?.slice(key.length+2)||"";
  return {business:get("Business"),destination:get("Destination"),format:get("Format"),specialist:get("Requested specialist"),brief:get("Brief")};
 }
+function ownerImport(job){
+ const entries=(messages.get(job.id)||[]).filter(n=>n.sender_kind==="owner"&&n.sender_id==="owner"&&typeof n.body==="string"&&n.body.startsWith(CHATGPT_IMPORT+"\n"));
+ const latest=entries.at(-1);
+ return latest?{body:latest.body.slice(CHATGPT_IMPORT.length+1),createdAt:latest.created_at||null}:null;
+}
+function readyForReview(job){return finished(job)||Boolean(ownerImport(job));}
+function buildChatGPTPrompt(job){
+ const info=projectInfo(job);
+ const requirements=String(job.instructions||"").split("\nRequirements: ")[1]?.split("\nDeliverable: ")[0]||"None specified";
+ return ["AGENT HQ — CREATIVE REQUEST (MANUAL HANDOFF)",
+ "You are helping the owner create a draft for review, not acting as an Agent HQ employee.",
+ "Business/project: "+info.business,"Publishing destination: "+info.destination,
+ "Content type: "+info.format,"Assignment brief: "+info.brief,
+ "Owner requirements: "+requirements,
+ "Create complete, editable text copy suited to that platform. If facts, prices or product claims are missing, flag them instead of inventing them.",
+ "Never claim to log in, post, email, upload, or modify outside accounts. Do not publish anything.",
+ "Return the draft only, with any short verification questions at the end.",
+ "I will manually paste the result back into Agent HQ for my final approval."].join("\n\n");
+}
 function completed(job){
  return (steps.get(job.id)||[]).filter(s=>s.status==="completed"&&typeof s.output==="string"&&s.output.trim());
 }
 function versionOf(job){
  // Version fingerprint is for UI freshness only, not a cryptographic authorization token.
- const text=completed(job).map(s=>s.id+"|"+s.output).join("\n\n");
+ const text=completed(job).map(s=>s.id+"|"+s.output).join("\n\n")+"\nOWNER_IMPORT|"+String(ownerImport(job)?.body||"");
  let hash=2166136261;
  for(let i=0;i<text.length;i++){hash^=text.charCodeAt(i);hash=Math.imul(hash,16777619);}
  return (hash>>>0).toString(16).padStart(8,"0");
@@ -49,11 +69,11 @@ function finished(job){
  const relevant=steps.get(job.id)||[];
  return job.coordination_status==="completed"&&relevant.length>0&&relevant.every(s=>s.status==="completed")&&completed(job).length>0;
 }
-function textContent(job){return completed(job).map(s=>(s.title||"Draft")+" — "+(specialists.find(x=>x[0]===s.employee_id)?.[1]||s.employee_id)+"\n"+s.output).join("\n\n---\n\n");}
+function textContent(job){return [...(ownerImport(job)?["Owner-imported ChatGPT draft (source not verified by Agent HQ)\n"+ownerImport(job).body]:[]),...completed(job).map(s=>(s.title||"Draft")+" — "+(specialists.find(x=>x[0]===s.employee_id)?.[1]||s.employee_id)+"\n"+s.output)].join("\n\n---\n\n");}
 function jobStatus(job){
  if(reviewOf(job)==="APPROVED")return "Approved — not published";
  if(reviewOf(job)==="REVISION_REQUESTED")return "Revisions requested";
- if(finished(job))return "Ready for your review";
+ if(readyForReview(job))return "Ready for your review";
  if(["waiting_for_owner","waiting_for_permission"].includes(job.coordination_status))return "Worker needs information";
  if(!steps.get(job.id)?.length)return "Alex plan needed";
  if(plans.get(job.id)!=="approved")return "Approve Alex's plan";
@@ -61,7 +81,7 @@ function jobStatus(job){
 }
 function optionRows(items,selected){return items.map(([value,label])=>'<option value="'+safe(value)+'"'+(value===selected?' selected':'')+'>'+safe(label)+'</option>').join("");}
 function card(job){
- const info=projectInfo(job),all=steps.get(job.id)||[],drafts=completed(job),approval=reviewOf(job),ready=finished(job),plan=plans.get(job.id),version=versionOf(job);
+ const info=projectInfo(job),all=steps.get(job.id)||[],drafts=completed(job),imported=ownerImport(job),approval=reviewOf(job),ready=readyForReview(job),plan=plans.get(job.id),version=versionOf(job);
  const at=jobStatus(job);
  const pendingPlan=all.length>0&&plan!=="approved"&&job.coordination_status!=="completed";
  const canRun=all.length>0&&plan==="approved"&&!ready&&!["waiting_for_owner","waiting_for_permission"].includes(job.coordination_status);
@@ -72,12 +92,21 @@ function card(job){
   '<p class="creative-brief">'+safe(info.brief)+'</p>'+
   (job.manager_summary?'<details class="creative-manager"><summary>Alex’s work plan</summary><p>'+safe(job.manager_summary)+'</p></details>':'')+
   (body?'<div class="creative-output-list">'+body+'</div>':'')+
+  '<section class="creative-handoff"><h3>Use your ChatGPT subscription — manual handoff</h3>'+
+  '<p>Copy this assignment into ChatGPT, then paste the text result here. This does not connect your ChatGPT account or give agents access to it.</p>'+
+  '<div class="creative-controls"><button type="button" data-creative-copy-chatgpt="'+safe(job.id)+'">Copy request for ChatGPT</button>'+
+  '<button type="button" data-creative-open-chatgpt="'+safe(job.id)+'">Open ChatGPT ↗</button></div>'+
+  '<form data-creative-import-form="'+safe(job.id)+'"><label>Paste text made in ChatGPT (or your own draft)'+
+  '<textarea name="chatgpt_output" rows="4" minlength="20" maxlength="7000" placeholder="Paste the actual completed text here…" required></textarea></label>'+
+  '<button type="submit"'+(busy?' disabled':'')+'>Save text to this assignment</button></form>'+
+  (imported?'<div class="creative-imported"><strong>Latest owner-imported draft — not verified as a ChatGPT response</strong><div class="creative-output">'+safe(imported.body)+'</div></div>':'')+
+  '</section>'+
   '<div class="creative-controls">'+
   (!all.length?'<button type="button" data-creative-plan="'+safe(job.id)+'"'+(busy?" disabled":"")+'>Ask Alex to plan</button>':'')+
   (pendingPlan?'<button type="button" class="creative-primary" data-creative-plan-approve="'+safe(job.id)+'"'+(busy?" disabled":"")+'>Approve specialist plan</button>':'')+
   (canRun?'<button type="button" class="creative-primary" data-creative-run="'+safe(job.id)+'"'+(busy?" disabled":"")+'>Draft next specialist steps</button>':'')+
   '<button type="button" data-team-open="'+safe(job.id)+'">Open team discussion</button>'+
-  (drafts.length?'<button type="button" data-creative-copy="'+safe(job.id)+'">Copy draft</button>':'')+
+  (drafts.length||imported?'<button type="button" data-creative-copy="'+safe(job.id)+'">Copy draft</button>':'')+
   '</div>'+
   (ready?'<section class="creative-final"><h3>Final editorial approval</h3><p>Approve the written draft only. Publication still requires a separate platform connection and separate explicit approval.</p>'+
    (approval==="APPROVED"?'<p class="creative-confirm">✓ Written draft approved. Nothing has been posted.</p>':
@@ -90,7 +119,7 @@ function card(job){
 function render(){
  return '<div class="creative-page">'+
   '<section class="creative-hero"><strong>✦ Creative Desk</strong><p>Your request → Alex’s plan → specialist drafts → your final review. Publishing is always a separate, permissioned action.</p>'+
-  '<div class="creative-engine"><span>ChatGPT plan connection: <b>Not connected</b></span><span>Current AI drafts: existing Agent HQ worker connection</span></div>'+
+  '<div class="creative-engine"><span>ChatGPT automatic connection: <b>Not authorized</b></span><span>Manual ChatGPT handoff: ready</span><span>AI worker drafting: existing configured provider</span></div>'+
   '<p class="creative-note">ChatGPT subscription sign-in cannot simply be enabled on this GitHub Pages website: OpenAI’s open-source client flow requires a user-controlled local host and loopback OAuth callback. No ChatGPT password or session cookie should be entered here.</p></section>'+
   '<section class="creative-intake"><h2>New content request</h2><form id="creative-request-form">'+
   '<label>Business or project<input name="business" maxlength="90" minlength="2" required placeholder="For example: skincare store" value="'+safe(formDraft.business)+'"></label>'+
@@ -109,7 +138,7 @@ function render(){
 function draw(force=false){
  const root=document.getElementById("agent-creative-root");
  if(!root)return;
- if(!force&&document.activeElement?.closest?.("#creative-request-form"))return;
+ if(!force&&document.activeElement?.closest?.("#creative-request-form,[data-creative-import-form]"))return;
  root.innerHTML=render();
 }
 async function currentUser(){
@@ -160,6 +189,20 @@ function parseJob(id){if(!uid.test(id))throw Error("Invalid content assignment")
 function trackForm(form){for(const field of ["business","destination","format","specialist","brief","requirements"]){const input=form.elements.namedItem(field);if(input)formDraft[field]=String(input.value||"");}}
 host?.addEventListener("input",event=>{const form=event.target.closest?.("#creative-request-form");if(form)trackForm(form);});
 host?.addEventListener("submit",event=>{
+ const importForm=event.target.closest?.("[data-creative-import-form]");
+ if(importForm){
+  event.preventDefault();
+  const id=importForm.dataset.creativeImportForm;
+  const body=String(importForm.elements.namedItem("chatgpt_output")?.value||"").trim();
+  if(body.length<20||body.length>7000){feedback="Paste 20–7,000 characters of text.";draw();return;}
+  act(async()=>{
+   await currentUser();parseJob(id);
+   if(!window.agentHQTeamCloud?.post)throw Error("Team messages are unavailable.");
+   await window.agentHQTeamCloud.post(id,CHATGPT_IMPORT+"\n"+body);
+   feedback="Your text was saved to this assignment for review. Agent HQ did not verify its origin or publish it.";
+  });
+  return;
+ }
  const form=event.target.closest?.("#creative-request-form");if(!form)return;
  event.preventDefault();trackForm(form);
  act(async()=>{
@@ -180,12 +223,23 @@ host?.addEventListener("submit",event=>{
  });
 });
 host?.addEventListener("click",event=>{
- const element=event.target.closest?.("[data-creative-refresh],[data-creative-plan],[data-creative-plan-approve],[data-creative-run],[data-creative-copy],[data-creative-approve],[data-creative-revise]");
+ const element=event.target.closest?.("[data-creative-refresh],[data-creative-plan],[data-creative-plan-approve],[data-creative-run],[data-creative-copy],[data-creative-approve],[data-creative-revise],[data-creative-copy-chatgpt],[data-creative-open-chatgpt]");
  if(!element)return;
- const id=element.dataset.creativeRefresh?null:element.dataset.creativePlan||element.dataset.creativePlanApprove||element.dataset.creativeRun||element.dataset.creativeCopy||element.dataset.creativeApprove||element.dataset.creativeRevise;
+ const id=element.dataset.creativeRefresh?null:element.dataset.creativePlan||element.dataset.creativePlanApprove||element.dataset.creativeRun||element.dataset.creativeCopy||element.dataset.creativeApprove||element.dataset.creativeRevise||element.dataset.creativeCopyChatgpt||element.dataset.creativeOpenChatgpt;
  if(!id){refresh();return;}
  // Capture revision text before act() redraws the page for its busy state.
  const revisionValue=element.hasAttribute("data-creative-revise")?document.querySelector('[data-revision-input="'+id+'"]')?.value:"";
+ if(element.hasAttribute("data-creative-open-chatgpt")){
+  window.open("https://chatgpt.com/","_blank","noopener,noreferrer");
+  feedback="ChatGPT opened separately. Paste the copied request there, then bring the result back to Agent HQ.";draw();
+  return;
+ }
+ if(element.hasAttribute("data-creative-copy-chatgpt")){
+  const request=buildChatGPTPrompt(parseJob(id));
+  if(!navigator.clipboard?.writeText){window.prompt("Copy the ChatGPT request:",request);return;}
+  navigator.clipboard.writeText(request).then(()=>{feedback="Request copied. Open ChatGPT and paste it into a chat.";draw();}).catch(()=>window.prompt("Copy the ChatGPT request:",request));
+  return;
+ }
  if(element.hasAttribute("data-creative-copy")){
   const job=parseJob(id),text=textContent(job);
   if(!text)return;
@@ -212,7 +266,7 @@ host?.addEventListener("click",event=>{
    // Reread before any review decision: a stale tab cannot approve an old version.
    await refresh({quiet:true});
    job=parseJob(id);
-   if(!finished(job)||versionOf(job)!==element.dataset.creativeVersion)throw Error("The draft changed or is incomplete. Review the latest version.");
+   if(!readyForReview(job)||versionOf(job)!==element.dataset.creativeVersion)throw Error("The draft changed or is incomplete. Review the latest version.");
    if(element.hasAttribute("data-creative-approve")){
     if(!window.confirm("Approve this written content? This does NOT authorize publication to any account or website."))return;
     if(!window.agentHQTeamCloud?.post)throw Error("Approval notes service unavailable");

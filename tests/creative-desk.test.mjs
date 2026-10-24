@@ -16,7 +16,7 @@ function createHarness(){
   setTimeout:()=>{},console
  };
  // The script is evaluated in a deliberately isolated VM with no network or DOM.
- runInNewContext(runtime+"\n globalThis.__test={MARKER,REVIEW,reviewOf,versionOf,finished,jobStatus,card,render,steps,messages,plans};",sandbox);
+ runInNewContext(runtime+"\n globalThis.__test={MARKER,REVIEW,CHATGPT_IMPORT,ownerImport,readyForReview,buildChatGPTPrompt,reviewOf,versionOf,finished,jobStatus,card,render,steps,messages,plans};",sandbox);
  return sandbox.__test;
 }
 const worker={id:"22222222-2222-4222-8222-222222222222",assignment_id:"11111111-1111-4111-8111-111111111111",employee_id:"jordan",status:"completed",title:"Draft content",output:"Copy with <script>alert('x')</script>"};
@@ -25,7 +25,8 @@ const assignment={id:worker.assignment_id,title:"Creative: My Store · Short vid
 test("Creative Desk presents actual connection state and publishing boundary",()=>{
  const c=createHarness(),markup=c.render();
  assert.match(markup,/Creative Desk/);
- assert.match(markup,/Not connected/);
+ assert.match(markup,/Not authorized/);
+ assert.match(markup,/Manual ChatGPT handoff: ready/);
  assert.match(markup,/publishing is always a separate/i);
  assert.doesNotMatch(markup,/data-creative-publish=/);
  assert.doesNotMatch(source,/\bfetch\s*\(/);
@@ -61,4 +62,31 @@ test("Drafts are escaped and remain text-only",()=>{
  assert.doesNotMatch(html,/<script>/);
  assert.match(html,/Nothing is published|nothing is published|nothing is posted|no external accounts/i);
  assert.doesNotMatch(html,/data-creative-publish/);
+});
+
+test("Owner-imported ChatGPT text is clearly labeled and can receive editorial approval",()=>{
+ const c=createHarness();
+ const imported="This is a sample script with <em>markup</em> that must remain escaped.";
+ c.messages.set(assignment.id,[{sender_kind:"owner",sender_id:"owner",body:c.CHATGPT_IMPORT+"\n"+imported,created_at:"2026-10-23T23:45:00Z"}]);
+ assert.equal(c.finished({...assignment,coordination_status:"planned"}),false);
+ assert.equal(c.readyForReview({...assignment,coordination_status:"planned"}),true);
+ assert.equal(c.ownerImport(assignment).body,imported);
+ assert.match(c.card(assignment),/not verified as a ChatGPT response/);
+ assert.match(c.card(assignment),/&lt;em&gt;markup&lt;\/em&gt;/);
+ assert.equal(c.jobStatus(assignment),"Ready for your review");
+ const version=c.versionOf(assignment);
+ c.messages.get(assignment.id).push({sender_kind:"owner",sender_id:"owner",body:c.REVIEW+"|APPROVED|"+version+"\nOwner review only"});
+ assert.equal(c.reviewOf(assignment),"APPROVED");
+ c.messages.get(assignment.id).push({sender_kind:"owner",sender_id:"owner",body:c.CHATGPT_IMPORT+"\nA changed version for a second editorial review."});
+ assert.equal(c.reviewOf(assignment),null);
+});
+test("Manual ChatGPT handoff does not claim automatic sign-in, submit credentials or publish",()=>{
+ const c=createHarness();
+ const prompt=c.buildChatGPTPrompt(assignment);
+ assert.match(prompt,/Business\/project: My Store/);
+ assert.match(prompt,/Short video script/);
+ assert.match(prompt,/Do not publish anything/);
+ assert.doesNotMatch(source,/api\.openai\.com|chatgpt\.tokens\.use\.direct/);
+ assert.doesNotMatch(c.card(assignment),/data-creative-publish/);
+ assert.match(c.card(assignment),/Copy request for ChatGPT/);
 });

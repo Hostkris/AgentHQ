@@ -5,7 +5,7 @@ import {agentCloud} from "./agent-cloud-auth.js";
 
 const escapeText=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const SERVICES=[
- {id:"chatgpt",name:"ChatGPT",mark:"✦",url:"https://chatgpt.com/",type:"unsupported",detail:"ChatGPT subscription sharing needs an approved OpenAI integration. Agent HQ's hosted Safari app cannot safely reuse your ChatGPT login or request your password."},
+ {id:"chatgpt",name:"ChatGPT",mark:"✦",url:"https://chatgpt.com/",type:"chatgpt",detail:"Manual handoff to your own ChatGPT subscription is ready in Creative Desk. Automatic agent-to-ChatGPT requests still require approved OpenAI authorization. Agent HQ never asks for your ChatGPT password or session cookies."},
  {id:"gmail",name:"Gmail",mark:"✉️",type:"gmail",detail:"Official Google authorization connects Gmail to Agent HQ's existing Email Center. Sending still requires your review."},
  {id:"facebook",name:"Facebook",mark:"f",url:"https://www.facebook.com/",type:"external",detail:"Signing into the Facebook website is not a Meta publishing authorization. Social publishing requires the correct Meta app scopes and account selection."},
  {id:"instagram",name:"Instagram",mark:"◎",url:"https://www.instagram.com/",type:"external",detail:"Instagram publishing access is not connected. A supported Instagram professional-account integration and publishing permission would be required."},
@@ -31,7 +31,7 @@ function socialBadge(service){
   if(state.meta?.configured)return ["Not connected","pending"];
   return ["Setup needed","pending"];
  }
- return service.type==="unsupported"?["Not available","pending"]:["Not linked to Agent HQ","pending"];
+ return service.type==="chatgpt"?["Manual use ready · automatic not connected","pending"]:["Not linked to Agent HQ","pending"];
 }
 function buttons(service){
  if(service.type==="gmail")return (state.gmail?.connected?
@@ -40,7 +40,7 @@ function buttons(service){
  if(service.type==="meta")return (state.meta?.connected?
   '<button type="button" data-ah-service="meta-manage">View Meta Ads</button><button type="button" data-ah-service="meta-disconnect">Disconnect</button>':
   state.meta?.configured?'<button type="button" data-ah-service="meta-connect">Authorize Meta Ads (read only)</button>':'<button type="button" data-ah-service="meta-manage">Meta Ads setup</button>');
- if(service.type==="unsupported")return '<button type="button" data-ah-service="chatgpt-help">View connection requirements</button>';
+ if(service.type==="chatgpt")return '<button type="button" data-ah-service="chatgpt-open">Open ChatGPT ↗</button><button type="button" data-ah-service="chatgpt-request">Request OpenAI access ↗</button><button type="button" data-ah-service="chatgpt-help">Integration requirements ↗</button>';
  return '<button type="button" data-ah-open="'+escapeText(service.id)+'">Open official website ↗</button>'+
  '<button type="button" data-nav="accounts">Save profile in Agent HQ</button>';
 }
@@ -168,8 +168,9 @@ app?.addEventListener("click",async event=>{
  if(!action)return;
  if(action.hasAttribute("data-ah-show-account")){window.agentHQSettingsNavigate?.("account");return;}
  const value=action.dataset.ahService;
- if(value==="chatgpt-help"){
-  window.open("https://developers.openai.com/siwc/quickstart","_blank","noopener,noreferrer");return;
+ if(["chatgpt-help","chatgpt-open","chatgpt-request"].includes(value)){
+  const url=value==="chatgpt-open"?"https://chatgpt.com/":value==="chatgpt-request"?"https://openai.com/form/sign-in-with-chatgpt-interest/":"https://developers.openai.com/siwc/website";
+  window.open(url,"_blank","noopener,noreferrer");return;
  }
  if(["gmail-manage","meta-manage"].includes(value)){
   const nav=value==="gmail-manage"?"email":"operations";
