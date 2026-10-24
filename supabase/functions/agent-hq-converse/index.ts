@@ -29,7 +29,7 @@ function yesNo(text:string){const t=text.trim().toLowerCase().replace(/[.!?]+$/g
 // One reply controls only one currently pending internal drafting plan. It never
 // authorizes websites, account actions, publishing, payments or permissions.
 function planSignal(value:string):"approve"|"reject"|null{
- const t=value.trim().toLowerCase().replace(/[.!?]+$/g,"").replace(/\\s+/g," ");
+ const t=value.trim().toLowerCase().replace(/[.!?]+$/g,"").replace(/\s+/g," ");
  if(/^(approved|approve|yes|yes please|green light|you (?:have|got) the green light|go ahead|proceed|you(?:'re| are) authorized|i approve(?: this(?: plan)?)?|approve (?:this |the )?plan|you(?:'re| are) approved|give (?:them|the team) the green light)$/.test(t))return "approve";
  if(/^(no|nope|red light|stop|stop the plan|reject|reject (?:this |the )?plan|decline|denied|not approved|do not approve|don't approve|hold off|cancel (?:this |the )?plan)$/.test(t))return "reject";
  return null;
