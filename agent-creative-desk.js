@@ -92,6 +92,15 @@ function card(job){
   '<p class="creative-brief">'+safe(info.brief)+'</p>'+
   (job.manager_summary?'<details class="creative-manager"><summary>Alex’s work plan</summary><p>'+safe(job.manager_summary)+'</p></details>':'')+
   (body?'<div class="creative-output-list">'+body+'</div>':'')+
+  '<section class="creative-handoff"><h3>Use your ChatGPT subscription — manual handoff</h3>'+
+  '<p>Copy this assignment into ChatGPT, then paste the text result here. This does not connect your ChatGPT account or give agents access to it.</p>'+
+  '<div class="creative-controls"><button type="button" data-creative-copy-chatgpt="'+safe(job.id)+'">Copy request for ChatGPT</button>'+
+  '<button type="button" data-creative-open-chatgpt="'+safe(job.id)+'">Open ChatGPT ↗</button></div>'+
+  '<form data-creative-import-form="'+safe(job.id)+'"><label>Paste text made in ChatGPT (or your own draft)'+
+  '<textarea name="chatgpt_output" rows="4" minlength="20" maxlength="7000" placeholder="Paste the actual completed text here…" required></textarea></label>'+
+  '<button type="submit"'+(busy?' disabled':'')+'>Save text to this assignment</button></form>'+
+  (imported?'<div class="creative-imported"><strong>Latest owner-imported draft — not verified as a ChatGPT response</strong><div class="creative-output">'+safe(imported.body)+'</div></div>':'')+
+  '</section>'+
   '<div class="creative-controls">'+
   (!all.length?'<button type="button" data-creative-plan="'+safe(job.id)+'"'+(busy?" disabled":"")+'>Ask Alex to plan</button>':'')+
   (pendingPlan?'<button type="button" class="creative-primary" data-creative-plan-approve="'+safe(job.id)+'"'+(busy?" disabled":"")+'>Approve specialist plan</button>':'')+
