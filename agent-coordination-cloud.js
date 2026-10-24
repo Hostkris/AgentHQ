@@ -61,7 +61,7 @@ async function syncAll(){
 function progress(id,stage,detail){
  window.agentHQCoordProgress?.({assignmentId:id,stage,detail,active:stage==='planning'||stage==='working'});
 }
-async function runTeam(id,{planFirst=false,maxSteps=4}={}){
+async function runTeam(id,{planFirst=false,autoApproveInternal=false,maxSteps=4}={}){
  if(running.has(id))throw Error('This assignment is already running in this browser');
  await getUser();
  running.add(id);
@@ -70,7 +70,13 @@ async function runTeam(id,{planFirst=false,maxSteps=4}={}){
    progress(id,'planning','Alex is assigning the work to specialist employees…');
    const planned=await invoke('plan',id);
    await syncAll();
-   if(planned.state!=='ready'){
+   if(autoApproveInternal&&planned.state==='awaiting_approval'){
+    // The signed-in owner explicitly requested THIS internal text-drafting job.
+    // Coordinator verifies plan ownership; never grants account, site or publish permission.
+    const recorded=await invoke('approve',id);
+    if(recorded.state!=='ready')throw Error('The internal drafting authorization was not confirmed');
+    await syncAll();
+   }else if(planned.state!=='ready'){
     progress(id,planned.state,planned.message||'Manager plan needs attention');
     return planned;
    }
