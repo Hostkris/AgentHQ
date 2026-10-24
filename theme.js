@@ -18,7 +18,7 @@
  let settingsView="home",wallpaperRequest=0;
  const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
  const symbol=name=>window.AgentHQIcons?.svg(name)||"";
- const titles={home:"Settings",account:"Agent HQ Sign-In",integrations:"Accounts & Sign-Ins",publishing:"Social Publishing",appearance:"Appearance",icons:"App Icons",wallpaper:"Wallpaper",accessibility:"Text & Accessibility",connections:"Connected Apps",ai:"AI Connection",research:"Web Research",hosted:"Hosted Browser",permissions:"Privacy & Permissions",voice:"Voice & Dictation",about:"About Agent HQ"};
+ const titles={home:"Settings",account:"Agent HQ Sign-In",knowledge:"Agent Knowledge",integrations:"Accounts & Sign-Ins",publishing:"Social Publishing",appearance:"Appearance",icons:"App Icons",wallpaper:"Wallpaper",accessibility:"Text & Accessibility",connections:"Connected Apps",ai:"AI Connection",research:"Web Research",hosted:"Hosted Browser",permissions:"Privacy & Permissions",voice:"Voice & Dictation",about:"About Agent HQ"};
  const modeNames={auto:"Automatic",light:"Light",dark:"Dark"};
  function save(){try{localStorage.setItem(KEY,JSON.stringify(prefs));return true}catch{alert("This change could not be saved on this device. Try a smaller photo or free some browser storage.");return false}}
  function apply(){
@@ -48,6 +48,7 @@
   group('Workspace',row('accounts','Accounts & Sign-Ins','ChatGPT, Gmail, Facebook, Instagram, TikTok, YouTube, iCloud','integrations','social login accounts authorize')+
    row('accounts','Agent HQ Sign-In','Your password & sync','account','login password recovery sync')+
    row('ai','AI Connection','Provider status & connection check','ai','groq openrouter workers')+
+   row('ai','Agent Knowledge','Approved examples, learning & forget controls','knowledge','memory ai improvement retrieval')+
    row('research','Web Research','Public web search & reports','research','browser internet sources groq')+
    row('approvals','Privacy & Permissions','Access requests & worker approvals','permissions','security accounts'))+
   group('General','<div id="agenthq-settings-publishing-compact">'+(window.agentHQSettingsIntegrations?.renderPublishingCompact()||'<p class="settings-footnote">Loading publishing control…</p>')+'</div>'+row('approvals','Social Publishing Details','Review publishing permissions','publishing','publish authorization social enable toggle')+
@@ -90,6 +91,7 @@
   if(view==='permissions')return group('Your Control',row('approvals','Access Requests','Review pending requests and saved decisions','approvals','',true)+row('accounts','Worker Permissions','Review or revoke planning permissions','accounts','',true)+row('email','Email Permissions','Gmail connection & AI drafting controls','email','',true))+note('You control account connections and approvals. Appearance settings and photos are saved in this browser on this device.');
   if(view==='hosted')return window.agentHQSettingsBrowserHost?.()||note('Hosted browser controls are loading. Return to Settings and try again.');
   if(view==='research')return (window.agentHQSettingsResearch?.()||'')+group('Reports',row('research','Research History','Request research or read saved reports','research','',true))+note('Approve one topic at a time in Messages. A report is saved only when live search returns source links.');
+  if(view==='knowledge')return '<section id="agenthq-settings-knowledge-root">'+(window.agentHQKnowledge?.renderPanel()||note('Loading approved examples…'))+'</section>';
   if(view==='ai')return (window.agentHQSettingsAI?.()||'<p class="settings-footnote">AI connection status is loading. Return to Settings and try again.</p>')+note('This checks your existing provider connection. It does not create an assignment or generate a reply.');
   if(view==='accessibility')return group('Display',switchRow('Larger Text','largerText','Use larger interface text.'))+group('Motion',switchRow('Reduce Motion','reduceMotion','Limit animations and moving effects.'))+note('Agent HQ also respects your device’s reduced-motion preference.');
   if(view==='voice')return group('Voice Features','<div class="settings-value-row"><span>Dictation</span><span>'+(window.SpeechRecognition||window.webkitSpeechRecognition?'Available':'Depends on your browser')+'</span></div><div class="settings-value-row"><span>Read Aloud</span><span>'+(window.speechSynthesis?'Available':'Not available here')+'</span></div>')+group('Use Voice',row('messages','Open Messages','Use the microphone in a conversation','messages','',true))+note('Your browser asks for microphone permission when you start dictation. Dictation enters text; it does not send the message.');

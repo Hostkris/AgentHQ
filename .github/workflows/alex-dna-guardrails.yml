@@ -16,6 +16,7 @@ on:
       - 'tests/alex-dna.test.mjs'
       - 'tests/unread-badges.test.mjs'
       - 'tests/messages-workflow.test.mjs'
+      - 'tests/agent-intelligence.test.mjs'
       - 'tests/riley-dna.test.mjs'
       - 'tests/ios-home-messages.test.mjs'
       - 'tests/camera-messages.test.mjs'
@@ -67,3 +68,5 @@ jobs:
         run: node --test tests/creative-desk.test.mjs
       - name: Test account Settings and publishing opt-in
         run: node --test tests/account-signins-publishing.test.mjs
+      - name: Test approved knowledge, owner privacy and draft self-correction
+        run: node --test tests/agent-intelligence.test.mjs && node --check agent-knowledge-cloud.js
