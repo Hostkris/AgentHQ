@@ -88,11 +88,12 @@ Deno.serve(async(req:Request)=>{
  if(!["plan","next","approve","reject"].includes(String(action))||typeof assignmentId!=="string"||!uuid.test(assignmentId))
   return reply(req,{error:"Invalid coordination request"},400);
  const {data:assignment,error:loadError}=await admin.from("agent_team_assignments")
-  .select("id,title,instructions,info_needed,employee_ids,status,source_employee_id,coordination_status,manager_summary")
+  .select("id,title,instructions,info_needed,employee_ids,status,source_employee_id,coordination_status,manager_summary,owner_paused")
   .eq("id",assignmentId).eq("owner_id",owner).maybeSingle();
  if(loadError)return reply(req,{error:"Could not read assignment"},500);
  if(!assignment)return reply(req,{error:"Assignment not found or not authorized"},404);
  if(assignment.status==="completed")return reply(req,{state:"completed",message:"Assignment drafting is already complete."});
+ if(assignment.owner_paused&&(action==="next"||action==="plan"))return reply(req,{state:"paused",message:"The owner sent a red light. No new specialist steps may start."});
 
  const {data:steps,error:stepLoadError}=await admin.from("agent_task_steps")
   .select("id,step_number,employee_id,title,instructions,status,output,question")
