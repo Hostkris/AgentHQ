@@ -422,7 +422,7 @@ function renderConversationWork(worker){
  const relevant=[...teamAssignments.values()].filter(a=>
   worker==="alex"||worker==="hq"||a.source_employee_id===worker||(a.employee_ids||[]).includes(worker));
  relevant.sort((a,b)=>Date.parse(b.updated_at||b.created_at||0)-Date.parse(a.updated_at||a.created_at||0));
- return relevant.filter(a=>!messageIsDeleted("work",a.id)).slice(0,3).map(a=>{
+ return relevant.filter(a=>!messageIsDeleted("work",a.id)&&(Date.parse(a.created_at)||0)>=(clearedAtByWorker.get(worker)||0)).slice(0,3).map(a=>{
   const steps=coordSteps.get(a.id)||[];
   const completed=steps.filter(x=>x.status==="completed").length;
   const approved=a.alex_plan_status==="approved";
@@ -1065,8 +1065,84 @@ const check=e.target.closest("[data-worker-check]");if(check){
     &&typeof navigator.setAppBadge==="function"){
   try{Notification.requestPermission().then(()=>syncAppBadge()).catch(()=>{});}catch{}
  }
- settingsReturn=screen==="settings"&&!["home","settings"].includes(next)?true:["home","settings"].includes(next)?false:settingsReturn;screen=next;window.scrollTo(0,0);if(screen==="hq"){active="hq";screen="chat"}render()}if(chat){active=chat.dataset.chat;screen="chat";render()}});render();
+ settingsReturn=screen==="settings"&&!["home","settings"].includes(next)?true:["home","settings"].includes(next)?false:settingsReturn;screen=next;window.scrollTo(0,0);if(screen==="hq"){active="hq";screen="chat"}render()}if(chat){active=chat.dataset.chat;screen="chat";render()}});
+connectHomeScreen(()=>{if(screen==="home")render()});
+render();
 
+// Press and hold a contact, or the contact header, to manage just that conversation.
+const clearableWorkers=new Set(["hq",...staff.map(s=>s[0])]);
+let heldThread=null,holdTimer=null,holdStart=null,blockThreadClick=false;
+function closeThreadMenu(){
+ document.querySelector("#agent-thread-action-backdrop")?.remove();
+}
+function showThreadMenu(worker){
+ if(!clearableWorkers.has(worker))return;
+ closeThreadMenu();
+ const name=worker==="hq"?"Company HQ":staff.find(x=>x[0]===worker)?.[2]||worker;
+ const panel=document.createElement("div");
+ panel.id="agent-thread-action-backdrop";
+ panel.className="agent-thread-action-backdrop";
+ panel.innerHTML='<div class="agent-thread-actions" role="dialog" aria-modal="true" aria-label="Conversation options">'+
+  '<strong>'+escapeHTML(name)+'</strong>'+
+  '<button type="button" class="thread-delete-all" data-thread-delete="'+escapeHTML(worker)+'">Delete all text messages</button>'+
+  '<button type="button" data-thread-cancel>Cancel</button></div>';
+ document.body.append(panel);
+ panel.querySelector("[data-thread-delete]")?.focus();
+}
+document.addEventListener("pointerdown",event=>{
+ if(document.querySelector("#agent-thread-action-backdrop"))return;
+ const item=event.target.closest?.('#contact-list [data-chat],.ios-contact[data-thread-press]');
+ if(!item)return;
+ const worker=item.dataset.chat||item.dataset.threadPress;
+ if(!clearableWorkers.has(worker))return;
+ heldThread=worker;holdStart={x:event.clientX,y:event.clientY};
+ holdTimer=setTimeout(()=>{showThreadMenu(worker);blockThreadClick=true;heldThread=null;holdTimer=null},620);
+});
+document.addEventListener("pointermove",event=>{
+ if(!holdStart||!holdTimer)return;
+ if(Math.hypot(event.clientX-holdStart.x,event.clientY-holdStart.y)>12){
+  clearTimeout(holdTimer);holdTimer=null;heldThread=null;holdStart=null;
+ }
+});
+document.addEventListener("pointerup",()=>{if(holdTimer)clearTimeout(holdTimer);holdTimer=null;heldThread=null;holdStart=null});
+document.addEventListener("pointercancel",()=>{if(holdTimer)clearTimeout(holdTimer);holdTimer=null;heldThread=null;holdStart=null});
+document.addEventListener("contextmenu",event=>{
+ const item=event.target.closest?.('#contact-list [data-chat],.ios-contact[data-thread-press]');
+ if(!item)return;
+ const worker=item.dataset.chat||item.dataset.threadPress;
+ if(clearableWorkers.has(worker)){event.preventDefault();showThreadMenu(worker);blockThreadClick=true}
+});
+document.addEventListener("click",event=>{
+ if(blockThreadClick){
+  blockThreadClick=false;
+  if(event.target.closest?.('#contact-list [data-chat],.ios-contact[data-thread-press]')){
+   event.preventDefault();event.stopImmediatePropagation();return;
+  }
+ }
+ const backdrop=event.target.closest?.("#agent-thread-action-backdrop");
+ if(!backdrop)return;
+ const cancel=event.target.closest("[data-thread-cancel]");
+ if(cancel||event.target===backdrop){event.preventDefault();closeThreadMenu();return}
+ const clear=event.target.closest("[data-thread-delete]");
+ if(!clear)return;
+ event.preventDefault();
+ const worker=clear.dataset.threadDelete;
+ const name=worker==="hq"?"Company HQ":staff.find(x=>x[0]===worker)?.[2]||worker;
+ if(!confirm('Permanently delete all text messages with '+name+'? Saved assignment and research records will remain in your history.'))return;
+ clear.disabled=true;clear.textContent="Deleting…";
+ (async()=>{
+  try{
+   await window.agentHQChatCloud.clearConversation(worker);
+   closeThreadMenu();
+   if(screen==="chat"&&active===worker)render();
+  }catch(error){
+   clear.disabled=false;clear.textContent="Delete all text messages";
+   let p=backdrop.querySelector("[role=alert]");
+   if(!p){p=document.createElement("p");p.setAttribute("role","alert");backdrop.querySelector(".agent-thread-actions")?.append(p)}
+   p.textContent="Could not delete the conversation: "+error.message;
+  }
+ })();
+},true);
 window.agentHQSocialReadSync=()=>{if((screen==='chat'&&active==='riley')||screen==='accounts')renderWithoutInterruptingDraft()};
 window.agentHQSocialReadOpen=()=>{active='riley';screen='chat';render()};
 
