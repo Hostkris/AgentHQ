@@ -189,6 +189,20 @@ function parseJob(id){if(!uid.test(id))throw Error("Invalid content assignment")
 function trackForm(form){for(const field of ["business","destination","format","specialist","brief","requirements"]){const input=form.elements.namedItem(field);if(input)formDraft[field]=String(input.value||"");}}
 host?.addEventListener("input",event=>{const form=event.target.closest?.("#creative-request-form");if(form)trackForm(form);});
 host?.addEventListener("submit",event=>{
+ const importForm=event.target.closest?.("[data-creative-import-form]");
+ if(importForm){
+  event.preventDefault();
+  const id=importForm.dataset.creativeImportForm;
+  const body=String(importForm.elements.namedItem("chatgpt_output")?.value||"").trim();
+  if(body.length<20||body.length>7000){feedback="Paste 20–7,000 characters of text.";draw();return;}
+  act(async()=>{
+   await currentUser();parseJob(id);
+   if(!window.agentHQTeamCloud?.post)throw Error("Team messages are unavailable.");
+   await window.agentHQTeamCloud.post(id,CHATGPT_IMPORT+"\n"+body);
+   feedback="Your text was saved to this assignment for review. Agent HQ did not verify its origin or publish it.";
+  });
+  return;
+ }
  const form=event.target.closest?.("#creative-request-form");if(!form)return;
  event.preventDefault();trackForm(form);
  act(async()=>{
