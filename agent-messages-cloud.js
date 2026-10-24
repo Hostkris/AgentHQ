@@ -91,7 +91,7 @@ async function converse(employeeId,body,options={}){
   else if(/\b(facebook|messenger)\b/i.test(body))throw Error('Riley’s Facebook reader is loading. Refresh this conversation and try again.');
  }
  const {data,error}=await agentCloud.functions.invoke('agent-hq-converse',{
-  body:{employee_id:employeeId,text:body,...(options.research?{action:"request_research"}:{}),
+  body:{employee_id:employeeId,text:body,...(options.research?{action:"role_research"}:{}),
    ...(options.projectId?{project_id:options.projectId}:{}),...(options.projectVersion?{output_version:options.projectVersion}:{}),
    ...(options.projectRevision?{project_revision:options.projectRevision}:{})}
  });
@@ -156,10 +156,14 @@ async function researchRefresh(){
  try{
   const user=await getUser();
   if(generation!==researchGeneration)return [];
-  const {data,error}=await agentCloud.from('agent_research_jobs').select('id,employee_id,query,status,created_at,expires_at,report,error').eq('owner_id',user.id).order('created_at',{ascending:false}).limit(30);
+  const [legacy,role]=await Promise.all([
+   agentCloud.from('agent_research_jobs').select('id,employee_id,query,status,created_at,expires_at,report,error').eq('owner_id',user.id).order('created_at',{ascending:false}).limit(30),
+   agentCloud.from('agent_role_research').select('id,employee_id,bot_id,assignment_id,query,status,started_at,finished_at,report,sources,error,delivered_message_id').eq('owner_id',user.id).order('started_at',{ascending:false}).limit(50)
+  ]);
   if(generation!==researchGeneration)return [];
-  if(error)throw Error(error.message);
-  const jobs=(data||[]).map(j=>({...j,status:j.status==='pending'&&Date.parse(j.expires_at)<=Date.now()?'expired':j.status}));
+  if(legacy.error||role.error)throw Error(legacy.error?.message||role.error?.message);
+  const jobs=[...(legacy.data||[]).map(j=>({...j,status:j.status==='pending'&&Date.parse(j.expires_at)<=Date.now()?'expired':j.status})),
+   ...(role.data||[]).map(j=>({...j,created_at:j.started_at,role_research:true}))].sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at));
   window.agentHQResearchSync?.(jobs,'Saved research requests and reports.');return jobs;
  }catch(e){if(generation===researchGeneration)window.agentHQResearchSync?.([],e.message);throw e}
 }

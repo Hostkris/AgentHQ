@@ -18,7 +18,7 @@ New owner-assigned projects use workflow version 2. Earlier work orders and save
 - One real model call per team turn; owner-wide reservation and the existing ten worker calls/hour cap apply. There are at most eighteen turns per revision and three teammate question exchanges. No recursive agent loop.
 - A four-second gap between saved turns makes messages readable. Typing dots appear only while an actual worker holds a live model-call lease, with that worker’s name. They are not a staged thinking animation and do not expose hidden reasoning.
 - Work advances while Agent HQ is open. Safari/iPadOS can suspend web apps in the background. An in-flight server request can commit its result; reopening the app resumes from saved state. This release does not claim unattended 24/7 execution or phone push delivery.
-- Saved, relevant Riley research reports can inform the project with their source dates and limitations. The team cannot claim a fresh search from saved evidence. Essential new research/source gaps are escalated privately through existing approved research or owner-provided source material. A website approval by itself adds no browser capability.
+- All assigned workers can request role-scoped public browser research and share dated source reports in the project. Saved evidence remains labelled by date; it never implies a fresh search. Private-account gaps still use the requesting worker’s individual Messages and existing connector permissions. See all-worker-public-research.md.
 
 ## Integrity
 

@@ -10,6 +10,7 @@ const watched=[
  'agent_task_steps',
  'agent_team_messages',
  'agent_project_sessions',
+ 'agent_role_research',
  'agent_action_proposals'
 ];
 let channel=null,ownerId=null,version=0,pending=new Set(),refreshTimer=null;
@@ -24,6 +25,7 @@ function dispatch(){
  if(changed.includes('agent_task_steps'))calls.push(window.agentHQCoordCloud?.refresh?.());
  if(changed.includes('agent_team_messages'))calls.push(window.agentHQTeamCloud?.refresh?.());
  if(changed.includes('agent_project_sessions'))calls.push(window.agentHQProjects?.refresh?.());
+ if(changed.includes('agent_role_research'))calls.push(window.agentHQResearchCloud?.refresh?.());
  if(changed.includes('agent_action_proposals'))calls.push(window.agentHQOperationsCloud?.refresh?.());
  Promise.allSettled(calls.filter(Boolean)).catch(()=>{});
 }

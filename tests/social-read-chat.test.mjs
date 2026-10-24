@@ -25,6 +25,7 @@ test('Riley routes text through contextual reading decisions; other workers and 
  vm.createContext(context);vm.runInContext(part+'\nthis.run=converse;',context);
  await context.run('riley','approved');assert.equal(calls.length,1);assert.equal(calls[0].kind,'social');
  calls.length=0;await context.run('alex','approved');assert.equal(calls[0].kind,'agent-hq-converse');
- calls.length=0;await context.run('riley','research public facts',{research:true});assert.equal(calls[0].body.action,'request_research');
+ calls.length=0;await context.run('riley','research public facts',{research:true});assert.equal(calls[0].body.action,'role_research');
  calls.length=0;handled=false;await context.run('riley','How are you?');assert.deepEqual(calls.map(x=>x.kind),['social','agent-hq-converse']);
 });
+

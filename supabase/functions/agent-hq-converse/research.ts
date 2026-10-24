@@ -59,7 +59,7 @@ export async function researchStatus(key:string,fetcher:typeof fetch=fetch){
   const r=await fetcher('https://api.groq.com/openai/v1/models',{headers:{Authorization:'Bearer '+key},signal:AbortSignal.timeout(10000)});
   if(!r.ok)return {ready:false,message:r.status===429?'Groq is rate limited. Try the connection check later.':'Groq could not verify the research connection (HTTP '+r.status+'). Check the server key and model access.',model:RESEARCH_MODEL};
   const data=await r.json();const ready=(data.data||[]).some((m:any)=>m.id===RESEARCH_MODEL&&m.active!==false);
-  return {ready,model:RESEARCH_MODEL,message:ready?'Groq connection verified. Public web research is available after you approve a topic.':'The Groq key works, but the research model is not available for this project.'};
+  return {ready,model:RESEARCH_MODEL,message:ready?'Groq connection verified. Every worker can research public sources for their assigned role and task, within the shared free allowance.':'The Groq key works, but the research model is not available for this project.'};
  }catch{return {ready:false,model:RESEARCH_MODEL,message:'Groq could not be reached. Try the connection check again.'}}
 }
 export async function runResearch(db:any,owner:string,worker:string,jobId:string,key:string,fetcher:typeof fetch=fetch){
@@ -170,3 +170,4 @@ export async function runResearch(db:any,owner:string,worker:string,jobId:string
   throw Error(info);
  }
 }
+

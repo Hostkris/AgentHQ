@@ -22,8 +22,8 @@ test('Riley chat remains research-only, and cannot request outside account actio
  const chat=read('supabase/functions/agent-hq-converse/index.ts');
  assert.match(chat,/role==="Research analyst"\?RILEY_CHAT_POLICY/);
  assert.match(chat,/worker==="riley"&&result\.intent==="action"/);
- assert.match(chat,/await proposeResearch\(composed\)/);
- assert.match(chat,/worker!=="alex"&&worker!=="riley"&&isResearchInstruction/);
+ assert.match(chat,/await proposeRoleResearch\(composed\)/);
+ assert.match(chat,/worker!=="alex"&&worker!=="riley"&&explicitPublicResearch/);
  assert.match(chat,/stage==="confirm_research"/);
  assert.match(chat,/runResearch\(db,owner,worker,job\.id,env\("GROQ_API_KEY"\)\)/);
 });
@@ -70,3 +70,4 @@ test('Riley cannot silently access websites, publish, buy, or give final creativ
   assert.ok(dna.includes(denied),denied+' must be denied');
  }
 });
+

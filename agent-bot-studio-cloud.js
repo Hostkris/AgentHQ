@@ -78,6 +78,7 @@ async function handoff(fromId,toId,reason){
 async function send(id,message){
  const result=await invoke('chat',{bot_id:id,message});
  const transcript=await history(id);
+ await window.agentHQResearchCloud?.refresh?.().catch(()=>{});
  await refresh();
  return {result,history:transcript};
 }
@@ -88,3 +89,4 @@ window.addEventListener('focus',background);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)background()});
 setInterval(()=>{if(!document.hidden)background()},35000);
 background();
+

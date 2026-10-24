@@ -1,3 +1,5 @@
+> Current capability: see [All-worker public research](all-worker-public-research.md). The approval-based flow below remains for older clients and already-pending requests. New direct public research and team projects use role-scoped task authorization.
+
 # Public web research
 
 Open **Settings → Web Research → Check connection** while signed in. This checks the server-side Groq key and research model access without requesting a generated answer. The model is `openai/gpt-oss-120b`, using only Groq's `browser_search` tool. Groq's retired Compound model IDs are not used.

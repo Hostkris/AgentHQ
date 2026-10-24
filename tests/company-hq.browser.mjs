@@ -69,6 +69,10 @@ try{
   await page.evaluate(()=>{__projectMock.notes.push({id:'turn-3',assignment_id:__projectMock.id,sender_kind:'agent',sender_id:'casey',project_revision:1,project_kind:'check',body:'The opening is clear. Tighten the final invitation.',created_at:new Date().toISOString()});__projectMock.sync();});
   assert.equal(await page.locator('#draft').inputValue(),'Keep my unsent feedback');assert(await page.locator('#draft').evaluate(el=>el===document.activeElement));assert.equal(await page.locator('.hq-team-typing .ios-typing span').count(),3);assert.match(await page.locator('.hq-team-typing').getAttribute('aria-label'),/Casey/);
  });
+ await check('Real public research is a named team message with an expandable report and clickable sources',async()=>{
+  await page.evaluate(()=>{__projectMock.notes.push({id:'web-evidence',assignment_id:__projectMock.id,sender_kind:'agent',sender_id:'casey',project_revision:1,project_kind:'discussion',body:'PUBLIC_RESEARCH_V1\nCasey · Public research\nRetrieved: 2026-10-24\nThe official public guidance supports the proposed video structure.\nhttps://example.com/official',created_at:new Date().toISOString()});__projectMock.sync();});
+  const row=page.locator('[data-project-message="web-evidence"]');await row.getByText('Read public research and sources').click();assert.equal(await row.locator('a[href="https://example.com/official"]').count(),1);assert.match(await row.innerText(),/Retrieved: 2026-10-24/);assert.equal(await row.locator('[data-chat-dismiss]').count(),1);
+ });
  await check('Pause invalidates the active typing indicator and resume targets the same project',async()=>{
   await page.locator('[data-project-control="pause"]').click();await page.waitForFunction(()=>document.querySelector('[data-project-control="resume"]'));
   assert.equal(await page.locator('.hq-team-typing').count(),0);await page.locator('[data-project-control="resume"]').click();assert.equal(await page.evaluate(()=>__projectMock.calls.filter(c=>c.action==='project_control').at(-1).assignment_id),await page.evaluate(()=>__projectMock.id));

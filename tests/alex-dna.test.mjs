@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const source=path=>readFileSync(new URL('../'+path, import.meta.url),'utf8');
 
-test('Alex DNA gives no external execution tools and lists only specialists',()=>{
+test('Alex can research management publicly while specialist execution remains separate',()=>{
  const dna=source('supabase/functions/_shared/alex-dna.ts');
  assert.match(dna,/id: "alex"/);
- assert.match(dna,/defaultExternalTools: Object.freeze\(\[\]/);
+ assert.match(dna,/defaultExternalTools: Object.freeze\(\["public_web_research"\]/);
  assert.match(dna,/noContinuousModelPolling: true/);
  const specialistBlock=dna.split('export const SPECIALIST_JOBS')[1].split('export function isAlexSpecialist')[0];
  assert.doesNotMatch(specialistBlock,/\balex\s*:/);
@@ -38,6 +38,7 @@ test('iPhone interface requires separate plan approval before specialist continu
 test('Alex chat is manager-only even when research or external action is requested',()=>{
  const chat=source('supabase/functions/agent-hq-converse/index.ts');
  assert.match(chat,/worker==="alex"&&isAlexForbiddenIntent\(result\.intent\)/);
- assert.match(chat,/worker!=="alex"&&worker!=="riley"&&isResearchInstruction/);
+ assert.match(chat,/worker!=="alex"&&worker!=="riley"&&explicitPublicResearch/);
  assert.match(chat,/worker==="alex"&&\(input\.action==="request_research"/);
 });
+

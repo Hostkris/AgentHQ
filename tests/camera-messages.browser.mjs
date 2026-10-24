@@ -84,6 +84,10 @@ try{
  await check('Custom-worker conversations have the same attachment picker and photo send flow',async()=>{
   await page.evaluate(()=>window.agentHQBotStudioSync([__testBot],'Ready',[__testBot.id],[]));await page.evaluate(()=>document.querySelector('[data-nav="messages"]')?.click());await page.locator('[data-studio-worker]').click();await page.locator('#studio-message-form').waitFor();await addPhoto();await page.locator('#studio-message-form textarea').fill('A new design idea');await page.locator('#studio-message-form [type="submit"]').click();await page.locator('.ios-photo-message img').waitFor();assert.equal(await page.evaluate(()=>__mock.customPhotos.length),1);assert.equal(await page.evaluate(()=>__mock.customPhotos[0].bot_id),await page.evaluate(()=>__mock.bot));
  });
+ await check('Custom-worker research has a saved report attachment and working source links',async()=>{
+  await page.evaluate(()=>window.agentHQResearchSync([{id:'custom-research',employee_id:__mock.bot,bot_id:__mock.bot,role_research:true,delivered_message_id:'custom-research-reply',query:'Current design guidance',status:'completed',created_at:new Date().toISOString(),report:'Design research\nRetrieved: 2026-10-24\nSource: https://example.com/design'}],'Synced'));
+  const report=page.locator('.ios-research-attachment');await report.getByText('Read findings and sources').click();assert.equal(await report.locator('a[href="https://example.com/design"]').count(),1);assert.equal(await report.locator('[data-chat-dismiss="bot"]').count(),1);
+ });
  await check('Photo messages have an X, and deleting one removes only that attachment',async()=>{
   await openThread('riley');page.once('dialog',d=>d.accept());await page.locator('[data-photo-delete]').click();await page.waitForFunction(()=>__mock.photos.filter(p=>p.employee_id==='riley').length===0);assert.equal(await page.locator('.ios-photo-message').count(),0);
  });

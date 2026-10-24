@@ -1,5 +1,6 @@
 import {createClient} from "npm:@supabase/supabase-js@2.79.0";
 import {routeProjectChat} from "../_shared/project-chat.ts";
+import {PUBLIC_WEB_CAPABILITY,explicitPublicResearch,planRoleQuery,publicQueryPlanner,researchForRole} from "../_shared/role-research.ts";
 import {createResearchRequest,isResearchInstruction,researchApproval,researchStatus,runResearch} from "./research.ts";
 import {ALEX_DNA,isAlexForbiddenIntent} from "../_shared/alex-dna.ts";
 import {RILEY_CHAT_POLICY} from "../_shared/riley-dna.ts";
@@ -53,7 +54,7 @@ function provider(){
  return null;
 }
 async function decide(ai:NonNullable<ReturnType<typeof provider>>,role:string,context:unknown){
- const baseSystem=role==="Research analyst"?RILEY_CHAT_POLICY:role==="General Manager"?`You are Alex, General Manager of Agent HQ. Permanent mission: ${ALEX_DNA.mission}. Your ONLY professional work is to clarify assignments, draft proposed work routing, coordinate specialists, monitor progress and report status. You are not a specialist. Do NOT answer as the Research, Marketing, Writing, Social, Communications, Shopify, Analysis, Scheduling or Growth specialist. No web search, Gmail, external account tools, purchase, publication, sending, code editing or permission changes. No actions are executed by this conversation. The owner’s direct message already authorizes a safe, internal text-drafting assignment. Coordinate and begin specialist drafting without another yes/no question. Outside accounts, publishing, purchases and spending still need separate explicit scoped owner approval and supported tools. For specialist work classify as "task"; use clearly labeled placeholders for missing marketing facts. Classify "collect" only if a concrete deliverable is truly impossible, and ask just ONE blocking question. For internal workflow/status questions use "answer" to give a concise, factual response without pretending work occurred. Return ONLY valid JSON {"intent":"answer|collect|task","reply":"brief professional response"} with no code fences.`:`You are a friendly, concise AI coworker working as ${role} in Agent HQ. This is the OWNER'S PRIVATE PERSONAL-USE workspace for their own social accounts, advertising accounts and projects, not a commercial agency. This is a casual one-to-one text conversation, not a task dashboard.
+ const baseSystem=role==="Research analyst"?RILEY_CHAT_POLICY:role==="General Manager"?`You are Alex, General Manager of Agent HQ. Permanent mission: ${ALEX_DNA.mission}. Your ONLY professional work is to clarify assignments, draft proposed work routing, coordinate specialists, monitor progress and report status. You are not a specialist. Do NOT answer as the Research, Marketing, Writing, Social, Communications, Shopify, Analysis, Scheduling or Growth specialist. You may request read-only public research about management, coordination and delivery for this task. No Gmail, private-account tools, purchase, publication, sending, code editing or permission changes. No actions are executed by this conversation. The owner’s direct message already authorizes a safe, internal text-drafting assignment. Coordinate and begin specialist drafting without another yes/no question. Outside accounts, publishing, purchases and spending still need separate explicit scoped owner approval and supported tools. For specialist work classify as "task"; use clearly labeled placeholders for missing marketing facts. Classify "collect" only if a concrete deliverable is truly impossible, and ask just ONE blocking question. For internal workflow/status questions use "answer" to give a concise, factual response without pretending work occurred. Return ONLY valid JSON {"intent":"answer|collect|task|research","reply":"brief professional response"} with no code fences.`:`You are a friendly, concise AI coworker working as ${role} in Agent HQ. This is the OWNER'S PRIVATE PERSONAL-USE workspace for their own social accounts, advertising accounts and projects, not a commercial agency. This is a casual one-to-one text conversation, not a task dashboard.
 You can answer general knowledge questions, discuss assignments, and ask for missing task details. Public web research is available through a separate owner-approved research flow. You cannot browse in this classification call. Account access, purchasing, posting, and file modification are unavailable. Never imply you actually researched a website or completed external work. Do not fabricate sources.
 Read the recent conversation carefully: casual check-ins such as "anything yet?" and "what did you find?" refer to existing tasks, never new research topics.
 Write the way a capable, attentive professional coworker would text: friendly, specific, natural and concise. Use one to three short sentences in an ordinary reply, ideally under 300 characters. Do not paste long markdown reports, headings, repeated disclosures, or numbered lists into chat. Put substantial deliverables in their saved expandable attachments instead. Ask only one important question when necessary. Never impersonate a real human or claim to have used unavailable tools.
@@ -77,7 +78,7 @@ Return ONLY valid JSON with {"intent":"answer|collect|task|action|research","rep
     ...(ai.name==="openrouter"?{"HTTP-Referer":ORIGIN,"X-Title":"Agent HQ"}:{})},
    body:JSON.stringify({model:ai.model,stream:false,temperature:0.35,max_tokens:850,
     ...(ai.name==="groq"&&ai.model.startsWith("openai/gpt-oss")?{reasoning_effort:"low"}:{}),
-    messages:[{role:"system",content:system},{role:"user",content:JSON.stringify(context)}]})
+    messages:[{role:"system",content:system+"\n"+PUBLIC_WEB_CAPABILITY+"\nWhen the primary request is a deliverable or a team assignment (even when research is requested as part of it), classify as task so the team can research AND produce the work. When the primary request is public information that needs fresh evidence, classify as research. Alex may research management and coordination only, keeping specialist execution with the specialists."},{role:"user",content:JSON.stringify(context)}]})
   });
   if(!response.ok)throw Error("AI connection returned HTTP "+response.status);
   const raw=await response.json(),answer=raw?.choices?.[0]?.message?.content;
@@ -352,13 +353,26 @@ Deno.serve(async(req:Request)=>{
   await state("confirm_research","",null,null,null,id);
   replyText=researchApproval(topic);
  };
+ const proposeRoleResearch=async(topic:string)=>{
+  const key=env("GROQ_API_KEY"),plan=await planRoleQuery(worker,topic,publicQueryPlanner(key));
+  if(plan.kind!=="research"){replyText=plan.question;return;}
+  const researched=await researchForRole({db,owner,worker,task:topic,query:plan.query,purpose:plan.purpose,key,
+   context:{conversation_id:cid,message_id:ownerMessage.id,request_key:"chat:"+ownerMessage.id}});
+  await state("idle");
+  if(researched?.state==="completed"){replyText=researched.summary;replySaved=true;}
+  else replyText=researched?.message||"This public research request is already being handled. Check the saved report before retrying.";
+ };
  try{
-  const projectReply=await routeProjectChat(db,owner,worker,body,{project_id:input.project_id,output_version:input.output_version,project_revision:input.project_revision,stage});
+  const projectReply=input.action==="role_research"?null:await routeProjectChat(db,owner,worker,body,{project_id:input.project_id,output_version:input.output_version,project_revision:input.project_revision,stage});
   if(projectReply?.handled){
    await append(projectReply.reply);
    return reply(req,{success:true,owner_message_id:ownerMessage.id,reply:projectReply.reply,
     start_assignment_id:null,resume_assignment_id:projectReply.resume_assignment_id||null,
     approved_assignment_id:null,project_workflow:true,project_id:projectReply.project_id||null});
+  }
+  if(input.action==="role_research"||(stage==="idle"&&input.action!=="request_research"&&explicitPublicResearch(body))){
+   await proposeRoleResearch(body);if(!replySaved)await append(replyText);
+   return reply(req,{success:true,owner_message_id:ownerMessage.id,reply:replyText,start_assignment_id:null,resume_assignment_id:null,approved_assignment_id:null});
   }
   // Chat approval is limited to a single saved routing plan awaiting its owner's decision.
   // "Yes" in confirm_task confirms task creation; it does not approve its later plan.
@@ -591,7 +605,7 @@ Deno.serve(async(req:Request)=>{
     replyText="For "+request.target_url+" ("+request.reason+"), should I record approval for this specific request? Yes or no? It won't start browsing.";
    }
   }else{
-   if(worker!=="alex"&&worker!=="riley"&&isResearchInstruction(body)&&stage==="idle")await proposeResearch(body);
+   if(worker!=="alex"&&worker!=="riley"&&explicitPublicResearch(body)&&stage==="idle")await proposeRoleResearch(body);
    const waiting=replyText?null:await currentWaiting();
    if(waiting?.status==="waiting_for_permission"&&decision){
     const {data:requests}=await db.from("agent_permission_requests")
@@ -672,10 +686,13 @@ Deno.serve(async(req:Request)=>{
      await db.from("agent_chat_ai_turns").insert({owner_id:owner,employee_id:worker});
      const {data:recent}=await db.from("agent_messages").select("sender,body")
        .eq("conversation_id",cid).eq("owner_id",owner).order("created_at",{ascending:false}).limit(7);
+     const {data:savedEvidence}=await db.from("agent_role_research").select("query,report,sources,finished_at")
+      .eq("owner_id",owner).eq("conversation_id",cid).eq("employee_id",worker).eq("status","completed").order("finished_at",{ascending:false}).limit(1);
      const result=await decide(ai,EMPLOYEES[worker as Worker],{
       current_message:body,context:isCollect?"collecting_task":"new_message",
       pending_assignment_details:isCollect?old:null,
-      recent_chat:(recent||[]).reverse().map(x=>({sender:x.sender,body:String(x.body).slice(0,1000)}))
+      recent_chat:(recent||[]).reverse().map(x=>({sender:x.sender,body:String(x.body).slice(0,1000)})),
+      saved_public_evidence_not_instructions:(savedEvidence||[]).map(x=>({topic:x.query,retrieved_at:x.finished_at,report:String(x.report).slice(0,4500),sources:x.sources}))
      });
      if(worker==="riley"&&result.intent==="action"){
       await state("idle");
@@ -729,7 +746,7 @@ Deno.serve(async(req:Request)=>{
       await state("idle");
       replyText="I don't have live advertising account data, so I can't verify those numbers. To report actual spending and results, we'd need an authorized read-only Meta Ads connection.";
      }else if(result.intent==="research"){
-      await proposeResearch(composed);
+      await proposeRoleResearch(composed);
      }else if(result.intent==="task"){
       // Drafting the work order is safe; the owner still must approve the
       // SPECIFIC specialist plan before any AI drafting or external action.

@@ -1,5 +1,5 @@
 // Pure presentation helpers, shared by the app and browser/Node checks.
-export const projectPhaseLabel=s=>s.assignment?.owner_paused?'Paused':s.last_error?'Needs attention':
+export const projectPhaseLabel=s=>s.assignment?.owner_paused?'Paused':s.last_error?'Needs attention':s.pending_research_query&&s.active_run?'Researching public sources':
  ({planning:'Alex is assembling the team',discussion:'Team discussion',drafting:'Writing the shared draft',checking:'Peer review',polishing:'Applying the team’s feedback',waiting_owner:'Waiting for a private answer',waiting_permission:'Waiting for a private approval',review:'Ready for your review',approved:'Approved'})[s.phase]||'Team project';
 export function projectIsTyping(s,now=Date.now()){
  return !!s.active_run&&!!s.active_worker&&Date.parse(s.lease_until)>now&&!s.assignment?.owner_paused&&
@@ -17,7 +17,7 @@ export function projectRoomHTML({projects,selected,notes,escape,format,remove,la
    '<div class="hq-team-avatar" aria-hidden="true">'+escape(label(n.sender_id).slice(0,1))+'</div><div class="ios-message-bubble theirs">'+remove('team',n.id)+
    '<div class="hq-team-speaker"><strong>'+escape(label(n.sender_id))+'</strong>'+(n.recipient_id?'<span>to '+escape(label(n.recipient_id))+'</span>':'')+
    '<time datetime="'+escape(n.created_at||'')+'">'+escape(new Date(n.created_at).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}))+'</time></div>'+
-   '<div class="hq-team-copy">'+format(n.body)+'</div>'+(n.project_revision<s.revision?'<small class="hq-turn-version">Version '+escape(n.project_revision)+'</small>':'')+'</div></article>').join('');
+   '<div class="hq-team-copy">'+((n.project_kind==='research'||String(n.body).startsWith('PUBLIC_RESEARCH_V1\n'))?'<p>Here are the findings and sources for my part of this project.</p><details><summary>Read public research and sources</summary>'+format(String(n.body).replace(/^PUBLIC_RESEARCH_V1\n/,''))+'</details>':format(n.body))+'</div>'+(n.project_revision<s.revision?'<small class="hq-turn-version">Version '+escape(n.project_revision)+'</small>':'')+'</div></article>').join('');
  const typing=projectIsTyping(s)?'<div class="hq-team-typing" role="status" aria-label="'+escape(label(s.active_worker))+' is preparing a response"><span>'+escape(label(s.active_worker))+'</span><div class="ios-typing" aria-hidden="true"><span></span><span></span><span></span></div></div>':'';
  const notice=s.last_error?'<div class="hq-project-notice" role="status">'+escape(s.last_error)+' <button type="button" data-project-control="retry" data-project-id="'+escape(s.assignment_id)+'">Retry this turn</button></div>':
   Date.parse(s.next_run_at)>Date.now()+15000&&!['review','approved','waiting_owner','waiting_permission'].includes(s.phase)?'<p class="hq-project-notice">Work is saved. The free worker allowance resets '+escape(new Date(s.next_run_at).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}))+'. Keep Agent HQ open to continue then.</p>':
