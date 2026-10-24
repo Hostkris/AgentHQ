@@ -21,6 +21,7 @@ on:
       - 'tests/maya-dna.test.mjs'
       - 'tests/jordan-dna.test.mjs'
       - 'tests/casey-dna.test.mjs'
+      - 'tests/taylor-dna.test.mjs'
       - 'tests/ios-home-messages.test.mjs'
       - 'tests/camera-messages.test.mjs'
       - 'agent-camera-cloud.js'
@@ -47,6 +48,7 @@ on:
       - 'tests/maya-dna.test.mjs'
       - 'tests/jordan-dna.test.mjs'
       - 'tests/casey-dna.test.mjs'
+      - 'tests/taylor-dna.test.mjs'
 
 permissions:
   contents: read
@@ -70,6 +72,8 @@ jobs:
         run: node --test tests/jordan-dna.test.mjs
       - name: Test Casey essential social media DNA
         run: node --test tests/casey-dna.test.mjs
+      - name: Test Taylor essential communications DNA
+        run: node --test tests/taylor-dna.test.mjs
       - name: Test iPhone Home Screen and natural Messages
         run: node --test tests/ios-home-messages.test.mjs
       - name: Test camera, photo messages and private access
