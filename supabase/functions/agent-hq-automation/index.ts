@@ -63,6 +63,69 @@ Deno.serve(async(req:Request)=>{
      return response(req,{sessionToken:session,connectLink:safeLink,expiresAt:payload?.data?.expires_at||null});
    }catch{return response(req,{error:"Nango is temporarily unreachable. Retry the connection."},504)}
  }
+
+ // Live, owner-scoped, read-only GitHub verification. No credentials or connection IDs leave this endpoint.
+ if(input.action==="nango_verify"){
+   const checkedAt=new Date().toISOString();
+   const base={checkedAt,configured:nangoReady(),verified:false,readOnly:true};
+   const output=(state:string,message:string,extra:Record<string,unknown>={})=>
+     response(req,{...base,state,message,...extra});
+   if(!nangoReady())return output("not_configured","Nango is not configured in Agent HQ.");
+   const nangoKey=env("AGENT_HQ_NANGO_VERIFY_KEY")||env("AGENT_HQ_NANGO_SECRET_KEY");
+   // The optional verification key can have read-only list & proxy scopes and no Connect Session permissions.
+   const requestHeaders={"authorization":"Bearer "+nangoKey,"accept":"application/json"};
+   let selected:Record<string,unknown>|null=null;
+   let sawBroken=false;
+   let sawMatching=false;
+   try{
+     // Scope the search at Nango too, then check the owner and integration again locally.
+     for(let page=1;page<=5&&!selected;page++){
+       const u=new URL("https://api.nango.dev/connections");
+       u.searchParams.set("tags[end_user_id]",owner);
+       u.searchParams.set("limit","100");
+       u.searchParams.set("page",String(page));
+       const res=await fetch(u.toString(),{method:"GET",headers:requestHeaders,signal:AbortSignal.timeout(12000)});
+       if(res.status===401)return output("credentials_invalid","Nango rejected the verification API key. Check the key and its environment in Supabase.");
+       if(res.status===403)return output("permissions_needed","Nango does not allow this key to list connections. It needs the environment:connections:list permission (without credentials access). The read-only GitHub test also requires environment:proxy.");
+       if(!res.ok)return output("provider_error","Nango connection lookup returned HTTP "+res.status+". Retry later; no live verification was completed.");
+       const json=await res.json();
+       if(!Array.isArray(json?.connections))return output("provider_error","Nango returned an unexpected connections response. Nothing was marked verified.");
+       const matches=json.connections.filter((c:Record<string,unknown>)=>
+         c&&typeof c==="object"&&
+         c.tags&&typeof c.tags==="object"&&
+         (c.tags as Record<string,unknown>).end_user_id===owner&&
+         integrations().includes(String(c.provider_config_key||""))&&
+         String(c.provider||"").toLowerCase()==="github"&&
+         typeof c.connection_id==="string"&&c.connection_id.length>0
+       );
+       sawMatching ||= matches.length>0;
+       // Prefer the newest connection, and never treat a connection with auth errors as verified.
+       matches.sort((a:Record<string,unknown>,b:Record<string,unknown>)=>Date.parse(String(b.created||0))-Date.parse(String(a.created||0)));
+       selected=matches.find((c:Record<string,unknown>)=>!Array.isArray(c.errors)||c.errors.length===0)||null;
+       if(matches.length&&!selected)sawBroken=true;
+       if(json.connections.length<100)break;
+     }
+     if(!selected)return sawMatching||sawBroken
+       ?output("needs_reconnect","Nango found a GitHub authorization with reported errors. Reconnection may be needed.")
+       :output("not_found","Nango did not return a GitHub connection tagged to this Agent HQ account. Check the Nango environment or connected account; do not authorize again until confirmed.");
+     // A fixed GET only: never accept provider URLs, paths, or connection IDs from the browser.
+     const connectionId=String(selected.connection_id);
+     const integrationId=String(selected.provider_config_key);
+     const ping=await fetch("https://api.nango.dev/proxy/user",{
+       method:"GET",
+       headers:{...requestHeaders,"Provider-Config-Key":integrationId,"Connection-Id":connectionId,"Accept":"application/vnd.github+json"},
+       signal:AbortSignal.timeout(12000)
+     });
+     if(ping.status===401)return output("needs_reconnect","GitHub's read-only API check was unauthorized. The OAuth connection may need repair.",{authorizationFound:true});
+     if(ping.status===403)return output("proxy_permission_needed","Nango found your GitHub authorization, but the read-only API check was denied (HTTP 403). Check the Nango key's environment:proxy scope and GitHub permissions.",{authorizationFound:true});
+     if(!ping.ok)return output("api_error","Nango found your GitHub authorization, but the read-only API test returned HTTP "+ping.status+".",{authorizationFound:true});
+     const user=await ping.json();
+     if(typeof user?.login!=="string"||!user.login)return output("api_error","GitHub returned an unexpected profile response, so the connection remains unverified.",{authorizationFound:true});
+     return output("api_verified","GitHub authorization found, and a real read-only GitHub profile request succeeded.",{verified:true,authorizationFound:true,githubLogin:user.login});
+   }catch{
+     return output("unavailable","Nango or GitHub did not complete the verification request. Nothing was marked verified; retry the check.");
+   }
+ }
  if(input.action==="activepieces_pilot"){
    if(!activepiecesReady())return response(req,{error:"Activepieces pilot webhook and secret are not configured."},503);
    // This is a non-sensitive delivery probe, NOT permission to publish, transfer data, or spend money.
