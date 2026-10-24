@@ -303,7 +303,7 @@ Deno.serve(async(req:Request)=>{
  const createAssignment=async(details:string)=>{
   const trimmed=details.trim().slice(0,10000);
   if(trimmed.length<5)throw Error("Assignment details are missing");
-  const first=trimmed.split(/[\\r\\n]/)[0].trim().slice(0,120)||"New team assignment";
+  const first=trimmed.split(/[\r\n]/)[0].trim().slice(0,120)||"New team assignment";
   const assignee=worker==="hq"?"alex":worker;
   const {data:assignment,error}=await db.from("agent_team_assignments").insert({
    owner_id:owner,title:first,instructions:trimmed,employee_ids:[assignee],
@@ -462,7 +462,7 @@ Deno.serve(async(req:Request)=>{
     await state("idle");
     replyText="Okay, no assignment will start. Tell me what you want changed.";
    }else{
-    pending=(pending+"\\nAdditional information: "+body).slice(0,10000);
+    pending=(pending+"\nAdditional information: "+body).slice(0,10000);
     await state("confirm_task",pending);
     replyText="Got it. Should I create the proposed work order? Yes or no?";
    }
