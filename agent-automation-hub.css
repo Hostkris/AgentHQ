@@ -3,3 +3,10 @@
 .ah-connect-feedback{display:block;font-size:12px;line-height:1.55;font-weight:650;overflow-wrap:anywhere;color:inherit}
 
 .ah-connect-link{display:inline-flex;align-items:center;justify-content:center;width:fit-content;min-height:40px;padding:9px 12px;border:1px solid rgba(125,140,160,.35);border-radius:10px;background:rgba(185,202,228,.3);color:inherit;font-size:13px;font-weight:650;text-decoration:underline;overflow-wrap:anywhere}
+
+/* Obvious, iPhone-sized integration status action with a visible press state. */
+.ah-automation-hub .ah-status-check{display:inline-flex;align-items:center;justify-content:center;min-height:48px;max-width:100%;padding:12px 17px;border:1px solid #18447c;border-radius:12px;background:#215fa6;color:#fff;font-weight:750;font-size:14px;line-height:1.2;box-shadow:0 2px 5px rgba(15,42,80,.22);-webkit-tap-highlight-color:rgba(45,115,205,.35);touch-action:manipulation;transition:background .15s,box-shadow .15s,transform .1s}
+.ah-automation-hub .ah-status-check:not(:disabled):active{background:#144379;transform:scale(.98);box-shadow:inset 0 2px 5px rgba(0,0,0,.24)}
+.ah-automation-hub .ah-status-check:focus-visible{outline:3px solid #78adff;outline-offset:3px}
+.ah-automation-hub .ah-status-check[aria-busy="true"]{background:#456d9a;opacity:1;cursor:progress}
+.ah-automation-hub .ah-status{min-height:2.5em;padding:9px 11px;border-radius:10px;background:rgba(90,120,170,.11);font-size:13px;font-weight:600;overflow-wrap:anywhere}
