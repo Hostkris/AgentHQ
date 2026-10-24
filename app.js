@@ -1099,6 +1099,87 @@ const check=e.target.closest("[data-worker-check]");if(check){
 connectHomeScreen(()=>{if(screen==="home")render()});
 render();
 
+// iPhone-style message selection: hold any text or photo, then choose/delete.
+let bubbleHold=null,bubbleTimer=null,bubbleStart=null,suppressBubbleClick=false;
+function enterBubbleSelection(kind,id){
+ if(screen!=='chat'||!['message','photo'].includes(kind))return;
+ chatSelectionWorker=active;
+ if(id)chatSelected.add(chatSelectionKey(kind,id));
+ repaintChatPreservingScroll();
+}
+function dismissBubbleHold(){if(bubbleTimer)clearTimeout(bubbleTimer);bubbleTimer=null;bubbleHold=null;bubbleStart=null}
+document.addEventListener('pointerdown',event=>{
+ if(screen!=='chat'||chatSelecting())return;
+ const row=event.target.closest?.('.ios-chat-list [data-chat-kind][data-chat-item]');
+ if(!row||event.target.closest?.('button,a,input,textarea'))return;
+ bubbleHold={kind:row.dataset.chatKind,id:row.dataset.chatItem};
+ bubbleStart={x:event.clientX,y:event.clientY};
+ bubbleTimer=setTimeout(()=>{
+  const hold=bubbleHold;dismissBubbleHold();
+  if(hold){suppressBubbleClick=true;enterBubbleSelection(hold.kind,hold.id)}
+ },550);
+});
+document.addEventListener('pointermove',event=>{
+ if(bubbleTimer&&bubbleStart&&Math.hypot(event.clientX-bubbleStart.x,event.clientY-bubbleStart.y)>12)dismissBubbleHold();
+});
+document.addEventListener('pointerup',dismissBubbleHold);
+document.addEventListener('pointercancel',dismissBubbleHold);
+document.addEventListener('contextmenu',event=>{
+ const row=event.target.closest?.('.ios-chat-list [data-chat-kind][data-chat-item]');
+ if(!row||screen!=='chat')return;
+ event.preventDefault();dismissBubbleHold();suppressBubbleClick=true;
+ enterBubbleSelection(row.dataset.chatKind,row.dataset.chatItem);
+});
+document.addEventListener('click',async event=>{
+ if(screen!=='chat')return;
+ const button=event.target.closest?.('[data-chat-enter-select],[data-chat-cancel-select],[data-chat-select-all],[data-chat-delete-selected],[data-chat-delete-all],[data-chat-select-kind]');
+ const row=event.target.closest?.('.ios-chat-list [data-chat-kind][data-chat-item]');
+ if(suppressBubbleClick){suppressBubbleClick=false;if(!button){event.preventDefault();event.stopImmediatePropagation();return}}
+ if(!button&&!(chatSelecting()&&row))return;
+ event.preventDefault();event.stopImmediatePropagation();
+ if(button?.hasAttribute('data-chat-enter-select')){
+  chatSelectionWorker=active;chatSelected.clear();repaintChatPreservingScroll();return;
+ }
+ if(button?.hasAttribute('data-chat-cancel-select')){
+  chatSelectionWorker=null;chatSelected.clear();repaintChatPreservingScroll();return;
+ }
+ if(button?.hasAttribute('data-chat-select-all')){
+  const items=[...(messages.get(active)||[]).filter(m=>m.type==='text'&&!m.pending&&!messageIsDeleted('message',m.id)),
+   ...(window.agentHQCamera?.getThreadItems(active)||[])];
+  chatSelected=new Set(items.map(m=>chatSelectionKey(m.type==='photo'?'photo':'message',m.id)));
+  repaintChatPreservingScroll();return;
+ }
+ if(button?.hasAttribute('data-chat-delete-selected')||button?.hasAttribute('data-chat-delete-all')){
+  if(chatSelectionBusy)return;
+  const all=button.hasAttribute('data-chat-delete-all'),who=active;
+  if(!all&&!chatSelected.size)return;
+  const count=chatSelected.size;
+  const description=all?'every saved text and photo in this conversation':'the '+count+' selected message'+(count===1?'':'s');
+  if(!window.confirm('Permanently delete '+description+'? Assignment and permission audit records remain separate.'))return;
+  chatSelectionBusy=true;button.disabled=true;button.textContent='Deleting…';
+  try{
+   if(all){
+    if(!window.agentHQChatCloud?.clearConversation)throw Error('Conversation service unavailable.');
+    await window.agentHQChatCloud.clearConversation(who);
+   }else{
+    const texts=[...chatSelected].filter(x=>x.startsWith('message:')).map(x=>x.slice(8));
+    const photos=[...chatSelected].filter(x=>x.startsWith('photo:')).map(x=>x.slice(6));
+    if(texts.length)await window.agentHQChatCloud.deleteMessages(texts);
+    for(const id of photos)await window.agentHQCamera.deletePhoto(id);
+   }
+   chatSelectionWorker=null;chatSelected.clear();
+  }catch(e){window.alert('Deletion could not fully complete: '+e.message)}
+  finally{chatSelectionBusy=false;if(screen==='chat'&&active===who)repaintChatPreservingScroll()}
+  return;
+ }
+ const kind=button?.dataset.chatSelectKind||row?.dataset.chatKind;
+ const id=button?.dataset.chatSelectId||row?.dataset.chatItem;
+ if(!kind||!id||!chatSelecting())return;
+ const key=chatSelectionKey(kind,id);
+ if(chatSelected.has(key))chatSelected.delete(key);else chatSelected.add(key);
+ repaintChatPreservingScroll();
+},true);
+
 // Press and hold a contact, or the contact header, to manage just that conversation.
 const clearableWorkers=new Set(["hq",...staff.map(s=>s[0])]);
 let heldThread=null,holdTimer=null,holdStart=null,blockThreadClick=false;
