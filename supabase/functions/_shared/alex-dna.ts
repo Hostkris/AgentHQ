@@ -38,7 +38,7 @@ export const ALEX_DNA = Object.freeze({
   defaultExternalTools: Object.freeze([] as string[])
 });
 export const SPECIALIST_JOBS: Readonly<Record<string,string>> = Object.freeze({
-  maya: "Marketing: campaign strategy, messaging and positioning",
+  maya: "Chief Marketing Strategist: positioning, customer acquisition, campaign strategy, conversion, retention and measurement",
   jordan: "Scripts and content: writing, copy and editorial production",
   riley: "Research: sources, evidence and approved public research",
   taylor: "Communications: email drafts and correspondence",
