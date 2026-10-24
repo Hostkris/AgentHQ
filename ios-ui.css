@@ -250,3 +250,67 @@ button:disabled{cursor:default}
 .chat-delete-button:focus-visible{outline:2px solid #007aff;outline-offset:-2px}
 .chat-delete-button:disabled{opacity:.45;cursor:wait}
 .chat-delete-error{font-size:14px;white-space:normal;color:inherit}
+
+
+/* Editable iOS-inspired Home Screen: movable tiles, real-data widgets, multiple pages. */
+.home-pages{width:100%;min-width:0;padding-bottom:18px}
+.home-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:-8px 1px 12px;font-size:12px;color:var(--ui-muted)}
+.home-edit-toggle{border-radius:18px;padding:8px 13px;background:rgba(255,255,255,.70);color:var(--ui-blue);font-size:13px;font-weight:650}
+.home-editor-info{font-size:12px;line-height:1.45;padding:8px 11px;margin-bottom:12px;border-radius:13px;background:rgba(255,255,255,.66);color:#415168}
+.home-pages .home-dashboard{align-items:start;row-gap:9px;column-gap:10px;touch-action:pan-y}
+.home-tile-wrap{position:relative;min-width:0;display:flex;flex-direction:column;align-items:center}
+.home-pages .home-tile-wrap>.tile{width:100%;background:transparent!important;padding:6px 0 3px;border:0;box-shadow:none;min-height:90px;max-width:100%}
+.home-pages .home-tile-wrap .app-icon{margin-inline:auto}
+.home-pages .home-tile-wrap .tile-label{max-width:98%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
+.home-is-editing .home-tile-wrap .tile{animation:home-tile-wiggle .24s ease-in-out infinite alternate;cursor:grab}
+@keyframes home-tile-wiggle{from{transform:rotate(-1.1deg)}to{transform:rotate(1.1deg)}}
+@media(prefers-reduced-motion:reduce){.home-is-editing .home-tile-wrap .tile{animation:none}}
+.home-edit-arrows{display:flex;align-items:center;justify-content:center;gap:2px;margin-top:0}
+.home-edit-arrows button{min-height:27px;min-width:30px;border-radius:8px;background:rgba(255,255,255,.84);font-size:18px;color:#1665a9;font-weight:600}
+.home-widgets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px;margin:18px 0}
+.home-widget{position:relative;min-height:138px;border-radius:22px;background:rgba(255,255,255,.75);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:0 4px 14px rgba(0,0,0,.08);overflow:hidden}
+.home-widget-open{display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:8px;text-align:left;width:100%;height:100%;min-height:138px;padding:15px;background:transparent;color:#183349}
+.home-widget-name{font-size:13px;font-weight:700}
+.home-widget-count{font-size:36px;line-height:1;font-variant-numeric:tabular-nums}
+.home-widget-open small{font-size:11px;line-height:1.35;color:#637080}
+.home-widget-remove{position:absolute;z-index:2;right:5px;top:5px;border-radius:50%;width:28px;height:28px;background:#e94646;color:white;font-size:19px}
+.home-widget-picker{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0}
+.home-widget-picker>button,.home-widget-choices button{background:rgba(255,255,255,.85);border-radius:13px;padding:10px 12px;color:#126dc9;font-weight:650;font-size:12px}
+.home-widget-choices{width:100%;display:flex;flex-wrap:wrap;gap:8px;padding:8px;border-radius:15px;background:rgba(255,255,255,.5)}
+.home-page-navigation{display:flex;gap:12px;justify-content:center;align-items:center;margin:13px 0;padding:6px}
+.home-page-navigation>button{background:rgba(255,255,255,.7);color:#3777ad;border-radius:50%;width:36px;height:36px;font-size:25px;line-height:1}
+.home-page-navigation>button:disabled{opacity:.3}
+.home-page-dots{display:flex;justify-content:center;align-items:center;gap:7px}
+.home-page-dot{width:9px;height:9px;border-radius:50%;background:rgba(70,80,90,.26);padding:0}
+.home-page-dot.active{background:#2466a5;width:10px;height:10px}
+:root[data-theme-mode=dark] .home-editor-info,:root[data-theme-mode=dark] .home-edit-toggle,:root[data-theme-mode=dark] .home-widget,:root[data-theme-mode=dark] .home-widget-picker>button,:root[data-theme-mode=dark] .home-edit-arrows button{background:rgba(45,49,55,.86);color:#f5f5f7}
+:root[data-theme-mode=dark] .home-widget-open{color:#f5f5f7}
+
+/* Chat follows iOS's small message, optional attachment pattern. */
+.ios-long-chat{width:100%;max-width:100%;font-size:15px;line-height:1.45}
+.ios-long-chat summary{cursor:pointer;list-style:none;font-size:15px;line-height:1.5}
+.ios-long-chat summary::-webkit-details-marker{display:none}
+.ios-long-chat summary span{display:block;margin-top:7px;font-size:12px;font-weight:650;color:var(--ui-blue)}
+.ios-long-chat-content{margin-top:12px;border-top:1px solid var(--ui-line);padding:9px 0}
+.ios-long-chat-content p{margin:7px 0;line-height:1.53;font-size:14px}
+.ios-long-chat-content h4{font-size:15px;margin:13px 0 7px}
+.ios-research-attachment{max-width:min(93%,430px);width:100%;padding:14px;background:var(--ui-card);border:1px solid var(--ui-line);border-radius:20px 20px 20px 6px;box-shadow:0 3px 13px rgba(0,0,0,.05)}
+.ios-research-attachment>strong{display:block;margin:8px 0;font-size:15px;line-height:1.35}
+.ios-research-attachment>small{display:block;color:var(--ui-muted);font-size:12px}
+.ios-research-attachment details{border-top:1px solid var(--ui-line);margin-top:10px;padding-top:10px}
+.ios-research-attachment summary{color:var(--ui-blue);font-size:14px;font-weight:700;cursor:pointer}
+.ios-research-report{max-height:62vh;overflow:auto;padding:10px 0;font-size:14px;line-height:1.5;overflow-wrap:anywhere}
+.ios-research-report p{margin:8px 0}
+.ios-research-report h4{font-size:15px;margin:18px 0 7px}
+.ios-research-report a{overflow-wrap:anywhere;text-decoration:underline;color:var(--ui-blue)}
+.ios-report-space{height:6px}
+#contact-list .row[data-chat],.ios-contact[data-thread-press]{-webkit-touch-callout:none;user-select:none;-webkit-user-select:none}
+
+/* Scoped per-contact destructive action; never silently removes audit history. */
+.agent-thread-action-backdrop{position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.35);display:flex;align-items:flex-end;justify-content:center;padding:16px 12px calc(env(safe-area-inset-bottom) + 16px)}
+.agent-thread-actions{max-width:450px;width:100%;padding:16px;border-radius:24px;background:var(--ui-page,#f2f2f7);box-shadow:0 14px 40px rgba(0,0,0,.18);display:grid;gap:10px}
+.agent-thread-actions>strong{font-size:15px;text-align:center;color:var(--ui-muted);padding:7px}
+.agent-thread-actions button{width:100%;min-height:53px;border-radius:15px;background:var(--ui-card,#fff);font-weight:650}
+.agent-thread-actions .thread-delete-all{color:var(--ui-red,#ff3b30)}
+.agent-thread-actions [data-thread-cancel]{color:var(--ui-blue,#007aff)}
+.agent-thread-actions [role=alert]{font-size:12px;color:var(--ui-red);margin:0}
