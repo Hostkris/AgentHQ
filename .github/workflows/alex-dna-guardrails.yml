@@ -12,6 +12,9 @@ on:
       - 'tests/creative-desk.test.mjs'
       - 'agent-*-cloud.js'
       - 'agent-project-*.js'
+      - 'agent-research-status.js'
+      - 'tests/research*.test.mjs'
+      - 'tests/role-research.test.mjs'
       - 'tests/project-response-recovery.test.mjs'
       - 'tests/project-autonomy.test.mjs'
       - 'tests/company-hq.test.mjs'
@@ -51,6 +54,9 @@ on:
       - 'tests/creative-desk.test.mjs'
       - 'agent-*-cloud.js'
       - 'agent-project-*.js'
+      - 'agent-research-status.js'
+      - 'tests/research*.test.mjs'
+      - 'tests/role-research.test.mjs'
       - 'tests/project-response-recovery.test.mjs'
       - 'tests/project-autonomy.test.mjs'
       - 'tests/company-hq.test.mjs'
@@ -81,6 +87,8 @@ jobs:
         run: node --test tests/alex-dna.test.mjs
       - name: Test project response validation and recovery
         run: node --test tests/company-hq.test.mjs tests/project-response-recovery.test.mjs tests/project-autonomy.test.mjs
+      - name: Test Groq public research and provider recovery
+        run: node --test tests/research*.test.mjs tests/role-research.test.mjs
       - name: Test unread message badges
         run: node --test tests/unread-badges.test.mjs
       - name: Test conversation-first manager workflow

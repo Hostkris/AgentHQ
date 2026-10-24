@@ -86,6 +86,7 @@ async function converse(employeeId,body,options={}){
  body=String(body||'').trim();
  if(!body||body.length>10000)throw Error('Message must be 1–10,000 characters.');
  const user=await getUser();
+ if(options.expectedOwner&&user.id!==options.expectedOwner)throw Error('The signed-in account changed. Refresh research history.');
  const activity=window.agentHQActivity?.begin(employeeId,options.research?'Preparing public research':'Preparing a response',{ownerId:user.id});
  try{
  if(!options.research&&employeeId==='riley'){
@@ -155,14 +156,15 @@ setInterval(()=>{if(!document.hidden)load()},30000);
 load();
 
 let researchGeneration=0;
+const researchRetries=new Map();
 async function researchRefresh(){
  const generation=researchGeneration;
  try{
   const user=await getUser();
   if(generation!==researchGeneration)return [];
   const [legacy,role]=await Promise.all([
-   agentCloud.from('agent_research_jobs').select('id,employee_id,query,status,created_at,expires_at,report,error').eq('owner_id',user.id).order('created_at',{ascending:false}).limit(30),
-   agentCloud.from('agent_role_research').select('id,employee_id,bot_id,assignment_id,query,status,started_at,finished_at,report,sources,error,delivered_message_id').eq('owner_id',user.id).order('started_at',{ascending:false}).limit(50)
+   agentCloud.from('agent_research_jobs').select('id,employee_id,query,status,created_at,expires_at,report,sources,error').eq('owner_id',user.id).order('created_at',{ascending:false}).limit(30),
+   agentCloud.from('agent_role_research').select('id,employee_id,bot_id,assignment_id,recovery_assignment_id,query,status,started_at,finished_at,report,sources,error,delivered_message_id').eq('owner_id',user.id).order('started_at',{ascending:false}).limit(50)
   ]);
   if(generation!==researchGeneration)return [];
   if(legacy.error||role.error)throw Error(legacy.error?.message||role.error?.message);
@@ -177,7 +179,31 @@ async function researchStatus(){
  if(error||!data){let reason=data?.error;if(!reason&&error?.context?.clone){try{reason=(await error.context.clone().json())?.error}catch{}}throw Error(reason||error?.message||'Research status is unavailable.')}
  if(generation!==researchGeneration)return null;window.agentHQResearchConnection?.(data);return data;
 }
-window.agentHQResearchCloud={refresh:researchRefresh,status:researchStatus};
+async function researchRetry(jobId){
+ const generation=researchGeneration,key=generation+':'+jobId;
+ if(researchRetries.has(key))return researchRetries.get(key);
+ const retry=(async()=>{
+  const user=await getUser(),jobs=await researchRefresh();
+  const current=await getUser();
+  if(generation!==researchGeneration||current.id!==user.id)throw Error('The signed-in account changed. Refresh research history.');
+  const job=jobs.find(j=>j.id===jobId);
+  if(!job||job.status!=='failed')throw Error('This failed request is no longer available. Refresh research history.');
+  const project=job.recovery_assignment_id||job.assignment_id;
+  if(project){
+   if(!window.agentHQProjects?.start)throw Error('Project recovery is loading. Refresh Agent HQ.');
+   await window.agentHQProjects.start(project);
+   return {project_id:project,message:'Recovery stays with the same saved project. It continues automatically when its limits and authorizations permit. Your pause settings still apply.'};
+  }
+  if(job.bot_id||!employees.has(job.employee_id))throw Error('Open this worker’s conversation to retry its saved topic.');
+  const result=await converse(job.employee_id,job.query,{research:true,expectedOwner:user.id});
+  if(generation!==researchGeneration)return null;
+  if(result.start_assignment_id)await window.agentHQProjects?.start?.(result.start_assignment_id);
+  return {message:result.reply||'The saved research topic was retried in the same worker’s conversation.'};
+ })();
+ researchRetries.set(key,retry);
+ try{return await retry;}finally{researchRetries.delete(key);}
+}
+window.agentHQResearchCloud={refresh:researchRefresh,status:researchStatus,retry:researchRetry};
 const refreshSavedReports=()=>researchRefresh().catch(()=>{});
 window.addEventListener('focus',refreshSavedReports);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshSavedReports()});

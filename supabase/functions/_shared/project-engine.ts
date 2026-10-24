@@ -175,7 +175,7 @@ export async function runProjectTurn(deps:any,assignment:any,input:any){
   const reason=projectResponseFailure(error,s);
   const {data:saved,error:saveError}=await db.rpc('fail_agent_project_turn',{p_owner:owner,p_assignment:assignment.id,p_run:claim.run_id,p_error:reason.slice(0,400)});
   if(saveError)return {state:'failed',message:'The recovery status could not be saved. The team will recheck saved state and continue when the service reconnects. Saved project content was not replaced.',recovery_saved:false};
-  if(saved===true&&/AI provider HTTP (401|403)|credentials unavailable|Sign-in expired|GROQ_API_KEY|requires.*Groq|needs.*Groq.*connection/.test(reason))return {state:'waiting_owner',message:'A service authorization needs human attention. The team will continue after the connection is restored and the private question is answered.',recovery_saved:true};
+  if(saved===true&&/AI provider HTTP (401|403)|credentials unavailable|Sign-in expired|GROQ_API_KEY|requires.*Groq|needs.*Groq.*connection|\[research:(authentication|permission|missing_key|model_unavailable)\]/.test(reason))return {state:'waiting_owner',message:'A service authorization needs human attention. The team will continue after the connection is restored and the private question is answered.',recovery_saved:true};
   if(saved===true)return {state:'recovering',message:'The team is correcting this turn and will continue automatically.',recovery_saved:true};
   return {state:'working',message:'This turn was already stopped or superseded. The current saved project state is authoritative.'};
  }

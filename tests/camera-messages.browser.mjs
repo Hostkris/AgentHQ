@@ -13,7 +13,7 @@ const browser=await chromium.launch({headless:true,...(process.env.AGENTHQ_TEST_
 const results=[];
 const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:1,hasTouch:true,isMobile:true});
 const page=await context.newPage();const pageErrors=[];page.on('pageerror',e=>pageErrors.push(e.message));
-const core=new Set(['app.js','agent-camera-cloud.js','agent-photo-library.js','agent-message-controls.js','agent-home-layout.js','agent-bot-studio-ui.js','agent-voice-ui.js','icons.js']);
+const core=new Set(['agent-research-status.js','app.js','agent-camera-cloud.js','agent-photo-library.js','agent-message-controls.js','agent-home-layout.js','agent-bot-studio-ui.js','agent-voice-ui.js','icons.js']);
 await page.route('**/*',async route=>{
  const url=new URL(route.request().url());if(!url.origin.startsWith(base)){await route.abort();return}
  const name=url.pathname.split('/').at(-1);

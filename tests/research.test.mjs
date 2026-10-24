@@ -1,3 +1,4 @@
+import {researchFailureInfo} from '../agent-research-status.js';
 import {PROJECT_AUTONOMY_POLICY} from '../agent-project-autonomy.js';
 import {PUBLIC_WEB_CAPABILITY,explicitPublicResearch,planRoleQuery,publicQueryPlanner,researchForRole} from '../supabase/functions/_shared/role-research.ts';
 import {test} from 'node:test';
@@ -15,8 +16,8 @@ test('rejects credential URLs, private literals, unusual schemes and token links
  assert.throws(()=>validateResearchQuery('Read http://192.168.1.2/private'));
 });
 test('requires actual search metadata and takes sources only from executed tools',()=>{
- assert.throws(()=>researchEvidence({content:'I searched https://invented.example'}),/did not confirm/);
- assert.throws(()=>researchEvidence({executed_tools:[{type:'search',output:'Nothing found'}]}),/no verifiable/);
+ assert.throws(()=>researchEvidence({content:'I searched https://invented.example'}),{code:'no_evidence'});
+ assert.throws(()=>researchEvidence({executed_tools:[{type:'search',output:'Nothing found'}]}),{code:'no_evidence'});
  assert.deepEqual(researchEvidence(evidence.choices[0].message),[{title:'Primary source',url:'https://example.com/research'}]);
  assert.equal(researchEvidence({executed_tools:[{type:'browser.open',output:'Source: https://example.com/docs'}]})[0].url,'https://example.com/docs');
 });
@@ -38,7 +39,7 @@ test('provider and evidence failures leave a failed run, never a completed repor
  }
 });
 test('save failure is not reported as success; missing key never calls a provider',async()=>{
- await assert.rejects(runResearch(mockDB({save:false}),'owner','riley','job','test-key',async()=>Response.json(evidence)),/could not be saved/);
+ await assert.rejects(runResearch(mockDB({save:false}),'owner','riley','job','test-key',async()=>Response.json(evidence)),{code:'save_failed'});
  let called=false;await assert.rejects(runResearch(mockDB(),'owner','riley','job','',async()=>{called=true}),/GROQ_API_KEY/);assert.equal(called,false);
 });
 test('connection check verifies model access without a generation request',async()=>{
@@ -68,7 +69,7 @@ function chatHarness(){
  }};
  const fakeFetch=async(url,request)=>{const input=JSON.parse(request.body);if(input.tools){searchCalls++;return Response.json(evidence);}return Response.json({choices:[{message:{content:JSON.stringify({kind:'research',query:'small business website public options',purpose:'Compare public sources for the owner request'})}}]});};let handler;
  const code=stripTypeScriptTypes(fs.readFileSync(new URL('../supabase/functions/agent-hq-converse/index.ts',import.meta.url),'utf8').replace(/^import .*;\n/gm,''));
- vm.runInNewContext(code,{createClient:()=>db,routeProjectChat,PROJECT_AUTONOMY_POLICY,PUBLIC_WEB_CAPABILITY,explicitPublicResearch,planRoleQuery,publicQueryPlanner:key=>publicQueryPlanner(key,fakeFetch),researchForRole:args=>researchForRole({...args,fetcher:fakeFetch}),createResearchRequest,isResearchInstruction,researchApproval,researchStatus:key=>researchStatus(key,fakeFetch),runResearch:(...args)=>runResearch(...args,fakeFetch),Deno:{env:{get:k=>({SUPABASE_URL:'https://test.supabase.co',SUPABASE_SERVICE_ROLE_KEY:'test',GROQ_API_KEY:'test',AGENT_HQ_ALLOWED_OWNER_IDS:owner})[k]},serve:fn=>handler=fn},URL,Request,Response,AbortController,AbortSignal,setTimeout,clearTimeout,console});
+ vm.runInNewContext(code,{researchFailureInfo,createClient:()=>db,routeProjectChat,PROJECT_AUTONOMY_POLICY,PUBLIC_WEB_CAPABILITY,explicitPublicResearch,planRoleQuery,publicQueryPlanner:key=>publicQueryPlanner(key,fakeFetch),researchForRole:args=>researchForRole({...args,fetcher:fakeFetch}),createResearchRequest,isResearchInstruction,researchApproval,researchStatus:key=>researchStatus(key,fakeFetch),runResearch:(...args)=>runResearch(...args,fakeFetch),Deno:{env:{get:k=>({SUPABASE_URL:'https://test.supabase.co',SUPABASE_SERVICE_ROLE_KEY:'test',GROQ_API_KEY:'test',AGENT_HQ_ALLOWED_OWNER_IDS:owner})[k]},serve:fn=>handler=fn},URL,Request,Response,AbortController,AbortSignal,setTimeout,clearTimeout,console});
  return {tables,get searchCalls(){return searchCalls},async send(text,action,token='valid'){const response=await handler(new Request('https://test.supabase.co/functions/v1/agent-hq-converse',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({employee_id:'riley',text,action})}));return {status:response.status,...await response.json()}}};
 }
 test('ordinary public research starts under standing authorization and saves one source-backed report',async()=>{

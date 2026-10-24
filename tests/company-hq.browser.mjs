@@ -12,7 +12,7 @@ const browser=await chromium.launch({headless:true,executablePath:process.env.AG
 const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true});
 const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
 page.on('dialog',dialog=>dialog.accept());
-const core=new Set(['app.js','agent-home-layout.js','agent-message-controls.js','agent-project-view.js','agent-project-recovery.js','agent-project-autonomy.js','agent-projects-cloud.js','agent-activity-cloud.js','agent-activity-view.js','icons.js']);
+const core=new Set(['agent-research-status.js','app.js','agent-home-layout.js','agent-message-controls.js','agent-project-view.js','agent-project-recovery.js','agent-project-autonomy.js','agent-projects-cloud.js','agent-activity-cloud.js','agent-activity-view.js','icons.js']);
 await page.route('**/*',async route=>{const u=new URL(route.request().url()),name=u.pathname.split('/').at(-1);
  if(u.origin!==base){await route.abort();return;}
  if(name==='agent-cloud-auth.js'){await route.fulfill({contentType:'text/javascript',body:'export const agentCloud=window.__cloud;'});return;}
@@ -131,6 +131,20 @@ try{
   assert.equal(colors.background,'rgb(28, 28, 30)');assert.equal(colors.text,'rgb(245, 245, 247)');
   await page.evaluate(()=>document.documentElement.dataset.themeMode='light');assert.equal(await page.locator('.hq-finished-project').evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(255, 255, 255)');
   await page.evaluate(()=>delete document.documentElement.dataset.themeMode);await page.emulateMedia({colorScheme:'light',reducedMotion:'no-preference'});
+ });
+ await check('Failed research explains the provider error, keeps project recovery and hides unfinished findings',async()=>{
+  await page.evaluate(()=>{
+   window.agentHQResearchCloud={refresh:async()=>{},retry:async id=>{__projectMock.researchRetries=(__projectMock.researchRetries||0)+1;return new Promise(resolve=>__projectMock.finishResearchRetry=()=>resolve({message:'The same saved project will continue automatically.'}));}};
+   window.agentHQResearchSync([{id:'failed-research',employee_id:'riley',status:'failed',query:'Official public guidance',report:'UNSUPPORTED PARTIAL FINDINGS https://invented.example',error:'[research:rate_limited] HTTP 429. Retry after 2026-10-24T23:59:00Z. gsk_PRIVATE',recovery_assignment_id:__projectMock.id},{id:'completed-research',employee_id:'casey',status:'completed',query:'YouTube official help',report:'Provider-confirmed source https://support.google.com/youtube/answer/15424877'}],'Synced');
+   const button=document.createElement('button');button.dataset.nav='research';button.id='test-open-research';document.querySelector('#app').append(button);button.click();
+  });
+  const history=page.locator('#research-history');assert.match(await history.innerText(),/Groq rate-limited public research \(HTTP 429\)/);assert.match(await history.innerText(),/recovery continues automatically/);assert(!/UNSUPPORTED|invented.example|gsk_PRIVATE/.test(await history.innerText()));assert.equal(await history.locator('details').count(),1);assert.equal(await history.getByRole('button',{name:'Open saved project'}).count(),1);
+  await history.getByText('Read report').click();assert.equal(await history.locator('a[href="https://support.google.com/youtube/answer/15424877"]').count(),1);
+ });
+ await check('Research history has an optional retry that stays disabled while work is in flight',async()=>{
+  const retry=page.locator('[data-research-retry="failed-research"]');await retry.click();assert.equal(await retry.isDisabled(),true);assert.match(await retry.innerText(),/Retrying/);
+  await page.evaluate(()=>document.querySelector('[data-research-retry]').dispatchEvent(new MouseEvent('click',{bubbles:true})));assert.equal(await page.evaluate(()=>__projectMock.researchRetries),1);
+  await page.evaluate(()=>__projectMock.finishResearchRetry());await page.waitForFunction(()=>!document.querySelector('[data-research-retry]').disabled);assert.match(await page.locator('#research-history-notice').innerText(),/same saved project/);await open('hq');
  });
  await check('Account switching clears project messages, outputs and selected reply scope',async()=>{
   await page.evaluate(()=>__projectMock.changeOwner('owner-b'));await page.waitForFunction(()=>document.querySelector('.hq-project-empty'));assert.equal(await page.locator('[data-project-final],.hq-team-turn').count(),0);assert.deepEqual(await page.evaluate(()=>agentHQProjects.context('hq')),{});

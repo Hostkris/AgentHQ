@@ -11,7 +11,7 @@ await new Promise(r=>server.listen(0,'127.0.0.1',r));const base='http://127.0.0.
 const browser=await chromium.launch({headless:true,executablePath:process.env.AGENTHQ_TEST_CHROME||'/tmp/chromium',args:['--no-sandbox','--disable-dev-shm-usage','--disable-gpu']});
 const context=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,isMobile:true});
 const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
-const core=new Set(['app.js','icons.js','agent-home-layout.js','agent-message-controls.js','agent-project-view.js','agent-project-recovery.js','agent-project-autonomy.js','agent-projects-cloud.js','agent-activity-view.js','agent-activity-cloud.js','agent-messages-cloud.js','agent-bot-studio-cloud.js','agent-bot-studio-ui.js']);
+const core=new Set(['agent-research-status.js','app.js','icons.js','agent-home-layout.js','agent-message-controls.js','agent-project-view.js','agent-project-recovery.js','agent-project-autonomy.js','agent-projects-cloud.js','agent-activity-view.js','agent-activity-cloud.js','agent-messages-cloud.js','agent-bot-studio-cloud.js','agent-bot-studio-ui.js']);
 await page.route('**/*',async route=>{const url=new URL(route.request().url()),name=url.pathname.split('/').at(-1);if(url.origin!==base){await route.abort();return;}if(name==='agent-cloud-auth.js'){await route.fulfill({contentType:'text/javascript',body:'export const agentCloud=window.__cloud;'});return;}if(name.endsWith('.js')&&!core.has(name)){await route.fulfill({contentType:'text/javascript',body:''});return;}await route.continue();});
 await page.addInitScript(()=>{
  const workers=['alex','maya','jordan','riley','taylor','casey','morgan','avery','jamie','quinn','hq'],listeners=[],holds=new Map();

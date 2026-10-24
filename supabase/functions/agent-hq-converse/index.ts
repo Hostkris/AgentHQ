@@ -2,6 +2,7 @@ import {createClient} from "npm:@supabase/supabase-js@2.79.0";
 import {routeProjectChat} from "../_shared/project-chat.ts";
 import {PROJECT_AUTONOMY_POLICY} from "../../../agent-project-autonomy.js";
 import {PUBLIC_WEB_CAPABILITY,explicitPublicResearch,planRoleQuery,publicQueryPlanner,researchForRole} from "../_shared/role-research.ts";
+import {researchFailureInfo} from '../../../agent-research-status.js';
 import {createResearchRequest,isResearchInstruction,researchApproval,researchStatus,runResearch} from "./research.ts";
 import {ALEX_DNA,isAlexForbiddenIntent} from "../_shared/alex-dna.ts";
 import {RILEY_CHAT_POLICY} from "../_shared/riley-dna.ts";
@@ -353,7 +354,7 @@ Deno.serve(async(req:Request)=>{
   await proposeRoleResearch(topic);
  };
  const proposeRoleResearch=async(topic:string)=>{
-  let queueProject=false,connectionFailed=false;
+  let queueProject=false,failure:any=null;
   try{
   const key=env("GROQ_API_KEY"),plan=await planRoleQuery(worker,topic,publicQueryPlanner(key));
   if(plan.kind!=="research"){replyText=plan.question;return;}
@@ -364,12 +365,18 @@ Deno.serve(async(req:Request)=>{
   else if(['budget','busy','failed','limit'].includes(researched?.state)){
    queueProject=true;
   }else replyText=researched?.message||"This public research request is already being handled. The verified report will stay in this conversation.";
-  }catch{
+  }catch(error){
    // A temporary search failure becomes queued work, never a request to resend
    // the owner's task. The normal project runner owns recovery and usage caps.
-   queueProject=true;connectionFailed=true;
+   queueProject=true;failure=researchFailureInfo(error);
   }
-  if(queueProject){await createAssignment(topic);replyText=connectionFailed?"I hit a research connection problem and saved the request as a project. The team will work through it and continue automatically.":"I’ve kept this research request as a saved project. The team will continue automatically within the existing allowance and bring back the finished result.";}
+  if(queueProject){
+   await createAssignment(topic);
+   // Keep the failed direct search tied to its automatic recovery project so a
+   // history retry follows the same work instead of creating a duplicate task.
+   await db.from('agent_role_research').update({recovery_assignment_id:startAssignment}).eq('owner_id',owner).eq('employee_id',worker).eq('origin_message_id',ownerMessage.id).eq('status','failed');
+   replyText=failure?failure.message+" I saved your request as a project. The team will continue automatically"+(failure.requiresOwner?" after the required service access is restored.":" within the existing allowance. You can follow its recovery in Research history."):"I’ve kept this research request as a saved project. The team will continue automatically within the existing allowance and bring back the finished result.";
+  }
  };
  try{
   const projectReply=input.action==="role_research"?null:await routeProjectChat(db,owner,worker,body,{project_id:input.project_id,output_version:input.output_version,project_revision:input.project_revision,stage});
