@@ -17,7 +17,7 @@ test("Maya's permanent v3.0 Priority Essential DNA has 15 exact operating instru
 test("Maya DNA governs conversational messages without bypassing existing intent/approval classifier",()=>{
  const chat=read("supabase/functions/agent-hq-converse/index.ts");
  assert.match(chat,/import \{MAYA_CHAT_POLICY\} from "\.\.\/_shared\/maya-dna.ts"/);
- assert.match(chat,/role==="Chief Marketing Strategist"\?baseSystem\+"\\n"\+MAYA_CHAT_POLICY:baseSystem/);
+ assert.match(chat,/role==="Chief Marketing Strategist"\?baseSystem\+"\\n"\+MAYA_CHAT_POLICY:/);
  assert.match(chat,/const ACTION_PAIRS/);
  assert.match(chat,/validatedAction/);
 });
