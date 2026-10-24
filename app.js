@@ -215,17 +215,9 @@ function renderAIConnectionGuide(){
 }
 window.agentHQSettingsAI=()=>renderAIConnectionGuide();
 function renderAssignments(){
-  return `${renderAIConnectionGuide()}<p class="notice">${escapeHTML(teamNotice)} Create and save an assignment to use the worker’s Draft next step button. ${workerConnection.ready?"Your AI provider is verified. The worker runs only when you tap its button.":"You can save an assignment now, but the AI provider must be verified before a worker can draft."}</p>
-  <section class="card"><h2>New team assignment</h2>
-   <form id="team-create-form">
-   <label for="team-title">Assignment title</label><input id="team-title" maxlength="160" required placeholder="Example: Plan a product launch" class="form-field">
-   <label for="team-instructions">Task and acceptance criteria</label><textarea id="team-instructions" required maxlength="10000" class="form-field" placeholder="Describe the work and what counts as complete"></textarea>
-   <label for="team-info">Information needed to finish</label><textarea id="team-info" maxlength="5000" class="form-field" placeholder="Links, files, decisions, account permissions, or questions to resolve"></textarea>
-   <strong>Employees assigned</strong><div class="team-members">${staff.map(s=>`<label><input type="checkbox" name="member" value="${s[0]}"> ${escapeHTML(s[2])} — ${escapeHTML(s[3])}</label>`).join("")}</div>
-   <button type="submit" class="primary">Save team assignment</button></form>
-   <p id="team-create-feedback" class="notice" role="status">${escapeHTML(teamCreateFeedback)}</p></section>
-   <h2>Team assignment discussions</h2>
-   ${teamAssignments.size?teamRows():`<p class="muted">No assignments yet. Create one above to open a private team discussion.</p>`}`;
+ return renderAIConnectionGuide()+
+ '<section class="card"><h2>Team assignment discussions</h2><p class="notice">Start and approve work in Messages. Alex selects specialists automatically; this page is your saved work history.</p></section>'+
+ (teamAssignments.size?teamRows():'<p class="muted">No saved assignments yet. Message Alex or a specialist to begin.</p>');
 }
 
 function renderQuestionCards(employeeId){
@@ -638,50 +630,6 @@ const title=isChat?(active==="hq"?"Company Headquarters":staff.find(x=>x[0]===ac
  document.querySelector("#contact-list").innerHTML=headquarters+staffRows+customRows||(inbox?'<p class="muted">No individual conversations yet. Start one from Contacts.</p>':'<p class="muted">No employees match that search.</p>');
  };show();document.querySelector("#search").addEventListener("input",e=>show(e.target.value));
  if(screen==="messages"&&document.querySelector("#sync-msgs"))document.querySelector("#sync-msgs").addEventListener("click",async e=>{const button=e.currentTarget;button.disabled=true;button.textContent="↻ Syncing…";try{await Promise.all([window.agentHQCloudApprovals?.refresh(),window.agentHQChatCloud?.refresh(),window.agentHQTeamCloud?.refresh()])}catch(err){window.agentHQChatCloudNotice("Sync failed: "+err.message)}finally{button.disabled=false;if(button.isConnected)button.textContent="↻ Sync saved messages"}})
-}
-if(screen==="assignments"){
- document.querySelector("#team-create-form").addEventListener("submit",async e=>{
-  e.preventDefault();const form=e.currentTarget;
-  const title=form.querySelector("#team-title").value.trim(),instructions=form.querySelector("#team-instructions").value.trim(),info=form.querySelector("#team-info").value.trim();
-  const members=[...form.querySelectorAll('input[name="member"]:checked')].map(x=>x.value);
-  const feedback=document.querySelector("#team-create-feedback");
-  if(!members.length){feedback.textContent="Choose at least one employee. For team coordination, select two or more.";return}
-  const button=form.querySelector('button[type="submit"]');button.disabled=true;teamSaving=true;feedback.textContent="Saving assignment…";
-  try{
-   if(!window.agentHQTeamCloud)throw Error("Team connection is loading. Refresh Agent HQ.");
-   const id=await window.agentHQTeamCloud.create(title,instructions,info,members);
-   teamActive=id;teamDraft="";teamCreateFeedback="";teamPostFeedback="Assignment saved. You can add information to the team discussion.";
-   screen="team";
-  }catch(err){teamCreateFeedback="Assignment not saved: "+err.message;feedback.textContent=teamCreateFeedback}
-  finally{teamSaving=false;if(screen==="team")render();else{button.disabled=false}}
- });
-}
-if(screen==="team"&&teamAssignments.has(teamActive)){
- const selector=document.querySelector("#team-status");
- selector.addEventListener("change",async e=>{
-  const value=e.currentTarget.value,assignmentId=teamActive;const old=teamAssignments.get(assignmentId)?.status;
-  teamSaving=true;selector.disabled=true;
-  try{
-   if(!window.agentHQTeamCloud)throw Error("Team connection not ready.");
-   await window.agentHQTeamCloud.setStatus(assignmentId,value);
-   teamPostFeedback="Assignment status saved.";
-  }catch(err){teamPostFeedback="Status not saved: "+err.message;if(teamAssignments.has(assignmentId))teamAssignments.get(assignmentId).status=old}
-  finally{teamSaving=false;render()}
- });
- document.querySelector("#team-note").value=teamDraft;
- document.querySelector("#team-note").addEventListener("input",e=>teamDraft=e.target.value);
- document.querySelector("#team-note-form").addEventListener("submit",async e=>{
-  e.preventDefault();const body=e.currentTarget.querySelector("#team-note").value.trim(),assignmentId=teamActive;
-  const notice=document.querySelector("#team-post-feedback");
-  if(!body){notice.textContent="Enter a note or information first.";return}
-  teamSaving=true;const button=e.currentTarget.querySelector('button[type="submit"]');button.disabled=true;notice.textContent="Saving to team discussion…";
-  try{
-   if(!window.agentHQTeamCloud)throw Error("Team connection not ready.");
-   await window.agentHQTeamCloud.post(assignmentId,body);
-   teamDraft="";teamPostFeedback="Note saved to this team assignment.";
-  }catch(err){teamPostFeedback="Note not saved: "+err.message+" Your draft is kept."}
-  finally{teamSaving=false;render()}
- });
 }
 if(screen==="research"||screen==="browser"){
  const researchForm=document.querySelector("#live-research-form");
