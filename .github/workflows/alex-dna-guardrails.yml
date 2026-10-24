@@ -86,7 +86,7 @@ jobs:
       - name: Test project response validation and recovery
         run: node --test tests/company-hq.test.mjs tests/project-response-recovery.test.mjs tests/project-autonomy.test.mjs
       - name: Validate backend execution events and visible activity
-        run: node --check agent-activity-cloud.js && node --check agent-activity-view.js && node --test tests/execution-events.test.mjs
+        run: node --check agent-activity-cloud.js && node --check agent-activity-view.js && node --test tests/execution-events.test.mjs tests/live-activity.test.mjs tests/research.test.mjs tests/role-research.test.mjs
       - name: Test unread message badges
         run: node --test tests/unread-badges.test.mjs
       - name: Test conversation-first manager workflow
