@@ -408,3 +408,55 @@ button:disabled{cursor:default}
  .home-pages .home-tile-wrap .tile-label,
  .home-shell .home-pages .home-dashboard .tile-label{font-size:10px!important;padding:3px 5px}
 }
+
+
+/* iOS-like direct manipulation. No movement arrows or manual position buttons. */
+.home-pages .home-edit-arrows,
+.home-pages [data-home-shift],
+.home-pages [data-home-next-page]{display:none!important}
+.home-pages .home-tile-wrap{
+ position:relative;
+ -webkit-touch-callout:none;
+ user-select:none;
+ -webkit-user-select:none;
+}
+.home-pages .home-dashboard .home-tile-wrap>.tile{
+ -webkit-tap-highlight-color:transparent;
+ touch-action:manipulation;
+ user-select:none;
+ -webkit-user-select:none;
+}
+.home-pages .home-dashboard.home-is-editing .home-tile-wrap>.tile{
+ touch-action:none;
+ cursor:grab;
+}
+.home-pages .home-dashboard .home-tile-wrap.home-drag-placeholder{
+ opacity:.20;
+ pointer-events:none;
+}
+.home-drag-ghost{
+ position:fixed!important;
+ z-index:100000!important;
+ margin:0!important;
+ padding:0!important;
+ transform:scale(1.08);
+ transform-origin:center center;
+ pointer-events:none!important;
+ filter:drop-shadow(0 14px 21px rgba(0,0,0,.29));
+ will-change:left,top,transform;
+ transition:transform 90ms ease-out;
+ -webkit-user-select:none;
+ user-select:none;
+}
+.home-drag-ghost .tile{
+ pointer-events:none!important;
+ animation:none!important;
+ background:transparent!important;
+ border:0!important;
+ box-shadow:none!important;
+}
+.home-drag-ghost .app-icon{transform:none!important}
+.home-drag-ghost .tile-label{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(prefers-reduced-motion:reduce){
+ .home-drag-ghost{transition:none}
+}
