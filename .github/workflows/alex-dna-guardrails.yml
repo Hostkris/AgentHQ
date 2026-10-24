@@ -4,6 +4,10 @@ on:
   push:
     paths:
       - 'app.js'
+      - 'tests/account-signins-publishing.test.mjs'
+      - 'agent-settings-integrations.css'
+      - 'agent-settings-integrations.js'
+      - 'theme.js'
       - 'agent-creative-desk.js'
       - 'tests/creative-desk.test.mjs'
       - 'agent-*-cloud.js'
@@ -18,6 +22,10 @@ on:
   pull_request:
     paths:
       - 'app.js'
+      - 'tests/account-signins-publishing.test.mjs'
+      - 'agent-settings-integrations.css'
+      - 'agent-settings-integrations.js'
+      - 'theme.js'
       - 'agent-creative-desk.js'
       - 'tests/creative-desk.test.mjs'
       - 'agent-*-cloud.js'
@@ -41,3 +49,5 @@ jobs:
         run: node --test tests/messages-workflow.test.mjs
       - name: Test Creative Desk owner approvals and draft escaping
         run: node --test tests/creative-desk.test.mjs
+      - name: Test account Settings and publishing opt-in
+        run: node --test tests/account-signins-publishing.test.mjs
