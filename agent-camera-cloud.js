@@ -66,7 +66,7 @@ async function loadBlob(file){
  }
  if(!output||output.size>3*1024*1024)throw Error('Could not compress this photo to the upload size limit.');
  cleanPreview();preview={blob:output,width,height};photoURL=URL.createObjectURL(output);
- stopCamera();afterRender();
+ stopCamera();window.agentHQCameraRerender?.();
 }
 async function takeSnapshot(){
  if(!stream){document.querySelector('#agent-camera-capture')?.click();return}
