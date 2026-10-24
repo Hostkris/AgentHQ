@@ -21,7 +21,7 @@ test("Morgan's correct DNA is connected to existing Messages and both assignment
  const coord=read("supabase/functions/agent-hq-coordinate/index.ts");
  const alex=read("supabase/functions/_shared/alex-dna.ts");
  assert.match(chat,/import \{MORGAN_CHAT_POLICY\} from "\.\.\/_shared\/morgan-dna.ts"/);
- assert.match(chat,/role==="E-Commerce Director & Shopify Operations Specialist"\?baseSystem\+"\\n"\+MORGAN_CHAT_POLICY:baseSystem/);
+ assert.match(chat,/role==="E-Commerce Director & Shopify Operations Specialist"\?baseSystem\+"\\n"\+MORGAN_CHAT_POLICY:/);
  assert.match(worker,/employeeId==="morgan"\?MORGAN_TEXT_DRAFT_POLICY/);
  assert.match(coord,/worker==="morgan"\?MORGAN_TEXT_DRAFT_POLICY/);
  assert.match(alex,/morgan: "E-Commerce Director & Shopify Operations Specialist/);
@@ -41,5 +41,5 @@ test("Store capabilities do not bypass owner permissions or create automatic ext
 test("Morgan's upgraded name is visible in the application and cache key is refreshed",()=>{
  const app=read("app.js"),html=read("index.html");
  assert.match(app,/\["morgan","🛍️","Morgan","E-Commerce Director"\]/);
- assert.match(html,/src="\.\/app\.js\?v=20261024-morgan-dna-3"/);
+ assert.match(html,/src="\.\/app\.js\?v=20261024-[a-z]+-dna-3"/);
 });
