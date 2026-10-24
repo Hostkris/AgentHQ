@@ -364,7 +364,8 @@ Deno.serve(async(req:Request)=>{
     const available=(assignments||[]).filter(a=>a.manager_summary?.trim()&&
       (grouped.get(a.id)||[]).length>0&&
       (grouped.get(a.id)||[]).every(x=>x==="queued")&&decided.get(a.id)!=="approved");
-    const target=available.find(a=>a.id===related)||(available.length===1?available[0]:null);
+    const contextual=Boolean(related&&(assignments||[]).some(a=>a.id===related));
+    const target=available.find(a=>a.id===related)||(!contextual&&available.length===1?available[0]:null);
     if(available.length>1&&!target){
      planDecisionHandled=true;
      replyText="More than one plan needs approval. Please open the specific conversation and say which plan you mean: "+available.slice(0,3).map(x=>x.title).join("; ")+". I have not approved anything.";
@@ -400,7 +401,7 @@ Deno.serve(async(req:Request)=>{
      const active=(assignments||[]).filter(a=>decided.get(a.id)==="approved"&&
       (grouped.get(a.id)||[]).some(x=>["queued","running","waiting_for_owner","waiting_for_permission"].includes(x))&&
       (signal==="reject"?!a.owner_paused:a.owner_paused));
-     const current=active.find(a=>a.id===related)||(active.length===1?active[0]:null);
+     const current=active.find(a=>a.id===related)||(!contextual&&active.length===1?active[0]:null);
      if(active.length>1&&!current){
       planDecisionHandled=true;
       replyText="I have more than one active assignment. Please specify which one to stop or resume. Nothing has changed.";
@@ -418,9 +419,20 @@ Deno.serve(async(req:Request)=>{
        resumeAssignment=current.id;
        replyText="Green light restored for "+current.title+". I'll continue the previously approved internal drafts. No outside actions are authorized.";
       }
+     }else if(signal==="approve"){
+      const resumable=(assignments||[]).filter(a=>decided.get(a.id)==="approved"&&!a.owner_paused&&
+       (grouped.get(a.id)||[]).includes("queued"));
+      const next=resumable.find(a=>a.id===related)||(!contextual&&resumable.length===1?resumable[0]:null);
+      if(next){
+       planDecisionHandled=true;resumeAssignment=next.id;
+       replyText="This work order is already approved. I'm continuing its queued specialist drafts, not granting any new permissions.";
+      }else if(related&&(assignments||[]).some(a=>a.id===related)){
+       planDecisionHandled=true;
+       replyText="No further unapproved or queued steps match that assignment. No new action was authorized.";
+      }
      }else if(related&&(assignments||[]).some(a=>a.id===related)){
       planDecisionHandled=true;
-      replyText="There is no pending plan matching this command. I did not start or approve any other work.";
+      replyText="There is no pending plan matching that command. Nothing was changed.";
      }
     }
    }
@@ -428,7 +440,7 @@ Deno.serve(async(req:Request)=>{
   if(planDecisionHandled){
    await append(replyText);
    return reply(req,{success:true,owner_message_id:ownerMessage.id,reply:replyText,
-    start_assignment_id:null,resume_assignment_id:null,approved_assignment_id:approvedAssignment});
+    start_assignment_id:null,resume_assignment_id:resumeAssignment,approved_assignment_id:approvedAssignment});
   }
   // Alex cannot enter research, account-operation, or permission-approval flows, even from stale saved chat state.
   if(worker==="alex"&&(input.action==="request_research"||["confirm_research","confirm_action","confirm_permission"].includes(stage))){
