@@ -383,7 +383,7 @@ function renderConversationWork(worker){
   const approved=a.alex_plan_status==="approved";
   const waiting=steps.length>0&&steps.every(x=>x.status==="queued")&&!approved;
   const finished=steps.length>0&&completed===steps.length;
-  const label=finished?"Drafts ready for review":waiting?"Awaiting your approval":
+  const label=a.owner_paused?"Stopped by owner":finished?"Drafts ready for review":waiting?"Awaiting your approval":
    approved?"Approved — drafting in progress":a.coordination_status==="planning"?"Alex is preparing a plan":
    a.coordination_status==="waiting_for_owner"?"Question awaiting your reply":
    a.coordination_status==="waiting_for_permission"?"Permission awaiting your decision":"Assignment saved";
@@ -395,7 +395,7 @@ function renderConversationWork(worker){
     escapeHTML(step.status.replace(/_/g," "))+'</small><p>'+escapeHTML(step.instructions)+'</p>'+
     written+(step.question?'<p class="ios-work-question">Question: '+escapeHTML(step.question)+'</p>':'')+'</div>';
   }).join("");
-  const prompt=waiting?'<p class="ios-work-prompt">Text <b>green light</b> or <b>approved</b> to authorize these drafts. Text <b>red light</b> or <b>stop</b> to reject. This never authorizes publishing or outside account access.</p>':
+  const prompt=a.owner_paused?'<p class="ios-work-prompt">🔴 Red light — specialists are stopped. Reply <b>green light</b> to resume only this previously approved internal drafting work.</p>':waiting?'<p class="ios-work-prompt">Text <b>green light</b> or <b>approved</b> to authorize these drafts. Text <b>red light</b> or <b>stop</b> to reject. This never authorizes publishing or outside account access.</p>':
    finished?'<p class="ios-work-prompt">Written drafts saved for review. No external publishing occurred.</p>':'';
   return '<div class="ios-message-row incoming"><article class="ios-work-card">'+
    '<div class="ios-work-type">📎 Team work order · Alex</div><h3>'+escapeHTML(a.title)+'</h3>'+
