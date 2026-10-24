@@ -8,7 +8,7 @@ function render(){
  const root=document.getElementById("agenthq-automation-root");
  if(!root)return;
  const a=result?.activepieces,n=result?.nango;
- const signature=JSON.stringify([!!busy,message,result,nangoLink,nangoLinkExpiresAt]);
+ const signature=JSON.stringify([!!busy,!!checking,message,result,nangoLink,nangoLinkExpiresAt]);
  if(root.dataset.signature===signature)return;
  root.dataset.signature=signature;
  root.innerHTML='<section class="ah-automation-hub" aria-label="Automation and connected apps">'+
@@ -20,7 +20,7 @@ function render(){
   '<small>'+esc(n?.integrations?.length?'Allowed integrations: '+n.integrations.join(", "):"Provider authorizations require a Nango server configuration.")+'</small>'+
   '<button type="button" data-ah-automation="connect" '+(busy||!n?.configured?'disabled':'')+'>Authorize a new account</button>'+
   (nangoLink?'<a class="ah-connect-link" href="'+esc(nangoLink)+'" target="_blank" rel="noopener noreferrer">Open secure Nango authorization ↗</a><small>This personal authorization link expires after 30 minutes. Approve GitHub access only if you agree with the permissions.</small>':'')+'</div></div>'+
-  '<button type="button" data-ah-automation="status" '+(busy?'disabled':'')+'>Check both integrations</button>'+
+  '<button type="button" class="ah-status-check" data-ah-automation="status" aria-label="Check Activepieces and Nango integration setup" aria-busy="'+(checking?'true':'false')+'" '+(busy||checking?'disabled':'')+'>'+(checking?'Checking connections…':'↻ Check both integrations')+'</button>'+
   '<p role="status" class="ah-status">'+esc(message||"Sign in to Agent HQ to check real connector readiness.")+'</p>'+
   '<p class="ah-caution">Connected does not mean approved for every agent or action. Financial changes, spending, publishing and sensitive account operations require their own explicit permissions.</p></section>';
 }
@@ -31,13 +31,24 @@ async function invoke(action){
  return data;
 }
 async function refresh(force=false){
- if(checking||busy||(!force&&Date.now()-lastCheck<15000))return;
+ if(checking){
+  if(force){message="A connection check is already running.";render();}
+  return;
+ }
+ if(busy||(!force&&Date.now()-lastCheck<15000))return;
  checking=true;lastCheck=Date.now();
- try{const {data}=await agentCloud.auth.getUser();if(!data?.user){result=null;message="Sign in to Agent HQ to check and connect accounts.";return;}
- result=await invoke("status");
- message="Server configuration checked. Live provider credentials and workflow execution are not verified by this status.";
- }catch(e){result=null;message="Connector status unavailable: "+String(e?.message||e)}
- finally{checking=false;render()}
+ if(force)message="Checking Activepieces and Nango settings now…";
+ render();
+ try{
+  const {data}=await agentCloud.auth.getUser();
+  if(!data?.user){result=null;message="Sign in to Agent HQ to check and connect accounts.";return;}
+  result=await invoke("status");
+  const clock=new Date().toLocaleTimeString([], {hour:"numeric",minute:"2-digit",second:"2-digit"});
+  const statusA=result?.activepieces?.configured?"configured":"setup needed";
+  const statusN=result?.nango?.configured?"configured":"setup needed";
+  message="Checked at "+clock+". Activepieces: "+statusA+". Nango: "+statusN+". This checks settings only; it cannot verify a completed GitHub OAuth connection.";
+ }catch(e){result=null;message="Connection check failed: "+String(e?.message||e)+". Tap Check both integrations to retry.";}
+ finally{checking=false;render();}
 }
 async function connect(){
  const data=await Promise.race([
