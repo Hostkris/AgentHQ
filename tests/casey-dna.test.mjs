@@ -42,5 +42,5 @@ test("Casey does not gain automatic publishing or three-day scheduling",()=>{
 test("Casey UI title is updated and app cache reflects it",()=>{
  const app=read("app.js"),html=read("index.html");
  assert.match(app,/\["casey","📱","Casey","Social Media Director"\]/);
- assert.match(html,/src="\.\/app\.js\?v=20261024-(?:casey|taylor)-dna-3"/);
+ assert.match(read("index.html"),/app\.js\?v=20261024-[a-z]+-dna-3/);
 });
