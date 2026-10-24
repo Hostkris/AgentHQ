@@ -1,0 +1,33 @@
+
+/* Agent HQ Camera — iPhone-inspired native Safari camera and private photo messages. */
+.agent-camera-app{--cam-bg:#08090b;max-width:540px;width:100%;margin:0 auto;background:var(--cam-bg);color:#fff;min-height:min(770px,calc(100dvh - 100px));border-radius:25px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.19)}
+.camera-top{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 17px;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif;letter-spacing:2px;font-size:12px;font-weight:750}
+.camera-top button{background:rgba(255,255,255,.15);border-radius:50%;width:36px;height:36px;display:grid;place-items:center;color:#fff;font-size:25px;line-height:1}
+.camera-viewfinder{position:relative;aspect-ratio:3/4;max-height:52dvh;background:#17191c;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.camera-viewfinder>video,.camera-viewfinder>.camera-preview{width:100%;height:100%;object-fit:cover;background:#141519}
+.camera-overlay-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:15px;padding:20px;text-align:center;background:radial-gradient(circle at 50% 40%,#34353c 0,#141516 70%)}
+.camera-overlay-empty .camera-lens-icon{font-size:80px;font-weight:200;line-height:1;color:#e1e1e5}
+.camera-overlay-empty button{background:rgba(255,255,255,.93);color:#151515;padding:12px 25px;border-radius:100px;font-weight:700}
+.camera-overlay-empty small{font-size:11px;color:#c2c3c7;max-width:220px;line-height:1.5}
+.camera-controls{display:flex;justify-content:space-between;align-items:center;min-height:94px;gap:15px;padding:12px 25px}
+.camera-controls button{background:transparent;color:#fff;min-height:43px}
+.camera-shutter{height:73px!important;width:73px!important;border:4px solid #fff!important;border-radius:50%;display:grid;place-items:center;padding:4px;background:transparent!important}
+.camera-shutter span{width:56px;height:56px;border-radius:50%;background:#fff}
+.camera-library-action,.camera-flip{min-width:57px;font-size:15px;font-weight:600}
+.camera-flip{font-size:35px!important;line-height:1}
+.camera-retake{margin:auto;border-radius:999px;padding:10px 22px!important;background:rgba(255,255,255,.17)!important}
+.camera-share-panel{display:flex;flex-direction:column;gap:9px;padding:18px;background:#17181c;border-radius:22px 22px 0 0}
+.camera-share-panel label{font-size:12px;letter-spacing:.2px;color:#c6c6ce;font-weight:650}
+.camera-share-panel select,.camera-share-panel textarea{background:#292b31;color:#fff;width:100%;border:1px solid #41444c;border-radius:13px;padding:11px 12px;font-family:inherit;font-size:15px}
+.camera-share-panel textarea::placeholder{color:#979ba5}
+.camera-share-panel select{min-height:42px}
+.camera-send{min-height:46px;background:#167afb!important;border-radius:13px;color:white!important;font-weight:700;margin-top:6px}
+.camera-send:disabled{opacity:.6}
+.camera-helper{font-size:12px;color:#bfc0c8;line-height:1.5;margin:4px 0}
+.camera-error{color:#ff7b7b;font-size:12px;margin:5px 0}
+.camera-status{color:#b2ffc4;font-size:12px;margin:5px 0}
+.ios-composer .ios-camera-attach{flex:0 0 35px;width:35px;height:35px;border-radius:50%;display:grid;place-items:center;font-size:31px;font-weight:300;line-height:1;background:#d6d7dc;color:#4b4c50;align-self:center;padding:0}
+.ios-photo-message{margin:0 0 9px;max-width:min(80%,290px);border-radius:19px;overflow:hidden;background:#e1e6ed;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.ios-photo-message img{display:block;width:100%;height:auto;max-height:340px;object-fit:contain;cursor:zoom-in}
+.ios-photo-message figcaption{padding:9px 12px;font-size:14px;line-height:1.4;overflow-wrap:anywhere;color:#172130}
+@media(max-width:380px){.agent-camera-app{border-radius:18px}.camera-viewfinder{max-height:48dvh}.camera-controls{min-height:80px}.camera-shutter{height:64px!important;width:64px!important}.camera-shutter span{height:47px;width:47px}}
