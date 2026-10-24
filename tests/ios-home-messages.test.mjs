@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
 const src=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 
 test('iPhone-style home layout supports page management, drag rearranging and widgets',()=>{
@@ -74,4 +75,47 @@ test('New home files are linked and iPhone touch styles are present',()=>{
  assert.match(css,/\.home-widget/);
  assert.match(css,/\.agent-thread-action-backdrop/);
  assert.match(css,/\.ios-research-attachment/);
+});
+
+test('Home Screen hides Edit Home Screen, shortens captions and enters edit mode on hold',()=>{
+ const source=src('agent-home-layout.js');
+ const handlers=new Map();
+ let timer=null,output='';
+ const renderButton=(label,id,emoji)=>'<button class="tile" aria-label="'+label+'"><span class="app-icon">'+emoji+'</span><span class="tile-label">'+label+'</span></button>';
+ const scope={
+  localStorage:{getItem:()=>null,setItem:()=>{}},
+  navigator:{},
+  document:{addEventListener:(type,fn)=>handlers.set(type,fn)},
+  window:{alert:()=>{}},
+  setTimeout:fn=>{timer=fn;return 1},
+  clearTimeout:()=>{timer=null}
+ };
+ runInNewContext(source.replace(/^export /gm,'')+';globalThis.renderHomeScreenTest=renderHomeScreen;globalThis.connectHomeScreenTest=connectHomeScreen;',scope);
+ const render=()=>scope.renderHomeScreenTest(renderButton,{});
+ output=render();
+ assert.doesNotMatch(output,/Edit Home Screen|data-home-edit/);
+ assert.doesNotMatch(output,/Page 1 of 1/);
+ assert.match(output,/<span class="tile-label">Email<\\/span>/);
+ assert.match(output,/<span class="tile-label">Accounts<\\/span>/);
+ assert.match(output,/<span class="tile-label">Studio<\\/span>/);
+ assert.match(output,/<span class="tile-label">Creative<\\/span>/);
+ assert.doesNotMatch(output,/<span class="tile-label">Email Center<\\/span>/);
+ scope.connectHomeScreenTest(()=>{output=render()});
+ const target={closest:sel=>sel.includes('[data-home-tile]')?{dataset:{homeTile:'office'}}:null};
+ handlers.get('pointerdown')({target,clientX:10,clientY:20});
+ assert.ok(timer,'Holding an icon should schedule edit mode');
+ timer();
+ assert.match(output,/>Done<\\/button>/);
+ assert.match(output,/data-home-widget-menu/);
+ assert.doesNotMatch(output,/Edit Home Screen/);
+});
+
+test('Home captions fit their own icon grid cell with frosted background',()=>{
+ const css=src('ios-ui.css');
+ assert.match(css,/grid-template-columns:repeat\\(4,minmax\\(0,1fr\\)\\)/);
+ assert.match(css,/\\.home-shell \\.home-pages \\.home-dashboard \\.tile-label/);
+ assert.match(css,/max-width:100%/);
+ assert.match(css,/backdrop-filter:blur\\(16px\\)/);
+ assert.match(css,/font-weight:600!important/);
+ assert.match(css,/text-overflow:ellipsis/);
 });
