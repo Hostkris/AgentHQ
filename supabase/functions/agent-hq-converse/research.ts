@@ -157,7 +157,7 @@ export async function runResearch(db:any,owner:string,worker:string,jobId:string
    if(managerError||!managerChat)return report+'\n\nRiley handoff to Alex is pending: report saved, but manager conversation is unavailable.';
    const {error:handoffError}=await db.from('agent_messages').insert({
     owner_id:owner,conversation_id:managerChat.id,sender:'employee',
-    body:('Riley submitted new research for Alex to review. This report contains search evidence but is NOT yet verified by Alex.\n\n'+report).slice(0,9800)
+    body:('Riley finished a public research report on “'+String(job.query).slice(0,130)+'”. I saved the source-backed report in Messages for your review. It still needs your verification before the team relies on it.').slice(0,1000)
    });
    if(handoffError)return report+'\n\nRiley handoff to Alex is pending: report saved, but manager message could not be written.';
   }
