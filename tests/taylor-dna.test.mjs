@@ -7,7 +7,7 @@ test("Taylor essential DNA v3.0 has 15 instructions and safeguards",()=>{
  assert.ok(d.includes('TAYLOR_DNA_VERSION = "3.0.0"'));
  assert.ok(d.includes('priority:"ESSENTIAL"'));
  const instructions=d.split("exactInstructions:Object.freeze([")[1]?.split("]),")[0]||"";
- assert.equal((instructions.match(/^  "[0-9][0-9]\\./gm)||[]).length,15);
+ assert.equal((instructions.match(/^  "[0-9][0-9][.]/gm)||[]).length,15);
  for(const section of ["mission:","schedule:Object.freeze","requiredOutputs:Object.freeze","toolsAccessNeeded:Object.freeze","restrictions:Object.freeze","successStandards:Object.freeze","first30Days:Object.freeze"]) assert.ok(d.includes(section));
  assert.ok(d.includes("actualSchedulerRequired:true"));
  assert.ok(d.includes("autoSend:false"));
