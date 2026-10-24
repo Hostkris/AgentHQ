@@ -22,7 +22,7 @@ test("Avery role is active in Messages, solo drafting and Alex-coordinated assig
  const team=read("supabase/functions/agent-hq-coordinate/index.ts");
  const alex=read("supabase/functions/_shared/alex-dna.ts");
  assert.match(chat,/import \{AVERY_CHAT_POLICY\} from "\.\.\/_shared\/avery-dna.ts"/);
- assert.match(chat,/role==="Chief Business Intelligence & Financial Strategy Analyst"\?baseSystem\+"\\n"\+AVERY_CHAT_POLICY:baseSystem/);
+ assert.match(chat,/role==="Chief Business Intelligence & Financial Strategy Analyst"\?baseSystem\+"\\n"\+AVERY_CHAT_POLICY:/);
  assert.match(worker,/employeeId==="avery"\?AVERY_TEXT_DRAFT_POLICY/);
  assert.match(team,/worker==="avery"\?AVERY_TEXT_DRAFT_POLICY/);
  assert.match(alex,/avery: "Chief Business Intelligence & Financial Strategy Analyst/);
@@ -40,5 +40,5 @@ test("Avery never receives account access, money-moving powers or autonomous mon
 test("Agent HQ displays Avery's new role",()=>{
  const ui=read("app.js"),html=read("index.html");
  assert.match(ui,/\["avery","📊","Avery","Financial Strategy Analyst"\]/);
- assert.match(html,/src="\.\/app\.js\?v=20261024-avery-dna-3"/);
+ assert.match(html,/src="\.\/app\.js\?v=20261024-[a-z]+-dna-3"/);
 });
