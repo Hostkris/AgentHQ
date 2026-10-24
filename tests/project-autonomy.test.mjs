@@ -25,6 +25,16 @@ test('essential owner facts and specific sensitive authorizations remain private
  }
  assert.match(PROJECT_AUTONOMY_POLICY,/unsafe|Unsafe/);assert.match(PROJECT_AUTONOMY_POLICY,/existing usage and spending limits/);
 });
+test('a repeated routine discussion question is routed to the team without inventing an owner answer or finished work',()=>{
+ const raw={kind:'ask_owner',text:'Clarify before continuing',question:'What tone and writing style should we use?',blocking_reason:'owner_only_fact',why_blocking:'I prefer the owner to select the tone before working.'};
+ const saved={...session,recovery_error:'Response correction [nonessential_question/discussion/jordan/1/ask_owner]. Resolve the ordinary choice internally.'};
+ const routed=normalizeProjectTurn(raw,saved);assert.equal(routed.kind,'ask_team');assert.equal(routed.recipient,'casey');assert.match(routed.text,/clearly labelled reasonable assumption/);assert(!/owner approved|finished/.test(routed.text));
+ assert.equal(normalizeProjectTurn(raw,{...saved,peer_exchanges:3}).kind,'contribute');
+ const peer={...saved,active_worker:'casey',next_worker:'casey',peer_target:'casey',peer_return_worker:'jordan',recovery_error:'Response correction [nonessential_question/discussion/casey/1/ask_owner]. Resolve this choice internally.'};
+ const answered=normalizeProjectTurn(raw,peer);assert.equal(answered.kind,'answer');assert.match(answered.text,/^jordan, this is an internal team decision/);
+ assert.throws(()=>normalizeProjectTurn(raw,{...saved,revision:2}),{code:'nonessential_question'});
+ const privateFact={...raw,question:'What is the actual private budget ceiling?'};assert.equal(normalizeProjectTurn(privateFact,saved).kind,'ask_owner');
+});
 test('automatic recovery has no retry button and does not hide real owner or final-review states',()=>{
  const s={...session,assignment_id:id,assignment:{title:'Script'},recovery_state:'diagnosing',recovery_error:'Response failure',next_run_at:new Date(Date.now()+30000).toISOString()};
  assert.equal(autonomousRecoveryStatus(s).state,'diagnosing');

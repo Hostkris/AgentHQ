@@ -1,6 +1,6 @@
 import {agentCloud} from './agent-cloud-auth.js';
-import {projectRoomHTML,projectPrivateHTML,projectIsTyping} from './agent-project-view.js?v=20261024-research-recovery-1';
-import {connectionRetryDelay} from './agent-project-autonomy.js?v=20261024-research-recovery-1';
+import {projectRoomHTML,projectPrivateHTML,projectIsTyping} from './agent-project-view.js?v=20261024-activity-verified-1';
+import {connectionRetryDelay} from './agent-project-autonomy.js?v=20261024-activity-verified-1';
 let rows=[],ownerId=null,generation=0,refreshing=null,timer=null,inFlight=null,selected=null,answerTarget=null;
 const wanted=new Set();
 const localFailures=new Map();

@@ -1,6 +1,6 @@
 // Activity describes observable requests and saved run state, never hidden reasoning.
 import {projectResponseRecovery} from './agent-project-recovery.js?v=20261024-autonomy-1';
-import {autonomousRecoveryStatus} from './agent-project-autonomy.js?v=20261024-autonomy-1';
+import {autonomousRecoveryStatus} from './agent-project-autonomy.js?v=20261024-activity-verified-1';
 const LABELS={alex:'Alex',maya:'Maya',jordan:'Jordan',riley:'Riley',taylor:'Taylor',casey:'Casey',morgan:'Morgan',avery:'Avery',jamie:'Jamie',quinn:'Quinn',hq:'Company HQ'};
 export const activityName=(id,labels={})=>labels[id]||LABELS[id]||'Your worker';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -31,13 +31,21 @@ export function projectActivity(s,now=Date.now(),labels={},research=[]){
  const text=s.phase==='checking'?name(s.lead_worker)+' → '+next+' · Peer review is next':s.phase==='polishing'?'Team review → '+next+' · Final corrections are next':'Next: '+next+' · '+(s.phase==='planning'?'team planning':s.phase==='drafting'?'shared draft':'team conversation');
  return {...base,text};
 }
-export function threadActivities(worker,{projects=[],selected,local=[],workerRuns=[],research=[],legacyResearch=[],labels={},fresh=true,online=true,now=Date.now()}={}){
+export function threadActivities(worker,{projects=[],selected,local=[],workerRuns=[],research=[],legacyResearch=[],events=[],verifiedRuns=false,labels={},fresh=true,online=true,now=Date.now()}={}){
  const name=id=>activityName(id,labels),out=[];
  const activeLocal=local.filter(r=>(r.worker===worker||worker==='hq')&&r.startedAt<=now);
  for(const r of activeLocal)out.push({key:r.id,actor:r.worker,active:online&&now-r.startedAt<150000,state:online?'working':'offline',text:!online?'Connection interrupted — waiting to reconnect':now-r.startedAt>=150000?'This response is taking longer than expected':name(r.worker)+' · '+r.stage,title:r.title||(worker==='hq'&&r.worker!=='hq'?'Direct conversation':'Your message')});
  const matching=projects.filter(s=>worker==='hq'||worker==='alex'||s.team_order?.includes(worker)||s.assignment?.source_employee_id===worker);
  matching.sort((a,b)=>(a.assignment_id===selected?-1:b.assignment_id===selected?1:0));
- for(const s of matching){const a=projectActivity(s,now,labels,research);if(a)out.push(a);}
+ for(const s of matching){
+  const a=projectActivity(s,now,labels,research);
+  if(a?.active&&verifiedRuns){
+   const terminal=events.some(e=>e.source_id===s.active_run&&['worker_completed','worker_failed'].includes(e.event_type));
+   const running=workerRuns.some(r=>r.id===s.active_run&&r.employee_id===s.active_worker&&r.status==='running');
+   if(terminal||!running){a.active=false;a.state='syncing';a.text='Updating the saved project state — work is kept';}
+  }
+  if(a)out.push(a);
+ }
  for(const r of workerRuns){
   const age=now-Date.parse(r.created_at);
   if(r.status!=='running'||!Number.isFinite(age)||age<0||age>120000||r.assignment?.owner_paused||projects.some(s=>s.assignment_id===r.assignment_id))continue;
@@ -53,16 +61,32 @@ export function threadActivities(worker,{projects=[],selected,local=[],workerRun
   if(localRow){localRow.text=name(actor)+' is researching public sources';localRow.state='research';continue;}
   out.push({key:'research:'+r.id,actor,active:true,state:'research',text:name(actor)+' is researching public sources',title:r.assignment_id?'Team research':'Your research request'});
  }
+ // Completed/failed actions are historical evidence, not live typing.
+ // Only server-generated events may populate this feed.
+ for(const e of events){
+  const age=now-Date.parse(e.occurred_at);
+  if(!Number.isFinite(age)||age<0||age>120000||e.event_type==='worker_started')continue;
+  const project=projects.find(s=>s.assignment_id===e.assignment_id);
+  if(worker!=='hq'&&worker!=='alex'&&worker!==e.employee_id&&!project?.team_order?.includes(worker))continue;
+  const allowed=new Set(['worker_completed','worker_failed','team_message_sent','phase_changed','recovery_started','owner_action_required','deliverable_ready','project_approved']);
+  if(!allowed.has(e.event_type))continue;
+  out.push({key:'event:'+e.id,projectId:e.assignment_id,actor:e.employee_id,active:false,event:true,
+   state:e.event_type==='worker_failed'?'error':'recorded',
+   text:String(e.summary||'Recorded project activity').slice(0,240),
+   title:'Update at '+new Date(e.occurred_at).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})+(project?.assignment?.title?' · '+project.assignment.title:'')});
+  if(out.filter(a=>a.event).length>=2)break;
+ }
  if(!fresh||!online){
-  for(const a of out)if(!activeLocal.some(r=>r.id===a.key)||!online){a.active=false;a.state='offline';a.text=online?'Reconnecting to live activity — work is saved':'Connection interrupted — waiting to reconnect';}
+  for(const a of out)if(!a.event&&(!activeLocal.some(r=>r.id===a.key)||!online)){a.active=false;a.state='offline';a.text=online?'Reconnecting to live activity — work is saved':'Connection interrupted — waiting to reconnect';}
  }
  // Show current work first while keeping an explicit selected HQ project visible.
- out.sort((a,b)=>(b.active?1:0)-(a.active?1:0));
+ const priority=a=>a.active&&(!a.projectId||a.projectId===selected)?0:a.projectId===selected&&!a.event?1:a.active?2:a.event?3:4;
+ out.sort((a,b)=>priority(a)-priority(b));
  const keys=new Set();return out.filter(a=>{if(keys.has(a.key))return false;keys.add(a.key);return true;}).slice(0,3);
 }
 export function activityHTML(activities,{hq=false}={}){
  return activities.map(a=>'<div class="agent-activity-row'+(hq&&a.active?' hq-team-typing':'')+'" data-activity-state="'+esc(a.state)+'" data-activity-actor="'+esc(a.actor||'')+'"'+(a.active?' data-activity-running="true"':'')+' aria-label="'+esc(a.text)+'">'+
-  '<div class="agent-typing-dots ios-typing" aria-hidden="true"><span></span><span></span><span></span></div>'+
+  (a.active?'<div class="agent-typing-dots ios-typing" aria-hidden="true"><span></span><span></span><span></span></div>':'')+
   '<div class="agent-activity-copy"><strong>'+esc(a.text)+'</strong><small>'+esc(a.title||'')+'</small></div>'+
   (a.projectId?'<button type="button" class="agent-activity-open" data-project-open="'+esc(a.projectId)+'" aria-label="Open '+esc(a.title||'team project')+'">View team <span aria-hidden="true">›</span></button>':'')+'</div>').join('');
 }

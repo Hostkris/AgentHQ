@@ -26,11 +26,13 @@ test('handoffs and queues are visible without pretending to type',()=>{
  const rows=threadActivities('hq',{projects:[{...base,active_run:null,phase:'checking',next_worker:'casey'}],now});
  assert.match(rows[0].text,/Jordan → Casey.*Peer review/);assert(!rows[0].active);
  assert(!activityHTML(rows,{hq:true}).includes('data-activity-running'));
+ assert(!activityHTML(rows,{hq:true}).includes('ios-typing'));
  const queued=projectActivity({...base,active_run:null,next_run_at:time(3600000)},now);assert.match(queued.text,/queued until/);assert(!queued.active);
 });
 test('paused, failed, waiting, expired and completed states stop animation',()=>{
  for(const s of [{...base,assignment:{owner_paused:true}},{...base,last_error:'Quota paused'},{...base,phase:'waiting_owner',waiting_worker:'jordan'},{...base,phase:'waiting_permission',waiting_worker:'casey'},{...base,lease_until:time(-1)},{...base,phase:'review'}]){
   const a=projectActivity(s,now);assert(!a.active);assert(!activityHTML([a]).includes('data-activity-running'));
+  assert(!activityHTML([a]).includes('ios-typing'));
  }
  assert.equal(projectActivity({...base,phase:'approved'},now),null);
  assert.match(projectActivity({...base,phase:'waiting_owner',waiting_worker:'jordan'},now).text,/Jordan.*your answer/);

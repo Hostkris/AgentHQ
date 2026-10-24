@@ -1,6 +1,7 @@
 // Synthetic projects and model responses only. No real account, source or model calls.
 import {createRequire} from 'node:module';
-const {chromium}=createRequire(import.meta.url)('playwright');
+const {chromium,webkit}=createRequire(import.meta.url)('playwright');
+const engine=process.env.AGENTHQ_TEST_BROWSER==='webkit'?webkit:chromium,mac=process.env.AGENTHQ_TEST_DEVICE==='mac';
 import {createServer} from 'node:http';
 import {readFile} from 'node:fs/promises';
 import {resolve,extname} from 'node:path';
@@ -8,8 +9,8 @@ import assert from 'node:assert/strict';
 const root=resolve(new URL('..',import.meta.url).pathname),results=[];
 const server=createServer(async(req,res)=>{try{const path=resolve(root,'.'+new URL(req.url,'http://localhost').pathname);if(!path.startsWith(root+'/'))throw Error();res.setHeader('Content-Type',extname(path)==='.css'?'text/css':extname(path)==='.js'?'text/javascript':'text/html');res.end(await readFile(path));}catch{res.statusCode=404;res.end();}});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+server.address().port;
-const browser=await chromium.launch({headless:true,executablePath:process.env.AGENTHQ_TEST_CHROME||'/tmp/chromium',args:['--no-sandbox','--disable-dev-shm-usage','--disable-gpu']});
-const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true});
+const browser=await engine.launch({headless:true,...(engine===chromium?{executablePath:process.env.AGENTHQ_TEST_CHROME||'/tmp/chromium',args:['--no-sandbox','--disable-dev-shm-usage','--disable-gpu']}:process.env.AGENTHQ_TEST_WEBKIT?{executablePath:process.env.AGENTHQ_TEST_WEBKIT}:{} )});
+const context=await browser.newContext({viewport:mac?{width:1440,height:900}:{width:390,height:844},deviceScaleFactor:1,isMobile:!mac,hasTouch:!mac});
 const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
 page.on('dialog',dialog=>dialog.accept());
 const core=new Set(['agent-research-status.js','app.js','agent-home-layout.js','agent-message-controls.js','agent-project-view.js','agent-project-recovery.js','agent-project-autonomy.js','agent-projects-cloud.js','agent-activity-cloud.js','agent-activity-view.js','icons.js']);
@@ -29,7 +30,7 @@ await page.addInitScript(()=>{
  const authListeners=[],ledger=[];const mock=window.__projectMock={id,second,version,projects,notes,owner:'owner-a',calls:[],hold:false};
  mock.sync=()=>{window.agentHQTeamSync(projects.map(s=>({id:s.assignment_id,...s.assignment,workflow_version:2,employee_ids:s.team_order,coordination_status:'working',created_at:new Date().toISOString()})),notes,'Synced');window.agentHQSyncMessages([{id:'private-question',employeeId:'jordan',sender:'employee',text:'Which landscape location should the script feature?',createdAt:new Date().toISOString()},{id:'alex-complete',employeeId:'alex',sender:'employee',text:'The team has finished Launch campaign. It is ready for review in Company HQ.',createdAt:new Date().toISOString()}],'Synced');};
  mock.changeOwner=owner=>{mock.owner=owner;authListeners.forEach(f=>f('SIGNED_IN',{user:{id:owner}}));};
- window.__cloud={auth:{getUser:async()=>({data:{user:{id:mock.owner}}}),onAuthStateChange:f=>authListeners.push(f)},from(table){let filters=[];const q={select(){return q},eq(k,v){filters.push([k,v]);return q},in(){return q},order(){return q},limit(){return q},then(resolve){return Promise.resolve({data:table==='agent_project_sessions'?structuredClone(projects.filter(s=>filters.every(([k,v])=>s[k]===v))):[]}).then(resolve);}};return q;},async rpc(name,args){if(name==='dismiss_agent_chat_item')ledger.push({kind:args.p_kind,item_key:args.p_key});return {data:name==='get_agent_chat_dismissals'?ledger:true};},functions:{async invoke(name,{body}){
+ window.__cloud={auth:{getUser:async()=>({data:{user:{id:mock.owner}}}),onAuthStateChange:f=>authListeners.push(f)},from(table){let filters=[];const q={select(){return q},eq(k,v){filters.push([k,v]);return q},in(){return q},order(){return q},limit(){return q},abortSignal(){return q},then(resolve){return Promise.resolve({data:table==='agent_project_sessions'?structuredClone(projects.filter(s=>filters.every(([k,v])=>s[k]===v))):table==='agent_worker_runs'?projects.filter(s=>s.active_run&&!s.assignment.owner_paused).map(s=>({id:s.active_run,owner_id:s.owner_id,assignment_id:s.assignment_id,employee_id:s.active_worker,status:'running',created_at:new Date().toISOString()})).filter(r=>filters.every(([k,v])=>r[k]===v)):[]}).then(resolve);}};return q;},async rpc(name,args){if(name==='dismiss_agent_chat_item')ledger.push({kind:args.p_kind,item_key:args.p_key});return {data:name==='get_agent_chat_dismissals'?ledger:true};},functions:{async invoke(name,{body}){
    mock.calls.push(body);const s=projects.find(s=>s.assignment_id===body.assignment_id);if(!s)return {error:{message:'not found'}};
    if(body.action==='project_review'){
     if(s.phase!=='review'||s.output_version!==body.output_version)return {data:{error:'This finished version changed or was already reviewed'}};
@@ -51,7 +52,7 @@ await page.addInitScript(()=>{
 });
 async function check(name,fn){await fn();results.push(name);console.log('PASS:',name);}
 async function open(id){await page.evaluate(id=>window.agentHQCameraReturnToChat(id),id);await page.locator('#composer').waitFor();}
-async function refresh(){await page.evaluate(()=>agentHQProjects.refresh());}
+async function refresh(){await page.evaluate(async()=>{await agentHQProjects.refresh();await agentHQActivity.refresh();});}
 try{
  await page.goto(base+'/index.html');await page.waitForFunction(()=>!!window.agentHQProjects);await page.evaluate(async()=>{const m=await import('./agent-message-controls.js?v=20261024-delete-1');m.connectMessageControls(window.__cloud);});await refresh();await page.evaluate(()=>__projectMock.sync());
  await check('HQ shows named agent questions and answers without work-order instructions or private source material',async()=>{
