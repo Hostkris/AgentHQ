@@ -77,7 +77,7 @@ test('New home files are linked and iPhone touch styles are present',()=>{
  assert.match(css,/\.ios-research-attachment/);
 });
 
-test('Home Screen hides Edit Home Screen, shortens captions and enters edit mode on hold',()=>{
+test('Home Screen hides editing chrome and enters jiggle mode on long press',()=>{
  const source=src('agent-home-layout.js');
  const handlers=new Map();
  let timer=null,output='';
@@ -93,29 +93,27 @@ test('Home Screen hides Edit Home Screen, shortens captions and enters edit mode
  runInNewContext(source.replace(/^export /gm,'')+';globalThis.renderHomeScreenTest=renderHomeScreen;globalThis.connectHomeScreenTest=connectHomeScreen;',scope);
  const render=()=>scope.renderHomeScreenTest(renderButton,{});
  output=render();
- assert.doesNotMatch(output,/Edit Home Screen|data-home-edit/);
- assert.doesNotMatch(output,/Page 1 of 1/);
- assert.match(output,/<span class="tile-label">Email<\\/span>/);
- assert.match(output,/<span class="tile-label">Accounts<\\/span>/);
- assert.match(output,/<span class="tile-label">Studio<\\/span>/);
- assert.match(output,/<span class="tile-label">Creative<\\/span>/);
- assert.doesNotMatch(output,/<span class="tile-label">Email Center<\\/span>/);
+ assert.ok(!output.includes('Edit Home Screen'));
+ assert.ok(!output.includes('data-home-edit'));
+ assert.ok(!output.includes('Page 1 of 1'));
+ for(const id of ['Email','Accounts','Studio','Creative'])assert.ok(output.includes('<span class="tile-label">'+id+'</span>'),id+' caption');
+ assert.ok(!output.includes('<span class="tile-label">Email Center</span>'));
  scope.connectHomeScreenTest(()=>{output=render()});
  const target={closest:sel=>sel.includes('[data-home-tile]')?{dataset:{homeTile:'office'}}:null};
  handlers.get('pointerdown')({target,clientX:10,clientY:20});
  assert.ok(timer,'Holding an icon should schedule edit mode');
  timer();
- assert.match(output,/>Done<\\/button>/);
- assert.match(output,/data-home-widget-menu/);
- assert.doesNotMatch(output,/Edit Home Screen/);
+ assert.ok(output.includes('>Done</button>'),'Only edit mode shows Done');
+ assert.ok(output.includes('data-home-widget-menu'));
+ assert.ok(!output.includes('Edit Home Screen'));
 });
 
-test('Home captions fit their own icon grid cell with frosted background',()=>{
+test('Home captions fit their grid cell with frosted background',()=>{
  const css=src('ios-ui.css');
- assert.match(css,/grid-template-columns:repeat\\(4,minmax\\(0,1fr\\)\\)/);
- assert.match(css,/\\.home-shell \\.home-pages \\.home-dashboard \\.tile-label/);
- assert.match(css,/max-width:100%/);
- assert.match(css,/backdrop-filter:blur\\(16px\\)/);
- assert.match(css,/font-weight:600!important/);
- assert.match(css,/text-overflow:ellipsis/);
+ assert.ok(css.includes('grid-template-columns:repeat(4,minmax(0,1fr))'));
+ assert.ok(css.includes('.home-shell .home-pages .home-dashboard .tile-label'));
+ assert.ok(css.includes('max-width:100%'));
+ assert.ok(css.includes('backdrop-filter:blur(16px)'));
+ assert.ok(css.includes('font-weight:600!important'));
+ assert.ok(css.includes('text-overflow:ellipsis'));
 });
