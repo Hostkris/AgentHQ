@@ -223,12 +223,23 @@ host?.addEventListener("submit",event=>{
  });
 });
 host?.addEventListener("click",event=>{
- const element=event.target.closest?.("[data-creative-refresh],[data-creative-plan],[data-creative-plan-approve],[data-creative-run],[data-creative-copy],[data-creative-approve],[data-creative-revise]");
+ const element=event.target.closest?.("[data-creative-refresh],[data-creative-plan],[data-creative-plan-approve],[data-creative-run],[data-creative-copy],[data-creative-approve],[data-creative-revise],[data-creative-copy-chatgpt],[data-creative-open-chatgpt]");
  if(!element)return;
- const id=element.dataset.creativeRefresh?null:element.dataset.creativePlan||element.dataset.creativePlanApprove||element.dataset.creativeRun||element.dataset.creativeCopy||element.dataset.creativeApprove||element.dataset.creativeRevise;
+ const id=element.dataset.creativeRefresh?null:element.dataset.creativePlan||element.dataset.creativePlanApprove||element.dataset.creativeRun||element.dataset.creativeCopy||element.dataset.creativeApprove||element.dataset.creativeRevise||element.dataset.creativeCopyChatgpt||element.dataset.creativeOpenChatgpt;
  if(!id){refresh();return;}
  // Capture revision text before act() redraws the page for its busy state.
  const revisionValue=element.hasAttribute("data-creative-revise")?document.querySelector('[data-revision-input="'+id+'"]')?.value:"";
+ if(element.hasAttribute("data-creative-open-chatgpt")){
+  window.open("https://chatgpt.com/","_blank","noopener,noreferrer");
+  feedback="ChatGPT opened separately. Paste the copied request there, then bring the result back to Agent HQ.";draw();
+  return;
+ }
+ if(element.hasAttribute("data-creative-copy-chatgpt")){
+  const request=buildChatGPTPrompt(parseJob(id));
+  if(!navigator.clipboard?.writeText){window.prompt("Copy the ChatGPT request:",request);return;}
+  navigator.clipboard.writeText(request).then(()=>{feedback="Request copied. Open ChatGPT and paste it into a chat.";draw();}).catch(()=>window.prompt("Copy the ChatGPT request:",request));
+  return;
+ }
  if(element.hasAttribute("data-creative-copy")){
   const job=parseJob(id),text=textContent(job);
   if(!text)return;
