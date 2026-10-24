@@ -7,14 +7,14 @@ const APPS=[
  ["assignments","Assignments","📋"],["operations","Operations","📈"],
  ["creative","Creative Desk","🎨"],["hq","Company HQ","🧑‍💼"],
  ["approvals","Approvals","🔐"],["research","Research","🔎"],
- ["browser","Browser","🌐"],["reminders","Reminders","📅"],["settings","Settings","⚙️"]
+ ["browser","Browser","🌐"],["reminders","Reminders","📅"],["camera","Camera","📷"],["settings","Settings","⚙️"]
 ];
 // Compact icon captions only. Full names stay in accessibility labels and navigation.
 const HOME_LABELS=Object.freeze({
  office:"Office",messages:"Messages",email:"Email",contacts:"Contacts",
  accounts:"Accounts",studio:"Studio",assignments:"Assignments",operations:"Operations",
  creative:"Creative",hq:"Company HQ",approvals:"Approvals",research:"Research",
- browser:"Browser",reminders:"Reminders",settings:"Settings"
+ browser:"Browser",reminders:"Reminders",camera:"Camera",settings:"Settings"
 });
 const valid=new Set(APPS.map(a=>a[0]));
 const kinds=["inbox","approvals","work","research"];
