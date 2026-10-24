@@ -3,6 +3,8 @@
 import {agentCloud} from "./agent-cloud-auth.js";
 const esc=(s)=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 let result=null,message="",busy=false,lastCheck=0,checking=false;
+// Protect the limited free-plan connection slots while Nango owner-tag diagnostics are resolved.
+const newNangoAuthorizationsPaused=true;
 let nangoLink="",nangoLinkExpiresAt="",nangoVerification=null;
 function render(){
  const root=document.getElementById("agenthq-automation-root");
@@ -23,7 +25,8 @@ function render(){
   '<div class="ah-automation-row"><strong>Nango · New Accounts</strong><span class="ah-badge '+(verified?'ah-verified':n?.configured?'ah-pending':'')+'">'+esc(!n?'Status unknown':nangoLabel)+'</span>'+
   '<small>'+esc(n?.integrations?.length?'Allowed integrations: '+n.integrations.join(", "):"Provider authorizations require a Nango server configuration.")+'</small>'+
   (v?'<small class="ah-connect-feedback" role="status">'+esc(v.message||"Live connection test returned no detail.")+(v.githubLogin?' GitHub user: '+esc(v.githubLogin)+'.':'')+'</small>':'')+
-  '<button type="button" data-ah-automation="connect" '+(busy||!n?.configured?'disabled':'')+'>Authorize a new account</button>'+
+  '<button type="button" data-ah-automation="connect" '+(busy||!n?.configured||newNangoAuthorizationsPaused?'disabled':'')+'>'+(newNangoAuthorizationsPaused?'New authorizations paused':'Authorize a new account')+'</button>'+
+  (newNangoAuthorizationsPaused?'<small>New Nango connections are temporarily paused to protect the remaining free-plan quota. Use Check both integrations to diagnose existing connections. No GitHub reauthorization is required right now.</small>':'')+
   (nangoLink?'<a class="ah-connect-link" href="'+esc(nangoLink)+'" target="_blank" rel="noopener noreferrer">Open secure Nango authorization ↗</a><small>This personal authorization link expires after 30 minutes. Approve GitHub access only if you agree with the permissions.</small>':'')+'</div></div>'+
   '<button type="button" class="ah-status-check" data-ah-automation="status" aria-label="Check Activepieces and Nango integration setup" aria-busy="'+(checking?'true':'false')+'" '+(busy||checking?'disabled':'')+'>'+(checking?'Checking connections…':'↻ Check both integrations')+'</button>'+
   '<p role="status" class="ah-status">'+esc(message||"Sign in to Agent HQ to check real connector readiness.")+'</p>'+
@@ -84,6 +87,9 @@ document.addEventListener("click",async(e)=>{
  const button=e.target.closest?.("[data-ah-automation]");
  if(!button||busy)return;
  const action=button.dataset.ahAutomation;
+ if(action==="connect"&&newNangoAuthorizationsPaused){
+  message="New Nango authorizations are paused to protect your free-plan quota. Use Check both integrations to diagnose the existing GitHub connection.";render();return;
+ }
  if(action==="status"){await refresh(true);return}
  busy=true;message=action==="connect"?"Creating a secure Nango authorization link…":"Sending a harmless Activepieces test…";
  if(action==="connect"){nangoLink="";nangoLinkExpiresAt="";}
