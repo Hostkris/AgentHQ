@@ -11,7 +11,7 @@ test('Camera app is a simple live viewfinder with one-tap capture, no worker for
  assert.match(camera,/getUserMedia/);
  assert.match(camera,/async function snapshot\(/);
  assert.match(camera,/class="camera-shutter"/);
- assert.match(camera,/data-camera-gallery/);
+ assert.match(camera,/data-camera-album/);
  assert.doesNotMatch(camera,/camera-share-panel|camera-recipient|camera-note/);
  assert.match(app,/screen==="camera"/);
  assert.match(index,/agent-camera-cloud\.js/);
@@ -31,11 +31,12 @@ test('Snapshots save to a separate private owner-scoped Agent HQ Camera Roll',()
 
 test('Owners choose which worker receives a saved photo in Messages',()=>{
  const camera=read('agent-camera-cloud.js'),app=read('app.js');
- assert.match(camera,/openPickerForChat/);
- assert.match(camera,/async function sendSaved/);
- assert.match(camera,/employee_id:worker/);
+ assert.match(camera,/openForChat/);
+ assert.match(camera,/async function sendDraft/);
+ assert.match(camera,/employee_id:target/);
  assert.match(camera,/agent-hq-image-review/);
- assert.match(app,/data-camera-pick-chat/);
+ assert.match(app,/data-photo-drafts/);
+ assert.match(camera,/hasDrafts/);
  assert.match(app,/data-camera-open-chat/);
  assert.match(app,/renderPhotoItem\(item,editingMessages/);
 });
@@ -64,3 +65,4 @@ test('Messages supports iOS-style long-press selection and confirmed bulk deleti
  assert.match(cloud,/rpc\('delete_agent_chat_message'/);
  assert.match(cloud,/clearConversation/);
 });
+

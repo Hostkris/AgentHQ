@@ -71,12 +71,14 @@ const track=()=>root()?.querySelector(".home-slide-track");
 const gridAt=i=>root()?.querySelector('[data-home-slide="'+i+'"] .home-dashboard');
 const clock=()=>Date.now();
 let gesture=null,drag=null,holdTimer=null,edgeTimer=null,edgeDirection=0,ignoreClicksUntil=0,swipe=null,frame=0;
-const reflows=new WeakMap();
+const reflows=new WeakMap();let dropping=false;
+const reducedMotion=()=>Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
+export const homeDragInProgress=()=>Boolean(gesture||drag||dropping||swipe?.moving);
 function clearHold(){if(holdTimer!==null){clearTimeout(holdTimer);holdTimer=null}}
 function clearEdge(){if(edgeTimer!==null){clearTimeout(edgeTimer);edgeTimer=null}edgeDirection=0}
 function setTrackPosition(page,animate=true,offset=0){
  const el=track();if(!el)return;
- el.style.transition=animate?"transform .46s cubic-bezier(.22,.72,.22,1)":"none";
+ el.style.transition=animate&&!reducedMotion()?"transform .46s cubic-bezier(.22,.72,.22,1)":"none";
  el.style.transform='translate3d(calc(-'+(page*100)+'% + '+offset+'px),0,0)';
 }
 function showPage(index,animated=true){
@@ -118,7 +120,7 @@ function animateReflow(grid,before){
   const next=el.getBoundingClientRect();
   const dx=first.left-next.left,dy=first.top-next.top;
   if(Math.abs(dx)+Math.abs(dy)<1)continue;
-  if(typeof el.animate==='function'){
+  if(!reducedMotion()&&typeof el.animate==='function'){
    const animation=el.animate([{transform:'translate3d('+dx+'px,'+dy+'px,0)'},{transform:'translate3d(0,0,0)'}],
     {duration:330,easing:'cubic-bezier(.2,.75,.2,1)'});
    reflows.set(el,animation);
@@ -128,6 +130,7 @@ function animateReflow(grid,before){
 function animateGhost(){
  frame=0;if(!drag)return;
  drag.ghost.style.transform='translate3d('+(drag.x-drag.offsetX)+'px,'+(drag.y-drag.offsetY)+'px,0) scale(1.07)';
+ reorderAt(drag.x,drag.y);edgeAt(drag.x);
 }
 function setGhostPosition(x,y){if(!drag)return;drag.x=x;drag.y=y;if(!frame)frame=requestAnimationFrame(animateGhost)}
 function activateHeld(){
@@ -142,7 +145,7 @@ function activateHeld(){
  document.body.append(ghost);
  // Do not redraw the held element: Safari would cancel its original touch stream.
  root()?.querySelectorAll('.home-dashboard').forEach(g=>g.classList.add('home-is-editing'));
- drag={id,source,ghost,offsetX:rect.width/2,offsetY:rect.height/2,x:gesture.x,y:gesture.y};
+ drag={id,source,ghost,offsetX:gesture.startX-rect.left,offsetY:gesture.startY-rect.top,x:gesture.x,y:gesture.y};
  source.classList.add('home-drag-placeholder');
  setGhostPosition(gesture.x,gesture.y);
  if(navigator.vibrate)try{navigator.vibrate(10)}catch{}
@@ -151,9 +154,18 @@ function reorderAt(x,y){
  if(!drag)return;
  const grid=gridAt(state.current),source=sourceTile();if(!grid||!grid.contains(source))return;
  const under=document.elementFromPoint(x,y);
- const target=under?.closest?.('.home-dashboard [data-home-item]');
- if(!target||target===source||!grid.contains(target))return;
+ const hovered=under?.closest?.('.home-dashboard [data-home-item]');
+ const bounds=grid.getBoundingClientRect();
+ if(x<bounds.left-12||x>bounds.right+12||y<bounds.top-12||y>bounds.bottom+12)return;
  const all=[...grid.querySelectorAll(':scope > [data-home-item]')];
+ // Ignore neighbors' temporary animation transforms when choosing a drop slot.
+ let target=hovered,distance=Infinity;
+ for(const item of all){
+  if(!item.offsetWidth)continue;
+  const cx=bounds.left+item.offsetLeft+item.offsetWidth/2,cy=bounds.top+item.offsetTop+item.offsetHeight/2;
+  const d=Math.hypot(x-cx,y-cy);if(d<distance){target=item;distance=d}
+ }
+ if(!target||target===source||!grid.contains(target))return;
  const from=all.indexOf(source),to=all.indexOf(target);if(from<0||to<0)return;
  const before=new Map(all.map(el=>[el,el.getBoundingClientRect()]));
  if(from<to)target.after(source);else target.before(source);
@@ -196,7 +208,7 @@ function edgeAt(x){
 function moveHeld(x,y){
  if(!gesture)return;
  gesture.x=x;gesture.y=y;
- if(drag){setGhostPosition(x,y);reorderAt(x,y);edgeAt(x);return}
+ if(drag){setGhostPosition(x,y);return}
  const dx=x-gesture.startX,dy=y-gesture.startY;
  if(holdTimer!==null&&Math.hypot(dx,dy)>10)clearHold();
 }
@@ -204,13 +216,18 @@ function finishDrag(){
  clearHold();clearEdge();
  if(frame){cancelAnimationFrame(frame);frame=0}
  if(drag){
-  commitGridOrders();drag.source.classList.remove('home-drag-placeholder');
-  drag.ghost.remove();drag=null;ignoreClicksUntil=clock()+650;gesture=null;update();return;
+  reorderAt(drag.x,drag.y);commitGridOrders();const held=drag,slot=held.source.getBoundingClientRect();
+  drag=null;dropping=true;ignoreClicksUntil=clock()+350;gesture=null;
+  const finish=()=>{held.source.classList.remove('home-drag-placeholder');held.ghost.remove();dropping=false;update()};
+  if(!reducedMotion()&&typeof held.ghost.animate==='function'){
+   held.ghost.animate([{transform:held.ghost.style.transform},{transform:'translate3d('+slot.left+'px,'+slot.top+'px,0) scale(1)'}],{duration:210,easing:'cubic-bezier(.22,.85,.25,1)',fill:'forwards'}).finished.then(finish,finish);
+  }else finish();
+  return;
  }
  gesture=null;
 }
 function startHold(tile,x,y){
- if(gesture||drag)return;
+ if(gesture||drag||dropping)return;
  gesture={id:tile?.dataset.homeTile||null,element:tile?.closest('[data-home-item]')||null,startX:x,startY:y,x,y};
  if(editing&&gesture.id)activateHeld();
  else if(!editing&&gesture.id)holdTimer=setTimeout(activateHeld,480);
@@ -248,11 +265,12 @@ function init(){
  if(connected)return;connected=true;
  document.addEventListener('click',event=>{
   if(!event.target.closest?.('.home-pages'))return;
-  if(clock()<ignoreClicksUntil){event.preventDefault();event.stopImmediatePropagation();return}
+  if(clock()<ignoreClicksUntil&&!event.target.closest?.('[data-home-edit]')){event.preventDefault();event.stopImmediatePropagation();return}
   if(action(event.target)){event.preventDefault();event.stopImmediatePropagation()}
  },true);
  document.addEventListener('touchstart',event=>{
-  if(!event.target.closest?.('.home-pages')||event.touches.length!==1)return;
+  if(!event.target.closest?.('.home-pages'))return;
+  if(event.touches.length!==1){finishDrag();swipe=null;return}
   const t=event.touches[0],tile=event.target.closest?.('[data-home-tile]');
   const interactive=event.target.closest?.('input,textarea,select,summary,[data-home-edit],[data-home-add-page],[data-home-page],[data-home-widget-menu],[data-home-widget-nav],[data-home-add-widget],[data-home-remove-widget],[data-home-remove-page]');
   if(interactive)return;
@@ -285,6 +303,17 @@ function init(){
   event.preventDefault();if(!drag){if(!gesture)startHold(tile,event.clientX,event.clientY);activateHeld()}
  });
  document.addEventListener('dragstart',event=>{if(event.target.closest?.('.home-pages [data-home-tile]'))event.preventDefault()});
+ document.addEventListener('keydown',event=>{
+  if(!root())return;
+  if(event.key==='Escape'){finishDrag();editing=false;menu=false;update();return}
+  const tile=event.target.closest?.('[data-home-tile]');
+  if(!tile||!event.altKey||!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key))return;
+  event.preventDefault();const grid=gridAt(state.current),element=tile.closest('[data-home-item]'),items=[...grid.children],from=items.indexOf(element);
+  const step={ArrowLeft:-1,ArrowRight:1,ArrowUp:-4,ArrowDown:4}[event.key],to=Math.max(0,Math.min(items.length-1,from+step));
+  if(from<to)items[to].after(element);else if(from>to)items[to].before(element);
+  commitGridOrders();save();tile.focus();
+ });
  document.addEventListener('visibilitychange',()=>{if(document.hidden){finishDrag();swipe=null}});
 }
 export function connectHomeScreen(onChange){change=onChange;init()}
+

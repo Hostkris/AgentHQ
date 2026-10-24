@@ -443,8 +443,8 @@ button:disabled{cursor:default}
  transform-origin:center center;
  pointer-events:none!important;
  filter:drop-shadow(0 14px 21px rgba(0,0,0,.29));
- will-change:left,top,transform;
- transition:transform 90ms ease-out;
+ will-change:transform;
+ transition:none;
  -webkit-user-select:none;
  user-select:none;
 }
@@ -497,3 +497,19 @@ button:disabled{cursor:default}
 .ios-thread-selecting .ios-chat-list .ios-message-row.incoming{padding-left:10px}
 .ios-thread-selecting .ios-chat-list .ios-message-row .ios-photo-message{margin:0}
 @media(max-width:380px){.ios-chat-edit-bar{gap:2px}.ios-chat-edit-bar button{font-size:11px;padding:3px 5px}}
+
+
+/* Compositor-driven icon movement; respect the device's motion preference. */
+.home-pages .tile{-webkit-tap-highlight-color:transparent;touch-action:pan-y}
+.home-pages .home-is-editing .tile{touch-action:none}
+.home-drag-ghost{contain:layout style;backface-visibility:hidden}
+.home-pages .home-page-dot{transition:background .2s,transform .2s}
+.home-pages .home-page-dot.active{transform:scale(1.12)}
+.home-pages .tile:active .app-icon{transform:scale(.94);transition:transform .12s ease-out}
+@media(prefers-reduced-motion:reduce){.home-pages *,.home-drag-ghost{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+.home-pages .home-dashboard{position:relative}
+
+/* Keep each message X available outside multi-select mode. */
+.ios-thread .ios-chat-list .ios-message-row[data-chat-kind] .chat-delete-bar{display:flex}
+.ios-thread .ios-chat-list .ios-message-row[data-chat-kind] .ios-message-bubble:has(.chat-delete-bar){padding-right:56px}

@@ -4,6 +4,7 @@
   office:'<path d="M4 21V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v15M2 21h20M9 21v-5h6v5M8 8h1m6 0h1M8 12h1m6 0h1"/>',
   messages:'<path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H7l-5 2 1.6-5A8.5 8.5 0 1 1 21 11.5Z"/><path d="M7 11h.01M12 11h.01M17 11h.01" stroke-width="3"/>',
   email:'<rect x="2.5" y="4.5" width="19" height="15" rx="3"/><path d="m3.5 6 8.5 7 8.5-7"/>',
+  camera:'<path d="M3 7h4l2-3h6l2 3h4v13H3Z"/><circle cx="12" cy="13" r="4"/>',
   contacts:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20v-2a6.5 6.5 0 0 1 13 0v2M16 5a3.5 3.5 0 0 1 0 7m2 3a5 5 0 0 1 3.5 5"/>',
   accounts:'<rect x="3" y="10" width="18" height="11" rx="3"/><path d="M7 10V7a5 5 0 0 1 10 0v3m-5 5v2"/>',
   studio:'<rect x="3" y="6" width="18" height="14" rx="5"/><path d="M12 3v3M8 12h.01M16 12h.01M8 16h8M1 11v4m22-4v4"/>',
@@ -50,3 +51,4 @@
  }
  new MutationObserver(decorate).observe(app,{childList:true,subtree:true});decorate();
 })();
+

@@ -1,5 +1,5 @@
 import {messageDeleteButton, messageIsDeleted} from './agent-message-controls.js?v=20261024-delete-1';
-import {renderHomeScreen,connectHomeScreen} from './agent-home-layout.js?v=20261024-fluid-3';
+import {renderHomeScreen,connectHomeScreen,homeDragInProgress} from './agent-home-layout.js?v=20261024-camera-messages-2';
 const staff=[["alex","👔","Alex","General Manager"],["maya","📣","Maya","Chief Marketing Strategist"],["jordan","🎬","Jordan","Scripts & Content"],["riley","🔎","Riley","Market Research Analyst"],["taylor","📧","Taylor","Communications"],["casey","📱","Casey","Social Media"],["morgan","🛍️","Morgan","Shopify"],["avery","📊","Avery","Business Analysis"],["jamie","📅","Jamie","Scheduling"],["quinn","💡","Quinn","Growth & Partnerships"]];const app=document.querySelector("#app");const oauthReturnWorker=(()=>{
  try{
   const callback=new URLSearchParams(location.search);
@@ -176,8 +176,18 @@ function syncAppBadge(){
 window.agentHQCameraOpenScreen=()=>{screen="camera";render()};
 window.agentHQCameraReturnToChat=id=>{if(id){active=id;screen="chat"}else screen="home";render()};
 window.agentHQCameraRerender=()=>{if(screen==="camera")render()};
-window.agentHQCameraRefreshUI=()=>{if(screen==="chat"||screen==="messages")renderWithoutInterruptingDraft()};
-window.agentHQCameraNotice=message=>{sendFeedback.set(active,String(message));if(screen==="chat")renderWithoutInterruptingDraft()};
+window.agentHQCameraRefreshUI=()=>{
+ if(screen==="chat"){
+  // Update messages without replacing the focused composer or dismissing the
+  // iPhone keyboard when a photo arrives or the upload finishes.
+  const list=document.querySelector("#chat-scroll");if(!list)return;
+  const top=list.scrollTop,atBottom=list.scrollHeight-list.clientHeight-top<80;
+  const template=document.createElement("template");template.innerHTML=renderIPhoneChat();
+  const next=template.content.querySelector("#chat-scroll");if(!next)return;
+  list.replaceChildren(...next.childNodes);list.scrollTop=atBottom?list.scrollHeight:top;
+ }else if(["messages","contacts"].includes(screen))renderWithoutInterruptingDraft();
+};
+window.agentHQCameraNotice=(message,target=active)=>{sendFeedback.set(target,String(message));if(screen==="chat"&&active===target){const el=document.querySelector("#send-feedback");if(el)el.textContent=String(message)}else if(screen==="studio"){const form=document.querySelector("#studio-message-form");if(form?.dataset.studioThread===target){const el=document.querySelector(".studio-feedback");if(el)el.textContent=String(message)}}};
 window.agentHQVisibleThread=()=>screen==="chat"?active:null;
 window.agentHQUnreadSync=counts=>{
  const next=Object.entries(counts||{}).filter(([id,n])=>["hq",...staff.map(s=>s[0])].includes(id)&&Number(n)>0);
@@ -532,7 +542,7 @@ function renderIPhoneChat(){
     '</div></div>';
  }).join("");
  const status=sendFeedback.get(active)||"";
- const errors=/not saved|failed|unavailable|error|could not/i.test(status);
+ const errors=Boolean(status);
  return '<div class="ios-thread'+(editingMessages?' ios-thread-selecting':'')+'">'+
   '<div class="ios-chat-edit-bar">'+
   (editingMessages?'<button type="button" data-chat-select-all>Select All ('+choices.length+')</button>'+
@@ -548,9 +558,9 @@ function renderIPhoneChat(){
   '<div data-social-read-thread>'+(window.agentHQSocialReadThread?.(active)||'')+'</div>'+
   '</div>'+
   (sendingAgents.has(active)?'<div class="ios-typing" aria-live="polite"><span></span><span></span><span></span></div>':"")+
-  '<form id="composer" class="ios-composer" autocomplete="off">'+
-   '<button type="button" class="ios-camera-attach" data-camera-open-chat="'+escapeHTML(active)+'" aria-label="Take photo">+</button>'+
-   '<button type="button" class="ios-photo-library" data-camera-pick-chat="'+escapeHTML(active)+'" aria-label="Attach Agent HQ photo">▧</button>'+
+  '<form id="composer" class="ios-composer photo-enabled-composer" autocomplete="off">'+
+   '<div class="photo-composer-drafts" data-photo-drafts="'+escapeHTML(active)+'">'+(window.agentHQCamera?.renderDrafts(active)||'')+'</div>'+
+   '<button type="button" class="ios-camera-attach" data-camera-open-chat="'+escapeHTML(active)+'" aria-label="Take or attach a photo">+</button>'+
    '<textarea id="draft" aria-label="Text message" placeholder="Text Message" rows="1" maxlength="10000"></textarea>'+
    '<button class="ios-send" id="send-message" type="submit" aria-label="Send message" '+(sendingAgents.has(active)?"disabled":"")+'><span aria-hidden="true">↑</span></button>'+
   '</form>'+
@@ -743,7 +753,7 @@ window.agentHQResearchSync=(jobs,notice)=>{researchJobs=jobs||[];if(screen==='ch
 window.agentHQResearchConnection=data=>{researchConnection=data;const status=document.querySelector('#research-connection-status');if(status)status.textContent=data.message};
 app.addEventListener('click',async e=>{const refresh=e.target.closest('[data-research-refresh]');if(refresh){refresh.disabled=true;try{await window.agentHQResearchCloud?.refresh()}catch{}finally{refresh.disabled=false}return}const button=e.target.closest('[data-research-check]');if(!button)return;button.disabled=true;button.textContent='Checking…';try{if(!window.agentHQResearchCloud)throw Error('Research connection is loading. Refresh Agent HQ.');await window.agentHQResearchCloud.status()}catch(err){window.agentHQResearchConnection({ready:false,message:err.message})}finally{button.disabled=false;button.textContent='Check connection'}});
 let settingsReturn=false;
-function render(){window.agentHQCamera?.onScreenChange(screen);const isChat=screen==="chat";
+function render(){if(screen==="home"&&homeDragInProgress())return;window.agentHQCamera?.onScreenChange(screen);const isChat=screen==="chat";
  if(!isChat||(chatSelectionWorker&&chatSelectionWorker!==active)){chatSelectionWorker=null;chatSelected.clear()}
  if(!isChat)lastViewedThread=null;
  else if(active&&active!==lastViewedThread){lastViewedThread=active;window.agentHQChatCloud?.markRead(active).catch(()=>{});}
@@ -758,6 +768,8 @@ const title=isChat?(active==="hq"?"Company Headquarters":staff.find(x=>x[0]===ac
  '<small>'+escapeHTML(role)+'</small></span></div>'+
  '<button class="ios-refresh" type="button" id="refresh" aria-label="Refresh messages">↻</button>'+
  '</header>'+body+'</main>';
+ }else if(screen==="camera"){
+ app.innerHTML='<main class="camera-screen-shell">'+body+'</main>';
  }else{
  app.innerHTML=`<main class="shell ${screen==="home"?"home-shell":screen==="office"?"office-shell":screen==="settings"?"settings-shell":""}"><header class="main-navigation">${screen!=="home"?`<button class="back" data-nav="${screen==="team"?"assignments":settingsReturn?"settings":"home"}" aria-label="Go back">‹ ${settingsReturn?"Settings":"Home"}</button>`:`<button type="button" class="home-brand" data-nav="office" aria-label="Open office">${window.AgentHQIcons?.svg("office")||""}<span>Office</span></button>`}<span class="header-brand">Agent HQ</span></header>${screen==="home"?"":`<h1>${escapeHTML(title||"Agent HQ")}</h1>`}${body}</main>`;
  }if(screen==="contacts"||screen==="messages"){const show=(q="")=>{
@@ -769,7 +781,7 @@ const title=isChat?(active==="hq"?"Company Headquarters":staff.find(x=>x[0]===ac
  const headquarters=showHQ&&"company headquarters".includes(q.toLowerCase())?`<button class="row" data-chat="hq" aria-label="Company Headquarters${employeeAttention("hq")?", "+employeeAttention("hq")+" unread items":""}"><span class="avatar">🏢</span><span class="agent-contact-copy"><strong>Company Headquarters</strong><small>All 10 employees</small></span>${unreadBadge(employeeAttention("hq"))}</button>`:"";
  const staffRows=shown.map(x=>`<button class="row" data-chat="${x[0]}" aria-label="${escapeHTML(x[2])}${employeeAttention(x[0])?", "+employeeAttention(x[0])+" unread items":""}"><span class="avatar">${x[1]}</span><span class="agent-contact-copy"><strong>${x[2]}</strong><small>${escapeHTML(x[3])}${inbox?getConversationPreview(x[0]):""}</small></span>${unreadBadge(employeeAttention(x[0]))}</button>`).join("");
  const customRows=studioBots.filter(b=>b.status==="active"&&
-   (!inbox||studioMessaged.has(b.id))&&[b.name,b.role].join(" ").toLowerCase().includes(q.toLowerCase()))
+   (!inbox||studioMessaged.has(b.id)||window.agentHQCamera?.hasPhotos?.(b.id))&&[b.name,b.role].join(" ").toLowerCase().includes(q.toLowerCase()))
   .map(b=>'<button class="row" data-studio-worker="'+escapeHTML(b.id)+'"><span class="avatar studio-contact-avatar" data-rpg-worker="'+escapeHTML(b.id)+'"></span>'+
    '<span><strong>'+escapeHTML(b.name)+'</strong><small>'+escapeHTML(b.role)+'</small></span></button>').join("");
  document.querySelector("#contact-list").innerHTML=headquarters+staffRows+customRows||(inbox?'<p class="muted">No individual conversations yet. Start one from Contacts.</p>':'<p class="muted">No employees match that search.</p>');
@@ -806,6 +818,13 @@ if(isChat){
   event.preventDefault();
   const worker=active,value=field.value.trim();
   if(sendingAgents.has(worker))return;
+  if(window.agentHQCamera?.hasDrafts(worker)){
+   sendingAgents.add(worker);const send=form.querySelector('[type="submit"]');if(send)send.disabled=true;
+   try{await window.agentHQCamera.sendDraft(worker,value);drafts.set(worker,"");if(field.isConnected)field.value="";}
+   catch(error){sendFeedback.set(worker,error.message);const el=document.querySelector("#send-feedback");if(el&&active===worker)el.textContent=error.message;}
+   finally{sendingAgents.delete(worker);if(send?.isConnected)send.disabled=false;if(screen==="chat"&&active===worker)renderWithoutInterruptingDraft()}
+   return;
+  }
   if(!value){field.focus();return}
   sendingAgents.add(worker);
   const optimisticId="pending-"+Date.now();
@@ -1267,3 +1286,4 @@ window.agentHQSocialReadSync=()=>{if((screen==='chat'&&active==='riley')||screen
 window.agentHQSocialReadOpen=()=>{active='riley';screen='chat';render()};
 
 document.addEventListener("agenthq-message-deletions",()=>{if(["chat","team","messages","contacts","approvals"].includes(screen))renderWithoutInterruptingDraft()});
+

@@ -35,7 +35,7 @@
  ];
  let bots=[],chats=new Map(),selected=null,tab="marketplace",draft=null,templateKey="",feedback="",busy=false;
  let intake={job:"",boundaries:"",style:"friendly and direct",deliverable:"",category:"personal"};
- let rendered="",lastScreen=false;
+ let rendered="",lastScreen=false;const chatDrafts=new Map();
  function cloud(){
   if(!window.agentHQBotStudioCloud)throw Error("AI Worker Studio is loading. Please refresh Agent HQ.");
   return window.agentHQBotStudioCloud;
@@ -43,12 +43,13 @@
  function selectedBot(){return bots.find(b=>b.id===selected)}
  function sync(rows,message){
   bots=rows||[];
+  const ids=new Set(bots.map(b=>b.id));for(const id of chats.keys())if(!ids.has(id))chats.delete(id);for(const id of chatDrafts.keys())if(!ids.has(id))chatDrafts.delete(id);
   if(selected&&!bots.some(b=>b.id===selected)){selected=null;if(tab==="chat")tab="library"}
   feedback=message||feedback;
   draw();
  }
  window.agentHQBotStudioUI={
-  sync,openBot(id){
+  sync,refreshChat:loadChat,openBot(id){
    selected=id;tab="chat";feedback="";
    draw();
    loadChat(id);
@@ -68,7 +69,9 @@
   lastScreen=true;
   const html=render();
   if(html===rendered&&root.dataset.ready==="1")return;
+  const oldForm=root.querySelector('#studio-message-form'),oldField=oldForm?.querySelector('textarea');if(oldField&&oldForm.dataset.studioThread)chatDrafts.set(oldForm.dataset.studioThread,oldField.value);
   root.innerHTML=html;root.dataset.ready="1";rendered=html;
+  const form=root.querySelector('#studio-message-form'),field=form?.querySelector('textarea');if(field)field.value=chatDrafts.get(form.dataset.studioThread)||'';
   if(tab==="chat"){
    const list=root.querySelector(".studio-chat-bubbles");
    if(list)list.scrollTop=list.scrollHeight;
@@ -122,16 +125,16 @@
   }else if(tab==="chat"){
    const bot=selectedBot();
    if(!bot)return html+'<p class="studio-empty">Choose a worker from My workers.</p>';
-   const history=(chats.get(bot.id)||[]).filter(m=>!window.agentHQMessageControls?.isDeleted("bot",m.id));
+   const history=[...(chats.get(bot.id)||[]).filter(m=>!window.agentHQMessageControls?.isDeleted("bot",m.id)),...(window.agentHQCamera?.getThreadItems(bot.id)||[])].sort((a,b)=>Date.parse(a.created_at||a.createdAt)-Date.parse(b.created_at||b.createdAt));
    html+='<section class="studio-chat"><header><button type="button" data-studio-tab="library">‹ Workers</button>'+
      '<span class="studio-chat-face" data-rpg-worker="'+E(bot.id)+'"></span><div><strong>'+E(bot.name)+'</strong><small>'+E(bot.role)+'</small></div></header>'+
      '<div class="studio-chat-bubbles">'+
      (!history.length?(window.agentHQMessageControls?.isDeleted('welcome',bot.id)?'':'<div class="studio-chat-tip">'+(window.agentHQMessageControls?.button('welcome',bot.id)||'')+E(bot.starting_message||"What can I help you with?")+'</div>'):
-      history.map(m=>'<div class="studio-chat-row '+(m.sender==="owner"?"mine":"theirs")+(m.sender==="handoff"?" handoff":"")+'"><div class="studio-chat-bubble">'+
+      history.map(m=>m.type==='photo'?window.agentHQCamera.renderPhotoItem(m):'<div class="studio-chat-row '+(m.sender==="owner"?"mine":"theirs")+(m.sender==="handoff"?" handoff":"")+'"><div class="studio-chat-bubble">'+
        (window.agentHQMessageControls?.button('bot',m.id)||'')+E(m.body)+'</div></div>').join(""))+
      (busy?'<div class="studio-chat-row theirs"><div class="studio-typing">● ● ●</div></div>':"")+
-     '</div><form class="studio-chat-composer" id="studio-message-form"><textarea name="message" maxlength="4500" rows="2" placeholder="Text '+E(bot.name)+'…"'+(busy?" disabled":"")+'></textarea>'+
-     '<button type="submit" class="studio-primary"'+(busy?" disabled":"")+'>Send</button></form>'+
+     '</div><form class="studio-chat-composer photo-enabled-composer" id="studio-message-form" data-studio-thread="'+E(bot.id)+'"><div class="photo-composer-drafts" data-photo-drafts="'+E(bot.id)+'">'+(window.agentHQCamera?.renderDrafts(bot.id)||'')+'</div><button type="button" class="ios-camera-attach" data-camera-open-chat="'+E(bot.id)+'" aria-label="Take or attach a photo">+</button><textarea name="message" maxlength="4500" rows="2" placeholder="Text '+E(bot.name)+'…"'+(busy?" disabled":"")+'></textarea>'+
+     '<button type="submit" class="studio-primary studio-photo-send" aria-label="Send message"'+(busy?" disabled":"")+'>↑</button></form>'+
      (bots.filter(b=>b.status==="active"&&b.id!==bot.id).length?
        '<details class="studio-handoff-box"><summary>📄➡️🤝 Pass paperwork to another worker</summary>'+
        '<form id="studio-handoff-form"><label>Send to<select name="target" required>'+
@@ -222,10 +225,15 @@
   if(event.target.matches("#studio-message-form")){
    event.preventDefault();
    const text=event.target.elements?.namedItem?.("message")?.value?.trim();
-   if(!text||!selected)return;
+   if(!selected)return;
    const id=selected;
+   if(window.agentHQCamera?.hasDrafts(id)){
+    await guarded(async()=>{await window.agentHQCamera.sendDraft(id,text||"");const field=app.querySelector("#studio-message-form textarea");if(field)field.value="";chats.set(id,await cloud().history(id));feedback="Photo sent."});return;
+   }
+   if(!text)return;
    await guarded(async()=>{
     const {history}=await cloud().send(id,text);
+    const field=app.querySelector("#studio-message-form textarea");if(field)field.value="";
     chats.set(id,history);
     feedback="Message saved in your private conversation.";
    });
@@ -242,4 +250,5 @@
  if(existing)sync(existing.rows||[],existing.notice||"",existing.messaged||[]);
  draw();
 })();
+
 

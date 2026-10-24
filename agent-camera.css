@@ -1,42 +1,99 @@
-/* Agent HQ Camera: immediate full-height iPhone-style viewfinder, no setup forms. */
-.agent-camera-app{--cam-bg:#090a0c;position:relative;isolation:isolate;width:100%;max-width:550px;margin:0 auto;min-height:min(820px,calc(100dvh - 130px));display:flex;flex-direction:column;background:var(--cam-bg);color:#fff;border-radius:20px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif}
-.camera-top{z-index:1;display:flex;align-items:center;justify-content:space-between;gap:20px;height:54px;min-height:54px;padding:0 15px;background:#090a0c;letter-spacing:2px;font-size:13px;font-weight:680}
-.camera-top button{display:grid;place-items:center;width:38px;height:38px;min-height:38px;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;font-size:17px}
-.camera-top-space{width:38px}
-.camera-viewfinder{position:relative;display:flex;align-items:center;justify-content:center;flex:1;min-height:40dvh;background:#121316;overflow:hidden}
-.camera-viewfinder video{width:100%;height:100%;min-height:40dvh;position:absolute;inset:0;object-fit:cover;background:linear-gradient(150deg,#1d2026,#050608)}
-.camera-native-fallback{z-index:2;padding:14px 20px;border-radius:24px;background:rgba(255,255,255,.88);color:#151515;font-weight:680}
-.camera-controls{display:grid;grid-template-columns:1fr 1fr 1fr;align-items:center;justify-items:center;min-height:116px;background:#090a0c;padding:8px 20px 3px}
-.camera-controls button{border:0!important;color:#fff;background:transparent;min-width:46px;min-height:46px;display:grid;place-items:center}
-.camera-shutter{width:77px!important;height:77px!important;border:4px solid white!important;border-radius:50%!important;padding:5px!important;transition:transform .16s cubic-bezier(.2,.8,.2,1)}
-.camera-shutter:active{transform:scale(.93)}
-.camera-shutter>span{display:block;width:100%;height:100%;border-radius:50%;background:white}
-.camera-shutter:disabled{opacity:.45}
-.camera-flip{font-size:32px;line-height:1}
-.camera-gallery-thumbnail{width:49px;height:49px;overflow:hidden;border-radius:12px;border:1px solid rgba(255,255,255,.5)!important;background:#30323a!important;font-size:24px}
-.camera-gallery-thumbnail img{width:100%;height:100%;object-fit:cover}
-.camera-live-status{padding:2px 13px 14px;text-align:center;margin:0;background:#090a0c;color:#dadce3;font-size:12px;min-height:35px;line-height:19px}
-.ios-composer .ios-camera-attach{flex:0 0 35px;width:35px;height:35px;border-radius:50%;display:grid;place-items:center;font-size:28px;font-weight:300;line-height:1;background:#d6d7dc;color:#4b4c50;align-self:center;padding:0}
-.ios-composer .ios-photo-library{flex:0 0 35px;width:35px;height:35px;display:grid;place-items:center;border-radius:50%;background:rgba(102,111,135,.15);font-size:18px;color:var(--ui-blue,#007aff)}
-.ios-photo-message{max-width:min(74vw,300px);padding:0;margin:0;overflow:hidden;border-radius:17px;background:rgba(142,148,165,.12)}
-.ios-photo-message img{display:block;width:100%;max-height:380px;object-fit:cover}
-.ios-photo-message figcaption{padding:8px 11px;overflow-wrap:anywhere;font-size:13px}
-.agent-camera-picker{position:fixed;z-index:100040;inset:0;display:flex;align-items:flex-end;justify-content:center;padding-top:env(safe-area-inset-top)}
-.camera-picker-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.48);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
-.camera-picker-card{z-index:1;position:relative;width:min(100%,540px);max-height:min(88dvh,750px);overflow:auto;padding:16px 14px calc(20px + env(safe-area-inset-bottom));background:var(--ui-page,#f5f5f7);border-radius:24px 24px 0 0;box-shadow:0 -14px 35px rgba(0,0,0,.18)}
-.camera-picker-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding:4px 2px;color:var(--ui-text,#1d1d1f)}
-.camera-picker-head strong{font-size:17px}
-.camera-picker-head button{background:transparent;color:var(--ui-blue,#007aff);font-weight:650;font-size:15px}
-.camera-picker-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;max-height:30dvh;overflow:auto}
-.camera-picker-item{position:relative;aspect-ratio:1;border-radius:7px;overflow:hidden;background:#aaa;border:0;padding:0;min-height:0}
-.camera-picker-item.selected{outline:3px solid #007aff;outline-offset:-3px}
-.camera-picker-item img{width:100%;height:100%;object-fit:cover}
-.camera-picker-actions{display:grid;gap:9px;padding-top:14px}
-.camera-picker-actions>button,.camera-picker-send{border-radius:13px;padding:12px;background:rgba(110,128,156,.13);color:var(--ui-blue,#007aff);font-weight:600}
-.camera-picker-actions .camera-picker-send{background:#007aff;color:#fff;min-height:46px}
-.camera-picker-actions label{display:grid;gap:4px;color:var(--ui-text,#333);font-size:13px}
-.camera-picker-actions select,.camera-picker-actions textarea{font:inherit;font-size:15px;color:var(--ui-text,#333);background:var(--ui-card,#fff);border:1px solid rgba(126,126,126,.3);padding:11px;border-radius:12px;width:100%}
-.camera-picker-preview{text-align:center}
-.camera-picker-preview img{max-height:150px;max-width:100%;border-radius:12px}
-.camera-picker-feedback{font-size:13px;color:#c62828;margin:0}
-@media(max-width:400px){.agent-camera-app{min-height:calc(100dvh - 125px);border-radius:0}.camera-controls{min-height:105px}.camera-shutter{height:71px!important;width:71px!important}}
+/* Camera, photo sheets and Messages attachments. Original Apple-inspired web UI. */
+:root{--photo-spring:cubic-bezier(.22,.85,.25,1);--photo-glass:rgba(242,242,247,.84)}
+.camera-modal-open,.camera-modal-open body{overflow:hidden!important;overscroll-behavior:none}
+.camera-screen-shell{position:fixed;inset:0;margin:0;background:#000;z-index:1200;isolation:isolate}
+.agent-camera-app{position:relative;display:grid;grid-template-rows:auto minmax(0,1fr) auto;width:100%;max-width:760px;height:100dvh;margin:0 auto;background:#000;color:#fff;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif;color-scheme:dark;-webkit-user-select:none;user-select:none}
+.camera-top{position:relative;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:72px;padding:calc(env(safe-area-inset-top,0px) + 10px) 18px 12px;background:#000;box-sizing:border-box}
+.camera-top>span{font-size:17px;font-weight:600;letter-spacing:-.3px}
+.agent-camera-app button,.camera-sheet-backdrop button,.photo-full-view button{-webkit-tap-highlight-color:transparent;font:inherit;cursor:pointer;border:0;touch-action:manipulation}
+.agent-camera-app button:focus-visible,.camera-sheet-backdrop button:focus-visible{outline:3px solid #ffd60a;outline-offset:4px}
+.camera-glass-button{display:grid!important;place-items:center;width:48px!important;height:48px!important;min-width:48px;padding:12px!important;border:1px solid rgba(255,255,255,.16)!important;border-radius:50%!important;background:rgba(80,80,85,.48)!important;color:#fff!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.12);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4);transition:transform .15s,background .15s}
+.camera-glass-button:active{transform:scale(.92)}
+.agent-camera-app svg,.photo-attachment-sheet svg,.photo-message-delete svg,.photo-full-view svg{display:block;width:25px;height:25px;flex-shrink:0}
+.camera-viewfinder{position:relative;align-self:center;justify-self:center;width:min(100%,calc((100dvh - 260px)*.75));height:auto;aspect-ratio:3/4;max-height:100%;overflow:hidden;display:grid;place-items:center;border-radius:3px;background:#101012}
+.camera-viewfinder>video,.camera-viewfinder>.camera-preview{display:block;width:100%;height:100%;max-height:100%;object-fit:contain;grid-area:1/1}
+.camera-viewfinder>video{object-fit:cover;aspect-ratio:3/4}
+.camera-mirrored{transform:scaleX(-1)}
+.camera-overlay-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;text-align:center;background:radial-gradient(ellipse at 50% 30%,#28282d,#111114 75%)}
+.camera-overlay-empty>svg{width:62px;height:62px;stroke-width:1.2;color:#dfdfe5;margin-bottom:8px}
+.camera-overlay-empty button{min-height:48px;padding:12px 22px;border-radius:30px;background:#f5f5f7;color:#111;font-weight:600;font-size:16px}
+.camera-overlay-empty button.camera-native-capture{background:rgba(255,255,255,.12);color:#fff;font-size:14px}
+.camera-overlay-empty p{max-width:250px;color:#a5a5ae;font-size:13px;line-height:1.4;margin:0}
+.camera-bottom{padding:13px 22px calc(env(safe-area-inset-bottom,0px) + 18px);background:#000;z-index:2;min-height:132px;box-sizing:border-box}
+.camera-mode{text-align:center;color:#ffd60a;font-size:13px;letter-spacing:1.4px;font-weight:650;margin:2px 0 16px}
+.camera-controls{display:grid;grid-template-columns:1fr 1fr 1fr;align-items:center;justify-items:center;gap:22px;min-height:82px}
+.camera-controls>:first-child{justify-self:start}.camera-controls>:last-child{justify-self:end}
+.camera-shutter{height:78px!important;width:78px!important;min-width:78px!important;min-height:78px!important;border:3px solid #fff!important;border-radius:50%!important;display:grid!important;place-items:center;padding:4px!important;background:#000!important;transition:transform .16s var(--photo-spring)}
+.camera-shutter span{display:block;width:62px;height:62px;border-radius:50%;background:#fff;transition:transform .15s}
+.camera-shutter:active span{transform:scale(.88)}.camera-shutter:disabled{opacity:.5}
+.camera-preview-actions{display:flex;align-items:center;justify-content:space-between;gap:14px;min-height:70px}
+.camera-preview-actions>button{background:transparent;color:#fff;padding:12px 2px;min-height:48px;font-size:16px;font-weight:500}
+.camera-preview-actions>.camera-use-photo{padding:13px 23px;border-radius:30px;background:#ffd60a;color:#111;font-weight:650;min-width:125px;display:flex;align-items:center;justify-content:center;gap:7px}
+.camera-preview-actions>.camera-use-photo:disabled{background:#26262a;color:#d2d2d9;opacity:1}
+.camera-preview-actions>button[data-camera-delete-saved]{min-width:44px;display:grid;place-items:center}
+.camera-notice{font-size:12px;line-height:1.35;color:#b9b9c2;min-height:16px;margin:10px 0 0;text-align:center;white-space:normal}
+.camera-notice.camera-error{color:#ff9b95}
+.camera-flash{position:absolute;inset:0;background:white;opacity:0;pointer-events:none}
+.camera-fullscreen-overlay{position:fixed;inset:0;background:#000;z-index:2147483000;isolation:isolate;animation:camera-present .24s var(--photo-spring)}
+.camera-sheet-backdrop{position:fixed;inset:0;z-index:2147483000;background:rgba(0,0,0,.2);display:flex;align-items:flex-end;justify-content:center;padding:14px 12px calc(env(safe-area-inset-bottom,0px) + 14px);box-sizing:border-box;isolation:isolate;animation:photo-backdrop-in .18s ease-out}
+.photo-attachment-sheet{width:min(100%,440px);border-radius:34px;padding:10px 20px 18px;background:var(--photo-glass);-webkit-backdrop-filter:blur(30px) saturate(1.8);backdrop-filter:blur(30px) saturate(1.8);border:1px solid rgba(255,255,255,.65);box-shadow:0 20px 70px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.8);color:#171719;animation:photo-sheet-in .28s var(--photo-spring)}
+.photo-sheet-grabber{width:34px;height:5px;border-radius:9px;background:rgba(100,100,108,.35);margin:0 auto 8px}
+.photo-attachment-sheet header{display:flex;align-items:center;justify-content:space-between;padding:2px 0 8px}
+.photo-attachment-sheet h2{font-size:17px;letter-spacing:-.3px;font-weight:600;margin:0}
+.photo-attachment-sheet header button{width:44px;height:44px;display:grid;place-items:center;background:rgba(118,118,128,.12);color:#55555d;border-radius:50%}
+.photo-attachment-sheet>button{display:flex;align-items:center;gap:17px;width:100%;padding:11px 2px;color:inherit;background:transparent;text-align:left;font-size:20px;font-weight:500;min-height:70px;border-radius:18px;transition:background .15s,transform .15s}
+.photo-attachment-sheet>button:active{background:rgba(118,118,128,.12);transform:scale(.98)}
+.photo-option-symbol{display:grid;place-items:center;width:51px;height:51px;border-radius:17px;background:linear-gradient(145deg,#fbfcfe,#d2d5dc);box-shadow:0 2px 6px rgba(0,0,0,.08);color:#34343a}
+.photo-option-symbol.photo-option-saved{background:linear-gradient(145deg,#55a9ff,#087afa);color:#fff}
+.photo-option-symbol svg{width:28px;height:28px}
+.photo-attachment-sheet small{display:block;font-size:12px;font-weight:400;color:#777780;margin-top:4px}
+.photo-sheet-note{font-size:12px;line-height:1.4;color:#777780;margin:14px 2px 1px}
+.camera-album{overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0;overscroll-behavior:contain;background:#111113}
+.camera-album-heading{padding:12px 17px 20px}.camera-album-heading h2{font-size:32px;letter-spacing:-1px;margin:0 0 6px}.camera-album-heading p{font-size:13px;color:#9898a2;margin:0}
+.camera-photo-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px}
+.camera-photo-grid>button{padding:0;background:#222;aspect-ratio:1;overflow:hidden}
+.camera-photo-grid img{display:block;width:100%;height:100%;object-fit:cover}
+.camera-album-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:300px;padding:28px;text-align:center;color:#c7c7cf}
+.camera-album-empty>svg{height:55px;width:55px}.camera-album-empty h3{font-size:20px;color:#fff;margin:17px 0 4px}.camera-album-empty p{font-size:14px;line-height:1.5;max-width:300px}
+.photo-full-view{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:15px;padding:calc(env(safe-area-inset-top) + 70px) 12px calc(env(safe-area-inset-bottom) + 20px);box-sizing:border-box;overflow:auto;background:#000;color:#fff}
+.photo-full-view>.camera-glass-button{position:fixed;top:calc(env(safe-area-inset-top) + 14px);right:18px;z-index:1}
+.photo-full-view>img{max-width:100%;max-height:78dvh;object-fit:contain;touch-action:pan-x pan-y pinch-zoom}.photo-full-view>p{font:15px -apple-system,sans-serif;max-width:600px;line-height:1.5}
+.photo-enabled-composer{display:grid!important;grid-template-columns:44px minmax(0,1fr) 44px!important;column-gap:8px!important;row-gap:0!important;align-items:end!important}
+.photo-enabled-composer>.photo-composer-drafts{grid-column:2/-1;grid-row:1;min-width:0}.photo-composer-drafts:empty{display:none}
+.photo-enabled-composer>.ios-camera-attach{grid-column:1;grid-row:2}.photo-enabled-composer>textarea{grid-column:2;grid-row:2;min-width:0;width:100%!important;box-sizing:border-box}
+.photo-enabled-composer>button[type=submit]{grid-column:3;grid-row:2}
+.ios-composer .ios-camera-attach,.studio-chat-composer .ios-camera-attach{width:38px!important;height:38px!important;min-height:38px!important;min-width:38px!important;border-radius:50%!important;padding:0!important;background:rgba(118,118,128,.18)!important;display:grid!important;place-items:center;font:32px/1 -apple-system,sans-serif;color:#6c6c75;align-self:center;transition:transform .15s}
+.ios-camera-attach:active{transform:scale(.9)}
+.photo-draft-tray{display:flex;gap:9px;overflow-x:auto;padding:9px 8px 13px 0;overscroll-behavior-x:contain;scroll-snap-type:x proximity}
+.photo-draft-tray figure{position:relative;flex:0 0 82px;height:94px;border-radius:16px;overflow:visible;margin:0;scroll-snap-align:start}
+.photo-draft-tray img{width:82px;height:94px;object-fit:cover;border-radius:16px;display:block;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.photo-draft-tray figure>button{position:absolute;right:-7px;top:-7px;display:grid;place-items:center;width:32px;height:32px;min-width:32px;min-height:32px;border:2px solid var(--ui-page,#fff);padding:5px;background:#74747b;color:#fff;border-radius:50%;box-shadow:0 2px 4px rgba(0,0,0,.2)}
+.photo-draft-tray svg{width:18px;height:18px}.photo-draft-tray button:disabled{opacity:.5}
+.ios-photo-message{position:relative;margin:0 0 9px;max-width:min(83%,300px);border-radius:22px;overflow:hidden;background:var(--ui-card,#e9e9ed);color:var(--ui-ink,#171719);box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.ios-photo-message img{display:block;width:100%;height:auto;max-height:380px;object-fit:cover}
+.photo-message-open{display:block;width:100%;padding:0!important;border:0;background:transparent;cursor:zoom-in;overflow:hidden}
+.ios-photo-message figcaption{padding:11px 14px;font:15px/1.4 -apple-system,sans-serif;overflow-wrap:anywhere;white-space:pre-wrap}
+.photo-message-delete{position:absolute;top:8px;right:8px;z-index:2;display:grid;place-items:center;width:36px;height:36px;border:1px solid rgba(255,255,255,.4);border-radius:50%;background:rgba(40,40,45,.6);color:white;cursor:pointer;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);padding:7px}
+.photo-message-delete svg{width:20px;height:20px}.photo-link-unavailable{padding:30px 15px}.photo-link-unavailable button{color:#007aff;background:none;border:0}
+.studio-chat-composer .studio-photo-send{width:40px!important;min-width:40px!important;height:40px!important;min-height:40px!important;padding:0!important;border-radius:50%!important;background:#30b957!important;color:#fff;font-size:27px!important;align-self:center}
+.app-icon--camera{background:linear-gradient(145deg,#f7f8fc,#b2b5c1)!important;color:#252630!important}.app-icon--camera .hq-symbol{width:65%;height:65%;stroke-width:1.6}
+@keyframes camera-present{from{opacity:0;transform:translateY(15px)}to{opacity:1;transform:translateY(0)}}
+@keyframes photo-sheet-in{from{opacity:0;transform:translateY(32px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes photo-backdrop-in{from{opacity:0}to{opacity:1}}
+@media(prefers-color-scheme:dark){:root:not([data-theme-mode=light]){--photo-glass:rgba(38,38,42,.88)}:root:not([data-theme-mode=light]) .photo-attachment-sheet{color:#f5f5f7;border-color:rgba(255,255,255,.15)}}
+:root[data-theme-mode=dark]{--photo-glass:rgba(38,38,42,.88)}:root[data-theme-mode=dark] .photo-attachment-sheet{color:#f5f5f7;border-color:rgba(255,255,255,.15)}
+@media(prefers-reduced-motion:reduce){.agent-camera-app *,.camera-fullscreen-overlay,.camera-sheet-backdrop,.photo-attachment-sheet,.ios-camera-attach{animation:none!important;transition:none!important}}
+@media(prefers-reduced-transparency:reduce){.photo-attachment-sheet{background:var(--ui-page,#f2f2f7);backdrop-filter:none;-webkit-backdrop-filter:none}}
+@media(min-width:768px){.camera-viewfinder{max-width:600px;width:100%;justify-self:center}.camera-bottom{padding-left:60px;padding-right:60px}.camera-photo-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-height:650px) and (orientation:landscape){.agent-camera-app{grid-template-columns:minmax(0,1fr) 150px;grid-template-rows:60px minmax(0,1fr);max-width:100%}.camera-top{grid-column:1/-1;padding:6px 16px;min-height:60px}.camera-viewfinder{grid-column:1;grid-row:2;max-width:100%;height:100%;width:auto;aspect-ratio:4/3}.camera-bottom{grid-column:2;grid-row:2;min-height:0;padding:10px;display:flex;flex-direction:column;justify-content:center}.camera-controls{display:flex;flex-direction:column;gap:22px}.camera-preview-actions{flex-direction:column}.camera-album{grid-column:1/-1;grid-row:2}}
+
+.camera-library-action{overflow:hidden;padding:0!important;border-radius:12px!important}
+.camera-library-action>img{display:block;width:100%;height:100%;object-fit:cover}
+.photo-message-delete[hidden]{display:none}
+
+.photo-sheet-error{color:#d6352e;font-size:13px;line-height:1.4;margin:10px 0 0}
+/* Keep existing dictation inside the text field without moving the send arrow. */
+.photo-enabled-composer:has(>.voice-dictate)>textarea{padding-right:40px!important}
+.photo-enabled-composer>.voice-dictate{grid-column:2;grid-row:2;justify-self:end;align-self:end;z-index:1;width:36px;min-width:36px;height:40px;margin:0 4px 1px 0;color:#777782;background:transparent}
+@media(prefers-color-scheme:dark){:root:not([data-theme-mode=light]) .photo-sheet-note,:root:not([data-theme-mode=light]) .photo-attachment-sheet small{color:#aaaab3}}
+:root[data-theme-mode=dark] .photo-sheet-note,:root[data-theme-mode=dark] .photo-attachment-sheet small{color:#aaaab3}

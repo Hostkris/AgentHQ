@@ -22,7 +22,7 @@ const escapeHTML=s=>String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').rep
 function fn(name){const s=source('app.js'),start=s.indexOf('function '+name+'('),end=s.indexOf('\nfunction ',start+10);return s.slice(start,end<0?undefined:end)}
 test('Every built-in worker and HQ renders X on owner, worker, handoff, approval and sending bubbles',()=>{
  const h=harness(),c=h.context;
- Object.assign(c,{active:'riley',staff:workerIds.map(id=>[id,'',id,'Worker']),messages:new Map(),approvalRequests:new Map(),sendFeedback:new Map(),sendingAgents:new Set(),escapeHTML,messageHTML:escapeHTML,renderChatConnectorCard:()=>'',renderConversationWork:()=>''});
+ Object.assign(c,{active:'riley',staff:workerIds.map(id=>[id,'',id,'Worker']),messages:new Map(),approvalRequests:new Map(),sendFeedback:new Map(),sendingAgents:new Set(),escapeHTML,messageHTML:escapeHTML,naturalChatText:escapeHTML,chatSelecting:()=>false,chatSelected:new Set(),chatSelectionKey:(kind,id)=>kind+":"+id,renderConversationResearch:()=>"",renderChatConnectorCard:()=>'',renderConversationWork:()=>''});
  vm.runInContext(fn('renderIPhoneChat'),c);
  for(const id of workerIds){
   c.active=id;c.messages.set(id,[...['owner','employee','system'].map((sender,i)=>({id:id+i,sender,text:'Text <script>unsafe</script>',createdAt:'2026-10-24'})),{id:'req',type:'approval'},{id:'pending',sender:'owner',text:'Sending',pending:true}]);
@@ -35,7 +35,7 @@ test('Every built-in worker and HQ renders X on owner, worker, handoff, approval
 });
 test('Team work and connection cards have durable independent dismiss controls',async()=>{
  const h=harness(),c=h.context;await tick();
- Object.assign(c,{active:'casey',staff:[],escapeHTML,location:new URL('https://example.com/'),chatGmailStatus:{connected:false},chatGmailGrants:[],metaState:{},teamAssignments:new Map([['job',{id:'job',title:'Draft',employee_ids:['casey'],coordination_status:'planning'}]]),coordSteps:new Map(),teamNotes:new Map(),workerLabel:x=>x});
+ Object.assign(c,{active:'casey',clearedAtByWorker:new Map(),staff:[],escapeHTML,location:new URL('https://example.com/'),chatGmailStatus:{connected:false},chatGmailGrants:[],metaState:{},teamAssignments:new Map([['job',{id:'job',title:'Draft',employee_ids:['casey'],coordination_status:'planning'}]]),coordSteps:new Map(),teamNotes:new Map(),workerLabel:x=>x});
  vm.runInContext(fn('renderChatConnectorCard'),c);
  assert.match(vm.runInContext('renderChatConnectorCard([{id:"scope",text:"connect Facebook"}])',c),/data-chat-dismiss="connector"/);
  vm.runInContext(fn('conversationDraftInfo')+'\n'+fn('renderConversationWork'),c);
@@ -83,3 +83,4 @@ test('Cancel on X sends no delete request or approval',async()=>{
  await h.listeners.get('click')({target:{closest:()=>button},preventDefault(){},stopPropagation(){}});
  assert.equal(h.calls.length,0);
 });
+

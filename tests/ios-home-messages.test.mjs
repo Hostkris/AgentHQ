@@ -76,7 +76,7 @@ test('Riley responds to casual status checks without searching those words',()=>
 
 test('New home files are linked and iPhone touch styles are present',()=>{
  const index=src('index.html'),app=src('app.js'),css=src('ios-ui.css');
- assert.match(index,/fluid-3/);
+ assert.match(index,/camera-messages-2/);
  assert.match(app,/agent-home-layout\.js/);
  assert.match(css,/\.home-widget/);
  assert.match(css,/\.agent-thread-action-backdrop/);
@@ -127,3 +127,4 @@ test('No arrow movement controls appear in any Home icon, even while editing',()
  assert.match(js,/document\.elementFromPoint\(x,y\)/);
  assert.match(js,/edgeTimer=setTimeout/);
 });
+
