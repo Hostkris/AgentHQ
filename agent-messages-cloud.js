@@ -54,10 +54,11 @@ async function refresh() {
   let user;
   try {user=await getUser()}catch(e){if(generation===syncGeneration){window.agentHQSyncMessages?.([],e.message);window.agentHQUnreadSync?.({});}return}
   if(generation!==syncGeneration)return;
-  const {data:chats,error:chatError}=await agentCloud.from('agent_conversations').select('id,employee_id');
+  const {data:chats,error:chatError}=await agentCloud.from('agent_conversations').select('id,employee_id,cleared_at');
   if(generation!==syncGeneration)return;
   if(chatError)throw Error(chatError.message);
   const valid=(chats||[]).filter(c=>employees.has(c.employee_id));
+  window.agentHQConversationClearSync?.(Object.fromEntries(valid.map(c=>[c.employee_id,c.cleared_at||null])));
   if(!valid.length){window.agentHQSyncMessages?.([],'No saved text messages yet.');await refreshUnread();return}
   const {data:items,error:messageError}=await agentCloud.from('agent_messages').select('id,conversation_id,sender,body,created_at').in('conversation_id',valid.map(x=>x.id)).order('created_at',{ascending:false}).limit(1000);
   if(generation!==syncGeneration)return;
@@ -99,6 +100,7 @@ async function converse(employeeId,body,options={}){
  }
  if(!data?.success)throw Error(data?.error||'The worker chat was not confirmed.');
  await refresh();
+ await window.agentHQResearchCloud?.refresh?.().catch(()=>{});
  return data;
 }
 async function deleteMessage(messageId){
@@ -108,7 +110,15 @@ async function deleteMessage(messageId){
  await refresh();
  return true;
 }
-window.agentHQChatCloud={refresh,send,converse,deleteMessage,markRead,refreshUnread};
+async function clearConversation(employeeId){
+ if(!employees.has(employeeId))throw Error('Unknown worker conversation');
+ await getUser();
+ const {data,error}=await agentCloud.rpc('clear_agent_conversation',{p_employee_id:employeeId});
+ if(error)throw Error('Could not clear this conversation: '+error.message);
+ await refresh();
+ return Number(data||0);
+}
+window.agentHQChatCloud={refresh,send,converse,deleteMessage,markRead,refreshUnread,clearConversation};
 const load=()=>refresh().catch(error=>window.agentHQChatCloudNotice?.('Message sync failed: '+error.message));
 agentCloud.auth.onAuthStateChange(()=>{unreadGeneration++;window.agentHQUnreadSync?.({});setTimeout(load,0)});
 window.addEventListener('focus',load);
