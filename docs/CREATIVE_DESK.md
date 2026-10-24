@@ -1,37 +1,37 @@
-# Agent HQ Creative Desk — owner approval workflow
+# Agent HQ — Messages-first creative work and connection approvals
 
-Creative Desk is an **owner-controlled interface for TEXT deliverables**, implemented on top of the app's existing Supabase assignments, Alex planning, and worker drafts. It does not create new privileged database operations or bypass the existing specialist restrictions.
+## Single place to ask and approve
 
-## In the app
+**Messages is the control center.** Open a conversation with Alex (the manager) or the appropriate specialist (for example, Casey or Maya for marketing, Jordan for scripts) and type what to create in ordinary language. The conversation asks one detail at a time when needed.
 
-1. Open **Creative Desk**, fill out the business, destination, content type, responsible creative specialist and brief, and save. This creates an ordinary owner-scoped Agent HQ team assignment; it does not consume AI generation usage.
-2. Tap **Ask Alex to plan**. Alex builds a short specialist routing plan. Review the specialists and tap **Approve specialist plan**. This is approval to create internal text only.
-3. Tap **Draft next specialist steps** to trigger the existing configured worker model (currently Groq/OpenRouter). Drafts appear in the Creative Desk and the existing team/message thread. The plan and worker steps use the preexisting rate limits and server-side owner checks.
-4. When all specialist steps are complete, review each actual draft. Choose **Approve text content** or type a revision note and create a **revision assignment**.
-5. **Copy draft** lets the owner manually use the approved text. A separate authenticated social-platform integration and separate explicit publishing authorization must be built before an agent can publish.
+Alex routes work to specialists and writes a plan inside Messages. Reply **green light** or **approved** to approve an *internal drafting plan only*. The app never interprets this as permission to publish, send an email or access a private account.
 
-Approval records are saved as owner-authored team notes using a version fingerprint. Only the exact completed draft version can be approved in the UI. An approval never executes a post, sends an email, connects a third-party account or grants account access.
+Once the work is complete, the same Messages thread displays draft text. Reply **approve draft** for the single identifiable completed draft to record final editorial approval; or text a revision request. Approving text never posts it.
 
-## ChatGPT subscription connection — not yet enabled
+**Creative Desk** is now a read-only history/library of creative assignments and finished drafts. The previous "New Content Request" form, approval buttons and ChatGPT import form have been removed. To resume any assignment, open the worker's Messages conversation.
 
-The hosted Agent HQ GitHub Pages application currently uses Supabase Auth and an existing configured AI worker provider. **It is not connected to a ChatGPT plan.** Do not mistake an OpenAI-branded model running on Groq with a ChatGPT subscription connection.
+## In-conversation connections
 
-OpenAI's current open-source *Sign in with ChatGPT* token-sharing flow requires a user-controlled local runtime, HTTP loopback callback on 127.0.0.1, PKCE, validated ID token and on-device token storage. The Agent HQ browser-only GitHub Pages PWA cannot safely pretend that loopback callback or persist a user plan token in Supabase. Do not collect passwords, session cookies, refresh tokens, or bearer credentials through Messages or host them on the managed Supabase backend.
+When the recent conversation requires access to a supported service, Agent HQ presents an **incoming message bubble** with a provider-specific hyperlink:
 
-Use a separate, verified OpenAI-approved hosted web integration when available, or a user-controlled local companion client following the official guide. Do not enable an in-app "Connect ChatGPT" button without a working supported authorization and verified user-owned token storage.
+- **Gmail**: an official Google OAuth flow is connected to the existing Agent HQ Gmail service. If Google OAuth setup is not configured, the link goes to Gmail setup instead. After successful connection, the owner separately grants a worker short-lived, limited read access.
+- **Meta Ads**: official Meta OAuth for *read-only advertising reporting*, when configured. Worker read permission is separate; this is **not** Facebook/Instagram publishing authorization.
+- **ChatGPT**: clearly displays **"Awaiting OpenAI authorization (not connected)"**, with an official OpenAI partner interest-form hyperlink and an optional manual ChatGPT website link. Submitting the form does not automatically connect the app.
+- **Facebook, Instagram, TikTok, YouTube, Shopify, Pinterest**: direct publishing connections do not exist yet. A Messages hyperlink opens Settings → Accounts & Sign-Ins to see the actual status. A normal provider website login is not an integration.
+- **iCloud**: official guidance only, not a one-tap Agent HQ connection.
 
-Sources: https://developers.openai.com/siwc/token-sharing-open-source and https://developers.openai.com/siwc/token-sharing-open-source/sign-in and https://openai.com/policies/sign-in-with-chatgpt-terms/
+No password fields or session cookies are collected. The app does not ask a user to paste tokens into Messages. Approvals remain scoped to the actual connected provider and operation.
 
-## Security and practical limits
+## ChatGPT usage boundary
 
-- All creative requests are ordinary owner-scoped team assignments protected by existing RLS and authenticated RPCs.
-- Alex plans only; specialists draft text only. The browser cannot impersonate worker output or call third-party publishers.
-- Approval of Alex's plan, generation, approval of final content and publishing are distinct actions.
-- Deliverables are **text**, not AI-generated image attachments or video files.
-- No new paid services are activated. Worker draft usage depends on existing Groq/OpenRouter setup and provider limits.
-- The app has no connected automatic publishing engine for Creative Desk.
-- GitHub changes update only the front end. Existing Supabase Edge Functions and database migrations must already be deployed for backend generation. 
+Agent HQ is a GitHub Pages PWA with managed Supabase. Direct, automated use of a ChatGPT subscription requires an officially supported hosted client registration/authorization; it is **not yet authorized**. The user must choose whether to apply through https://openai.com/form/sign-in-with-chatgpt-interest/ and OpenAI must approve a relevant integration. In the meantime, Agent HQ's worker writing models use the **existing separate provider**, not a ChatGPT subscription. The owner can use https://chatgpt.com directly, but that website session is not an Agent HQ token.
 
-## Owner-mediated ChatGPT drafts (Stage 1)
+The previous Creative Desk copy/paste workflow has been removed from its UI at the owner's request. This update does not activate OpenAI API billing or enable Stage 2 provider publishers.
 
-Creative Desk now provides **Copy request for ChatGPT**, **Open ChatGPT**, and **Save text to this assignment**. These actions are an intentionally manual bridge. The person signed in to ChatGPT makes the request and manually pastes text back; Agent HQ never automatically calls their ChatGPT subscription. The returned content is labeled as an **owner-imported draft**, not independently verified as a ChatGPT output. Owner approval applies to the current draft version and is not permission to publish. For official hosted integration and OAuth restrictions see `docs/OPENAI_STAGE1_HANDOFF_AND_SIWC.md`.
+## Security invariant
+
+Internal team-plan approval, internal content approval, per-worker scope approval and actual external publishing approval are **distinct**. No outside posting is implemented. The Social Publishing preference alone cannot grant platform access.
+
+Sources:
+- https://developers.openai.com/siwc/website
+- https://openai.com/form/sign-in-with-chatgpt-interest/

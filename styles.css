@@ -74,3 +74,10 @@ textarea.form-field{min-height:88px;resize:vertical}
 :root[data-theme-mode=dark] .ios-chat-connect{background:#202a36;color:#f4f7fb;border-color:#526070}
 :root[data-theme-mode=dark] .ios-chat-connect button.secondary{color:#a5d1ff;border-color:#607995}
 @media(prefers-color-scheme:dark){:root:not([data-theme-mode=light]) .ios-chat-connect{background:#202a36;color:#f4f7fb;border-color:#526070}:root:not([data-theme-mode=light]) .ios-chat-connect button.secondary{color:#a5d1ff;border-color:#607995}}
+
+
+/* Message-first account authorization: native hyperlink treatment inside iMessage bubbles. */
+.ios-chat-connect .ios-auth-link{display:block;padding:11px 13px;min-height:43px;box-sizing:border-box;border-radius:12px;background:#176bd2;color:#fff!important;text-align:center;font-weight:650;text-decoration:none;border:1px solid #176bd2;line-height:1.42}
+.ios-chat-connect .ios-auth-link:focus-visible{outline:3px solid #86bcff;outline-offset:2px}
+.ios-chat-connect .ios-auth-link:hover{filter:brightness(1.1)}
+.ios-chat-connect .ios-auth-link[aria-disabled=true]{opacity:.55;pointer-events:none}

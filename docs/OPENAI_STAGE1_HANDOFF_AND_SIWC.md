@@ -1,50 +1,37 @@
-# Stage 1 — OpenAI for Agent HQ
+# Agent HQ — Messages-first creative work and connection approvals
 
-## What works right now (no additional paid API required)
+## Single place to ask and approve
 
-Agent HQ **Creative Desk** offers a safe owner-mediated ChatGPT workflow:
+**Messages is the control center.** Open a conversation with Alex (the manager) or the appropriate specialist (for example, Casey or Maya for marketing, Jordan for scripts) and type what to create in ordinary language. The conversation asks one detail at a time when needed.
 
-1. Sign in to **Agent HQ** and create a Creative Desk text assignment.
-2. Open the saved assignment. Tap **Copy request for ChatGPT**.
-3. Tap **Open ChatGPT**. Sign in directly at **https://chatgpt.com** if needed, and paste the copied request.
-4. Create or revise the requested text using your own ChatGPT subscription. You can close or switch back to the Agent HQ browser tab.
-5. Paste the resulting **text** under **Save text to this assignment**. It will be saved to the signed-in owner's existing Supabase team discussion.
-6. Review it in Creative Desk, choose **Approve text content** or create a revision assignment.
-7. No content is posted, emailed, or uploaded from this workflow. Final editorial approval does not authorize publication.
+Alex routes work to specialists and writes a plan inside Messages. Reply **green light** or **approved** to approve an *internal drafting plan only*. The app never interprets this as permission to publish, send an email or access a private account.
 
-**This is an owner-mediated handoff, not OAuth, an automatic agent-to-ChatGPT connection, or a verified ChatGPT response.** Agent HQ labels owner-imported text accordingly and cannot prove whether you generated it in ChatGPT or wrote it elsewhere. It never requests the ChatGPT password, session cookie or token. Only plain text is imported; images/video attachments are not supported by this particular handoff.
+Once the work is complete, the same Messages thread displays draft text. Reply **approve draft** for the single identifiable completed draft to record final editorial approval; or text a revision request. Approving text never posts it.
 
-Alex can still plan and route specialist drafting through the existing separately configured Agent HQ AI provider. The handoff does not change Alex's permission rules or consume additional OpenAI API credits.
+**Creative Desk** is now a read-only history/library of creative assignments and finished drafts. The previous "New Content Request" form, approval buttons and ChatGPT import form have been removed. To resume any assignment, open the worker's Messages conversation.
 
-## What must happen before agents can automatically call the user's ChatGPT subscription
+## In-conversation connections
 
-Agent HQ currently runs as a remotely hosted **GitHub Pages Safari PWA** with a **managed Supabase backend**.
+When the recent conversation requires access to a supported service, Agent HQ presents an **incoming message bubble** with a provider-specific hyperlink:
 
-OpenAI has two distinct Sign in with ChatGPT (SIWC) paths:
+- **Gmail**: an official Google OAuth flow is connected to the existing Agent HQ Gmail service. If Google OAuth setup is not configured, the link goes to Gmail setup instead. After successful connection, the owner separately grants a worker short-lived, limited read access.
+- **Meta Ads**: official Meta OAuth for *read-only advertising reporting*, when configured. Worker read permission is separate; this is **not** Facebook/Instagram publishing authorization.
+- **ChatGPT**: clearly displays **"Awaiting OpenAI authorization (not connected)"**, with an official OpenAI partner interest-form hyperlink and an optional manual ChatGPT website link. Submitting the form does not automatically connect the app.
+- **Facebook, Instagram, TikTok, YouTube, Shopify, Pinterest**: direct publishing connections do not exist yet. A Messages hyperlink opens Settings → Accounts & Sign-Ins to see the actual status. A normal provider website login is not an integration.
+- **iCloud**: official guidance only, not a one-tap Agent HQ connection.
 
-1. **Hosted website/partner integration.** Requires OpenAI approval, a registered client ID, registered redirect URI, and a compliant implementation of the supported OpenID Connect / OAuth PKCE flow. SIWC and ChatGPT plan-usage eligibility are distinct permissions. OpenAI's hosted-website program is a limited trial.
-2. **Open-source local client.** Allows eligible ChatGPT plan usage with dynamic client registration, but requests must originate from the user's own local or user-controlled remote runtime. The OpenAI OSS authorization flow requires a loopback server at \`127.0.0.1\`, PKCE, ID token validation, and locally controlled token storage. Do not redirect or mirror this to GitHub Pages or store tokens in a managed Supabase service.
+No password fields or session cookies are collected. The app does not ask a user to paste tokens into Messages. Approvals remain scoped to the actual connected provider and operation.
 
-**Next blocker:** obtain supported hosted-app approval/client registration, or create a truly user-controlled local companion runtime in a separate explicitly approved design. OpenAI access cannot be activated by adding a fake login field, browser cookies, API token sharing, or a pay-per-use API key disguised as ChatGPT plan access.
+## ChatGPT usage boundary
 
-### Official registration
+Agent HQ is a GitHub Pages PWA with managed Supabase. Direct, automated use of a ChatGPT subscription requires an officially supported hosted client registration/authorization; it is **not yet authorized**. The user must choose whether to apply through https://openai.com/form/sign-in-with-chatgpt-interest/ and OpenAI must approve a relevant integration. In the meantime, Agent HQ's worker writing models use the **existing separate provider**, not a ChatGPT subscription. The owner can use https://chatgpt.com directly, but that website session is not an Agent HQ token.
 
-- Partner sign-in requirements: https://developers.openai.com/siwc/website
-- Request OAuth client ID: https://developers.openai.com/siwc/request-client-id
-- Application interest form: https://openai.com/form/sign-in-with-chatgpt-interest/
-- Subscription usage terms: https://openai.com/policies/sign-in-with-chatgpt-terms/
-- Local OSS alternative: https://developers.openai.com/siwc/token-sharing-open-source
+The previous Creative Desk copy/paste workflow has been removed from its UI at the owner's request. This update does not activate OpenAI API billing or enable Stage 2 provider publishers.
 
-Suggested description for the owner's official application:
+## Security invariant
 
-> Agent HQ is a user-operated personal business assistant, delivered as an iPhone/iPad Safari PWA with a GitHub Pages frontend and an authenticated Supabase backend. It has specialist drafting agents coordinated by a manager and always requires explicit owner approval before posting, emailing, or changing external accounts. We request Sign in with ChatGPT and eligible plan usage for owner-authorized content drafting, with clear per-task limits and no access to ChatGPT conversations. We want to integrate through an officially supported hosted application flow without collecting ChatGPT passwords or session cookies. Site: https://hostkris.github.io/AgentHQ/. Source: https://github.com/Hostkris/AgentHQ.
+Internal team-plan approval, internal content approval, per-worker scope approval and actual external publishing approval are **distinct**. No outside posting is implemented. The Social Publishing preference alone cannot grant platform access.
 
-Do not claim this description is submitted; only the owner can finish the external application and permissions process. **No OpenAI client ID has yet been issued or configured.**
-
-## What we are NOT doing in Stage 1
-
-- No separately billed OpenAI API secret has been installed or used.
-- No ChatGPT session cookies or user credentials are read or saved.
-- No false "ChatGPT connected" status is displayed.
-- No automated account access, background browser activity, or social publishing.
-- **Stage 2** (Instagram, Facebook, TikTok, YouTube, iCloud, Shopify and other connections) remains intentionally untouched until Stage 1's direct integration method is authorized, implemented and verified.
+Sources:
+- https://developers.openai.com/siwc/website
+- https://openai.com/form/sign-in-with-chatgpt-interest/

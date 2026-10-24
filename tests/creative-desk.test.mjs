@@ -25,9 +25,9 @@ const assignment={id:worker.assignment_id,title:"Creative: My Store · Short vid
 test("Creative Desk presents actual connection state and publishing boundary",()=>{
  const c=createHarness(),markup=c.render();
  assert.match(markup,/Creative Desk/);
- assert.match(markup,/Not authorized/);
- assert.match(markup,/Manual ChatGPT handoff: ready/);
- assert.match(markup,/publishing is always a separate/i);
+ assert.match(markup,/Awaiting authorization/);
+ assert.match(markup,/Open Messages/);
+ assert.match(markup,/No social publishing is active|Only supported connections can grant/i);
  assert.doesNotMatch(markup,/data-creative-publish=/);
  assert.doesNotMatch(source,/\bfetch\s*\(/);
  assert.doesNotMatch(source,/service_role|session_cookie|refresh_token/i);
@@ -60,7 +60,7 @@ test("Drafts are escaped and remain text-only",()=>{
  const html=c.card(assignment);
  assert.match(html,/&lt;script&gt;/);
  assert.doesNotMatch(html,/<script>/);
- assert.match(html,/Nothing is published|nothing is published|nothing is posted|no external accounts/i);
+ assert.match(html,/No social publishing is active/i);
  assert.doesNotMatch(html,/data-creative-publish/);
 });
 
@@ -71,7 +71,7 @@ test("Owner-imported ChatGPT text is clearly labeled and can receive editorial a
  assert.equal(c.finished({...assignment,coordination_status:"planned"}),false);
  assert.equal(c.readyForReview({...assignment,coordination_status:"planned"}),true);
  assert.equal(c.ownerImport(assignment).body,imported);
- assert.match(c.card(assignment),/not verified as a ChatGPT response/);
+ assert.match(c.card(assignment),/origin not verified/);
  assert.match(c.card(assignment),/&lt;em&gt;markup&lt;\/em&gt;/);
  assert.equal(c.jobStatus(assignment),"Ready for your review");
  const version=c.versionOf(assignment);
@@ -88,5 +88,14 @@ test("Manual ChatGPT handoff does not claim automatic sign-in, submit credential
  assert.match(prompt,/Do not publish anything/);
  assert.doesNotMatch(source,/api\.openai\.com|chatgpt\.tokens\.use\.direct/);
  assert.doesNotMatch(c.card(assignment),/data-creative-publish/);
- assert.match(c.card(assignment),/Copy request for ChatGPT/);
+ assert.match(c.card(assignment),/Open .*Messages/);
+});
+
+test("Creative Desk no longer asks owner to submit requests or approvals outside Messages",()=>{
+ const c=createHarness(),page=c.render(),detail=c.card(assignment);
+ assert.match(page,/finished-work library/);
+ assert.doesNotMatch(page,/New content request/i);
+ assert.doesNotMatch(page,/<form|data-creative-approve|data-creative-plan-approve|data-creative-run/i);
+ assert.doesNotMatch(detail,/data-creative-approve|data-creative-plan-approve|data-creative-run|data-creative-import-form/i);
+ assert.match(detail,/data-chat=/);
 });

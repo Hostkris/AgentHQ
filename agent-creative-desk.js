@@ -80,59 +80,46 @@ function jobStatus(job){
  return "Specialist draft in progress";
 }
 function optionRows(items,selected){return items.map(([value,label])=>'<option value="'+safe(value)+'"'+(value===selected?' selected':'')+'>'+safe(label)+'</option>').join("");}
+// Creative Desk is now a read-only workspace. Requests, approvals and sign-ins
+// belong in the appropriate worker's Messages conversation.
 function card(job){
- const info=projectInfo(job),all=steps.get(job.id)||[],drafts=completed(job),imported=ownerImport(job),approval=reviewOf(job),ready=readyForReview(job),plan=plans.get(job.id),version=versionOf(job);
- const at=jobStatus(job);
- const pendingPlan=all.length>0&&plan!=="approved"&&job.coordination_status!=="completed";
- const canRun=all.length>0&&plan==="approved"&&!ready&&!["waiting_for_owner","waiting_for_permission"].includes(job.coordination_status);
- const body=all.map(step=>'<div class="creative-step"><div class="creative-step-head"><strong>'+safe(step.title)+'</strong><span>'+safe(step.employee_id)+' · '+safe(step.status)+'</span></div>'+
-  (step.output?'<div class="creative-output">'+safe(step.output)+'</div>':step.question?'<p class="creative-note">Question: '+safe(step.question)+'</p>':'<p class="creative-note">No written draft yet.</p>')+'</div>').join("");
+ const info=projectInfo(job),all=steps.get(job.id)||[],imported=ownerImport(job),source=job.source_employee_id;
+ const worker=source&&["alex","maya","jordan","riley","taylor","casey","morgan","avery","jamie","quinn","hq"].includes(source)
+  ?source:(["casey","jordan","maya","morgan","taylor"].includes(info.specialist)?info.specialist:"alex");
+ const drafts=all.filter(step=>typeof step.output==="string"&&step.output.trim());
+ const label=jobStatus(job);
+ const outputs=drafts.map(step=>'<section class="creative-step"><strong>'+safe(step.title||"Draft")+'</strong>'+
+  '<div class="creative-output">'+safe(step.output)+'</div></section>').join("");
  return '<article class="creative-job" data-creative-job="'+safe(job.id)+'">'+
-  '<div class="creative-job-head"><div><strong>'+safe(job.title.replace(/^Creative:\s*/,""))+'</strong><small>'+safe(info.business)+' · '+safe(info.destination)+' · '+safe(info.format)+'</small></div><span class="creative-job-state">'+safe(at)+'</span></div>'+
-  '<p class="creative-brief">'+safe(info.brief)+'</p>'+
-  (job.manager_summary?'<details class="creative-manager"><summary>Alex’s work plan</summary><p>'+safe(job.manager_summary)+'</p></details>':'')+
-  (body?'<div class="creative-output-list">'+body+'</div>':'')+
-  '<section class="creative-handoff"><h3>Use your ChatGPT subscription — manual handoff</h3>'+
-  '<p>Copy this assignment into ChatGPT, then paste the text result here. This does not connect your ChatGPT account or give agents access to it.</p>'+
-  '<div class="creative-controls"><button type="button" data-creative-copy-chatgpt="'+safe(job.id)+'">Copy request for ChatGPT</button>'+
-  '<button type="button" data-creative-open-chatgpt="'+safe(job.id)+'">Open ChatGPT ↗</button></div>'+
-  '<form data-creative-import-form="'+safe(job.id)+'"><label>Paste text made in ChatGPT (or your own draft)'+
-  '<textarea name="chatgpt_output" rows="4" minlength="20" maxlength="7000" placeholder="Paste the actual completed text here…" required></textarea></label>'+
-  '<button type="submit"'+(busy?' disabled':'')+'>Save text to this assignment</button></form>'+
-  (imported?'<div class="creative-imported"><strong>Latest owner-imported draft — not verified as a ChatGPT response</strong><div class="creative-output">'+safe(imported.body)+'</div></div>':'')+
-  '</section>'+
-  '<div class="creative-controls">'+
-  (!all.length?'<button type="button" data-creative-plan="'+safe(job.id)+'"'+(busy?" disabled":"")+'>Ask Alex to plan</button>':'')+
-  (pendingPlan?'<button type="button" class="creative-primary" data-creative-plan-approve="'+safe(job.id)+'"'+(busy?" disabled":"")+'>Approve specialist plan</button>':'')+
-  (canRun?'<button type="button" class="creative-primary" data-creative-run="'+safe(job.id)+'"'+(busy?" disabled":"")+'>Draft next specialist steps</button>':'')+
-  '<button type="button" data-team-open="'+safe(job.id)+'">Open team discussion</button>'+
-  (drafts.length||imported?'<button type="button" data-creative-copy="'+safe(job.id)+'">Copy draft</button>':'')+
-  '</div>'+
-  (ready?'<section class="creative-final"><h3>Final editorial approval</h3><p>Approve the written draft only. Publication still requires a separate platform connection and separate explicit approval.</p>'+
-   (approval==="APPROVED"?'<p class="creative-confirm">✓ Written draft approved. Nothing has been posted.</p>':
-    '<button type="button" class="creative-primary" data-creative-approve="'+safe(job.id)+'" data-creative-version="'+version+'"'+(busy?" disabled":"")+'>Approve text content</button>')+
-   '<label for="creative-revision-'+safe(job.id)+'">Request a revision</label><textarea id="creative-revision-'+safe(job.id)+'" class="creative-revision" data-revision-input="'+safe(job.id)+'" maxlength="1200" rows="2" placeholder="What should your creative team change?"></textarea>'+
-   '<button type="button" data-creative-revise="'+safe(job.id)+'" data-creative-version="'+version+'"'+(busy?" disabled":"")+'>Create revision assignment</button>'+
-   '</section>':'')+
-  '<p class="creative-nopublish">🔒 No external accounts are accessed and nothing is published from Creative Desk.</p></article>';
+  '<div class="creative-job-head"><div><strong>'+safe(job.title)+'</strong><small>'+
+  safe(info.business||"From worker Messages")+(info.destination?" · "+safe(info.destination):"")+
+  '</small></div><span class="creative-job-state">'+safe(label)+'</span></div>'+
+  (job.manager_summary?'<details class="creative-manager"><summary>Alex’s specialist plan</summary><p>'+safe(job.manager_summary)+'</p></details>':'')+
+  (outputs?'<div class="creative-output-list">'+outputs+'</div>':'')+
+  (imported?'<section class="creative-imported"><strong>Owner-imported text · origin not verified</strong><div class="creative-output">'+safe(imported.body)+'</div></section>':'')+
+  (!outputs&&!imported?'<p class="creative-note">No completed drafts yet. Your worker will update the Messages conversation as progress is made.</p>':'')+
+  '<div class="creative-controls"><button type="button" data-chat="'+safe(worker)+'">Open '+safe(worker==="alex"?"Alex":specialists.find(x=>x[0]===worker)?.[1]||"worker")+' Messages →</button></div>'+
+  '<p class="creative-nopublish">Requests and approvals happen in Messages. No social publishing is active.</p></article>';
+}
+function isCreativeJob(job){
+ const text=String(job.title||"")+" "+String(job.instructions||"");
+ const worker=job.source_employee_id;
+ return String(job.instructions||"").startsWith(MARKER)||
+ ["casey","jordan","maya","morgan","taylor"].includes(worker)||
+ /\b(creative|create (?:a |an |the )?(?:post|caption|flyer|ad|advert|script|graphic|image|photo|content)|marketing|social media|flyer|advertisement|product description|promo(?:tion)?|newsletter|campaign|reel|tiktok (?:post|video)|youtube (?:script|video)|instagram (?:post|caption))\b/i.test(text);
 }
 function render(){
  return '<div class="creative-page">'+
-  '<section class="creative-hero"><strong>✦ Creative Desk</strong><p>Your request → Alex’s plan → specialist drafts → your final review. Publishing is always a separate, permissioned action.</p>'+
-  '<div class="creative-engine"><span>ChatGPT automatic connection: <b>Not authorized</b></span><span>Manual ChatGPT handoff: ready</span><span>AI worker drafting: existing configured provider</span></div>'+
-  '<p class="creative-note">ChatGPT subscription sign-in cannot simply be enabled on this GitHub Pages website: OpenAI’s open-source client flow requires a user-controlled local host and loopback OAuth callback. No ChatGPT password or session cookie should be entered here.</p></section>'+
-  '<section class="creative-intake"><h2>New content request</h2><form id="creative-request-form">'+
-  '<label>Business or project<input name="business" maxlength="90" minlength="2" required placeholder="For example: skincare store" value="'+safe(formDraft.business)+'"></label>'+
-  '<div class="creative-two"><label>Destination<select name="destination">'+optionRows(destinations.map(x=>[x,x]),formDraft.destination)+'</select></label>'+
-  '<label>Content type<select name="format">'+optionRows(formats,formDraft.format)+'</select></label></div>'+
-  '<label>Accountable creative specialist<select name="specialist">'+optionRows(specialists,formDraft.specialist)+'</select></label>'+
-  '<label>What should the team create?<textarea name="brief" maxlength="3500" minlength="10" required rows="4" placeholder="Goal, audience, product, important facts, and call to action">'+safe(formDraft.brief)+'</textarea></label>'+
-  '<label>Style or requirements (optional)<textarea name="requirements" maxlength="900" rows="2" placeholder="Tone, restrictions, format, brand voice…">'+safe(formDraft.requirements)+'</textarea></label>'+
-  '<button type="submit" class="creative-primary"'+(busy?" disabled":"")+'>Save request for Alex & the team</button></form>'+
-  '<p class="creative-note">Saving a request does not use AI. You separately approve Alex’s plan and manually start text generation; each model request may count toward your configured provider’s usage.</p></section>'+
-  '<section class="creative-history"><div class="creative-history-header"><h2>Content and approvals</h2><button type="button" data-creative-refresh>↻ Refresh</button></div>'+
-  '<p class="creative-feedback" role="status">'+safe(busy?"Working on your request…":feedback||notice)+'</p>'+
-  (jobs.length?jobs.map(card).join(""):'<p class="creative-empty">No saved creative requests. Use the form above to create your first one.</p>')+
+  '<section class="creative-hero"><strong>✦ Creative Desk</strong>'+
+  '<p>This is your finished-work library, not a separate request form. Ask Alex or your creative workers what to make directly in Messages. They ask for clarification and approvals there.</p>'+
+  '<div class="creative-engine"><span>OpenAI automatic connection: <b>Awaiting authorization · not connected</b></span>'+
+  '<span>Existing Agent HQ AI workers: separate connection</span></div>'+
+  '<div class="creative-controls"><button type="button" data-nav="messages">Open Messages →</button></div>'+
+  '<p class="creative-note">If a worker needs a service connection, an authorization link appears in that worker’s Messages thread. Only supported connections can grant Agent HQ account access.</p></section>'+
+  '<section class="creative-history"><div class="creative-history-header"><h2>Creative work history</h2>'+
+  '<button type="button" data-creative-refresh>↻ Refresh</button></div>'+
+  '<p class="creative-feedback" role="status">'+safe(busy?"Refreshing…":feedback||notice)+'</p>'+
+  (jobs.length?jobs.map(card).join(""):'<p class="creative-empty">No creative work yet. Message Alex, Casey, Maya or Jordan to start an assignment.</p>')+
   '</section></div>';
 }
 function draw(force=false){
@@ -153,10 +140,10 @@ async function refresh({quiet=false}={}){
  try{
   const user=await currentUser();
   const {data,error}=await agentCloud.from("agent_team_assignments")
-   .select("id,title,instructions,employee_ids,status,manager_summary,coordination_status,created_at")
-   .eq("owner_id",user.id).like("title","Creative:%").order("created_at",{ascending:false}).limit(80);
+   .select("id,title,instructions,source_employee_id,employee_ids,status,manager_summary,coordination_status,created_at")
+   .eq("owner_id",user.id).order("created_at",{ascending:false}).limit(150);
   if(error)throw Error(error.message);
-  const visible=(data||[]).filter(x=>String(x.instructions||"").startsWith(MARKER));
+  const visible=(data||[]).filter(isCreativeJob);
   const ids=visible.map(x=>x.id);
   const nextSteps=new Map(),nextMessages=new Map(),nextPlans=new Map();
   if(ids.length){
@@ -186,109 +173,9 @@ async function act(fn){
  finally{busy=false;draw(true);}
 }
 function parseJob(id){if(!uid.test(id))throw Error("Invalid content assignment");const job=jobs.find(x=>x.id===id);if(!job)throw Error("This request is unavailable. Refresh first.");return job;}
-function trackForm(form){for(const field of ["business","destination","format","specialist","brief","requirements"]){const input=form.elements.namedItem(field);if(input)formDraft[field]=String(input.value||"");}}
-host?.addEventListener("input",event=>{const form=event.target.closest?.("#creative-request-form");if(form)trackForm(form);});
-host?.addEventListener("submit",event=>{
- const importForm=event.target.closest?.("[data-creative-import-form]");
- if(importForm){
-  event.preventDefault();
-  const id=importForm.dataset.creativeImportForm;
-  const body=String(importForm.elements.namedItem("chatgpt_output")?.value||"").trim();
-  if(body.length<20||body.length>7000){feedback="Paste 20–7,000 characters of text.";draw();return;}
-  act(async()=>{
-   await currentUser();parseJob(id);
-   if(!window.agentHQTeamCloud?.post)throw Error("Team messages are unavailable.");
-   await window.agentHQTeamCloud.post(id,CHATGPT_IMPORT+"\n"+body);
-   feedback="Your text was saved to this assignment for review. Agent HQ did not verify its origin or publish it.";
-  });
-  return;
- }
- const form=event.target.closest?.("#creative-request-form");if(!form)return;
- event.preventDefault();trackForm(form);
- act(async()=>{
-  await currentUser();
-  const business=formDraft.business.trim(),brief=formDraft.brief.trim(),rules=formDraft.requirements.trim();
-  const dest=formDraft.destination,type=formDraft.format,worker=formDraft.specialist;
-  if(business.length<2||brief.length<10||!destinations.includes(dest)||!formats.some(x=>x[0]===type)||!specialists.some(x=>x[0]===worker))throw Error("Complete the required fields.");
-  const title=("Creative: "+business+" · "+summaryType(type)).slice(0,150);
-  const instructions=MARKER+"Business: "+business+"\nDestination: "+dest+"\nFormat: "+summaryType(type)+
-   "\nRequested specialist: "+worker+"\nBrief: "+brief+"\nRequirements: "+(rules||"None specified")+
-   "\nDeliverable: editable TEXT copy only, suitable for the requested destination, with no fabricated links or metrics."+
-   "\nBoundaries: do not publish, post, email, browse private accounts, generate images or assert that an external action occurred. Return content for owner review.";
-  if(instructions.length>10000)throw Error("The creative brief is too long.");
-  if(!window.agentHQTeamCloud?.create)throw Error("The assignment service is loading. Refresh Agent HQ.");
-  await window.agentHQTeamCloud.create(title,instructions,"The owner will approve Alex’s plan separately, then run writing specialists and review the result in Creative Desk.",[worker]);
-  formDraft={business:"",destination:dest,format:type,specialist:worker,brief:"",requirements:""};
-  feedback="Request saved. Choose Ask Alex to plan; no AI generation or publishing has started.";
- });
-});
+// Only history refresh is interactive here; tasks and authorizations live in Messages.
 host?.addEventListener("click",event=>{
- const element=event.target.closest?.("[data-creative-refresh],[data-creative-plan],[data-creative-plan-approve],[data-creative-run],[data-creative-copy],[data-creative-approve],[data-creative-revise],[data-creative-copy-chatgpt],[data-creative-open-chatgpt]");
- if(!element)return;
- const id=element.dataset.creativeRefresh?null:element.dataset.creativePlan||element.dataset.creativePlanApprove||element.dataset.creativeRun||element.dataset.creativeCopy||element.dataset.creativeApprove||element.dataset.creativeRevise||element.dataset.creativeCopyChatgpt||element.dataset.creativeOpenChatgpt;
- if(!id){refresh();return;}
- // Capture revision text before act() redraws the page for its busy state.
- const revisionValue=element.hasAttribute("data-creative-revise")?document.querySelector('[data-revision-input="'+id+'"]')?.value:"";
- if(element.hasAttribute("data-creative-open-chatgpt")){
-  window.open("https://chatgpt.com/","_blank","noopener,noreferrer");
-  feedback="ChatGPT opened separately. Paste the copied request there, then bring the result back to Agent HQ.";draw();
-  return;
- }
- if(element.hasAttribute("data-creative-copy-chatgpt")){
-  const request=buildChatGPTPrompt(parseJob(id));
-  if(!navigator.clipboard?.writeText){window.prompt("Copy the ChatGPT request:",request);return;}
-  navigator.clipboard.writeText(request).then(()=>{feedback="Request copied. Open ChatGPT and paste it into a chat.";draw();}).catch(()=>window.prompt("Copy the ChatGPT request:",request));
-  return;
- }
- if(element.hasAttribute("data-creative-copy")){
-  const job=parseJob(id),text=textContent(job);
-  if(!text)return;
-  if(!navigator.clipboard?.writeText){window.prompt("Copy this draft:",text);return;}
-  navigator.clipboard.writeText(text).then(()=>{feedback="Draft copied. Nothing was published.";draw();}).catch(()=>{window.prompt("Copy this draft:",text);});
-  return;
- }
- act(async()=>{
-  await currentUser();
-  let job=parseJob(id);
-  if(element.hasAttribute("data-creative-plan")){
-   if(!window.agentHQCoordCloud?.runTeam)throw Error("Alex’s coordinator is not available.");
-   await window.agentHQCoordCloud.runTeam(id,{planFirst:true,maxSteps:1});
-   feedback="Alex’s plan saved. Review the specialists and approve the plan before any drafting.";
-  }else if(element.hasAttribute("data-creative-plan-approve")){
-   if(!window.agentHQCoordCloud?.decidePlan)throw Error("Alex’s approval service is unavailable.");
-   await window.agentHQCoordCloud.decidePlan(id,"approve");
-   feedback="Specialist plan approved. You can now run the writing steps.";
-  }else if(element.hasAttribute("data-creative-run")){
-   if(!window.agentHQCoordCloud?.runTeam)throw Error("AI team coordinator is unavailable.");
-   await window.agentHQCoordCloud.runTeam(id,{planFirst:false,maxSteps:3});
-   feedback="Specialist step finished or safely paused. Check the draft and worker questions.";
-  }else if(element.hasAttribute("data-creative-approve")||element.hasAttribute("data-creative-revise")){
-   // Reread before any review decision: a stale tab cannot approve an old version.
-   await refresh({quiet:true});
-   job=parseJob(id);
-   if(!readyForReview(job)||versionOf(job)!==element.dataset.creativeVersion)throw Error("The draft changed or is incomplete. Review the latest version.");
-   if(element.hasAttribute("data-creative-approve")){
-    if(!window.confirm("Approve this written content? This does NOT authorize publication to any account or website."))return;
-    if(!window.agentHQTeamCloud?.post)throw Error("Approval notes service unavailable");
-    await window.agentHQTeamCloud.post(id,REVIEW+"|APPROVED|"+versionOf(job)+"\nOwner approved the written content only. No external publishing is authorized.");
-    feedback="Text content approved and recorded. Publishing remains separately blocked.";
-   }else{
-    const detail=String(revisionValue||"").trim();
-    if(detail.length<10||detail.length>1200)throw Error("Describe the revision in at least 10 characters.");
-    const info=projectInfo(job);
-    const worker=specialists.some(s=>s[0]===info.specialist)?info.specialist:"jordan";
-    if(!window.agentHQTeamCloud?.create||!window.agentHQTeamCloud?.post)throw Error("Team assignment service unavailable");
-    const request=MARKER+"Business: "+info.business+"\nDestination: "+info.destination+"\nFormat: "+info.format+
-      "\nRequested specialist: "+worker+"\nBrief: Revised version of existing approved-for-review draft. Original request: "+info.brief+
-      "\nRevision instructions: "+detail+"\nPrevious draft for reference:\n"+textContent(job).slice(0,4800)+
-      "\nBoundaries: text only, no publication, no external actions. Return a NEW draft for owner review.";
-    const next=await window.agentHQTeamCloud.create(("Creative: "+info.business+" · Revision").slice(0,150),request,
-     "Owner must approve the new Alex plan and newly generated draft.",[worker]);
-    await window.agentHQTeamCloud.post(id,REVIEW+"|REVISION_REQUESTED|"+versionOf(job)+"\nNew revision assignment: "+next+"\nRequested changes: "+detail);
-    feedback="Revision assignment saved. The new draft requires a fresh review and approval.";
-   }
-  }
- });
+ if(event.target.closest?.("[data-creative-refresh]"))refresh();
 });
 window.agentHQCreativeDeskRender=render;
 const observer=new MutationObserver(()=>{
