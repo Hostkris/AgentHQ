@@ -320,9 +320,14 @@ Deno.serve(async(req:Request)=>{
    "I've handed your request to Alex to choose the right specialists. The plan will show in this conversation, and nothing starts without your approval.";
  };
  const currentWaiting=async()=>{
-  const {data:tasks}=await db.from("agent_task_steps").select("id,assignment_id,employee_id,status,question")
-   .eq("owner_id",owner).eq("employee_id",worker).in("status",["waiting_for_owner","waiting_for_permission"])
-   .order("updated_at",{ascending:false}).limit(1);
+  let query=db.from("agent_task_steps").select("id,assignment_id,employee_id,status,question")
+   .eq("owner_id",owner).in("status",["waiting_for_owner","waiting_for_permission"]);
+  if(worker==="alex"||worker==="hq")query=query.eq("status","waiting_for_owner");
+  else query=query.eq("employee_id",worker);
+  const {data:tasks,error}=await query.order("updated_at",{ascending:false}).limit(2);
+  if(error)throw Error("Could not check the worker questions");
+  // Alex can answer on behalf of the owner only when a single question is pending.
+  if((worker==="alex"||worker==="hq")&&(tasks||[]).length>1)return null;
   return tasks?.[0]||null;
  };
  const proposeResearch=async(topic:string)=>{
