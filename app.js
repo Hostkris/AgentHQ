@@ -173,6 +173,11 @@ function syncAppBadge(){
   if(!count&&typeof navigator.clearAppBadge==="function")navigator.clearAppBadge().catch(()=>{});
  }catch{}
 }
+window.agentHQCameraOpenScreen=()=>{screen="camera";render()};
+window.agentHQCameraReturnToChat=id=>{if(id){active=id;screen="chat"}else screen="home";render()};
+window.agentHQCameraRerender=()=>{if(screen==="camera")render()};
+window.agentHQCameraRefreshUI=()=>{if(screen==="chat"||screen==="messages")renderWithoutInterruptingDraft()};
+window.agentHQCameraNotice=message=>{sendFeedback.set(active,String(message));if(screen==="chat")renderWithoutInterruptingDraft()};
 window.agentHQVisibleThread=()=>screen==="chat"?active:null;
 window.agentHQUnreadSync=counts=>{
  const next=Object.entries(counts||{}).filter(([id,n])=>["hq",...staff.map(s=>s[0])].includes(id)&&Number(n)>0);
@@ -488,13 +493,14 @@ function renderIPhoneChat(){
  const title=active==="hq"?"Company HQ":(person?.[2]||"Worker");
  const role=active==="hq"?"AI team":(person?.[3]||"AI worker");
  const initial=active==="hq"?"HQ":title.slice(0,1).toUpperCase();
- const items=(messages.get(active)||[]).filter(m=>!messageIsDeleted(m.type==="approval"?"approval":"message",m.id)).slice().sort((a,b)=>(Date.parse(a.createdAt)||0)-(Date.parse(b.createdAt)||0));
+ const items=[...(messages.get(active)||[]).filter(m=>!messageIsDeleted(m.type==="approval"?"approval":"message",m.id)),...(window.agentHQCamera?.getThreadItems(active)||[])].sort((a,b)=>(Date.parse(a.createdAt)||0)-(Date.parse(b.createdAt)||0));
  let previousDay="";
  const rows=items.map(item=>{
   const date=new Date(item.createdAt||Date.now());
   const day=isNaN(date.getTime())?"":date.toDateString();
   const label=day&&day!==previousDay?'<div class="ios-date">'+escapeHTML(date.toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"}))+'</div>':"";
   if(day)previousDay=day;
+  if(item.type==="photo")return label+(window.agentHQCamera?.renderPhotoItem(item)||"");
   if(item.type==="approval"){
    const r=approvalRequests.get(item.id);if(!r)return "";
    const message="Website request: "+r.website+"\nReason: "+r.reason+
@@ -523,6 +529,7 @@ function renderIPhoneChat(){
   '</div>'+
   (sendingAgents.has(active)?'<div class="ios-typing" aria-live="polite"><span></span><span></span><span></span></div>':"")+
   '<form id="composer" class="ios-composer" autocomplete="off">'+
+   '<button type="button" class="ios-camera-attach" data-camera-open-chat="'+escapeHTML(active)+'" aria-label="Take or attach a photo">+</button>'+
    '<textarea id="draft" aria-label="Text message" placeholder="Text Message" rows="1" maxlength="10000"></textarea>'+
    '<button class="ios-send" id="send-message" type="submit" aria-label="Send message" '+(sendingAgents.has(active)?"disabled":"")+'><span aria-hidden="true">↑</span></button>'+
   '</form>'+
@@ -715,10 +722,10 @@ window.agentHQResearchSync=(jobs,notice)=>{researchJobs=jobs||[];if(screen==='ch
 window.agentHQResearchConnection=data=>{researchConnection=data;const status=document.querySelector('#research-connection-status');if(status)status.textContent=data.message};
 app.addEventListener('click',async e=>{const refresh=e.target.closest('[data-research-refresh]');if(refresh){refresh.disabled=true;try{await window.agentHQResearchCloud?.refresh()}catch{}finally{refresh.disabled=false}return}const button=e.target.closest('[data-research-check]');if(!button)return;button.disabled=true;button.textContent='Checking…';try{if(!window.agentHQResearchCloud)throw Error('Research connection is loading. Refresh Agent HQ.');await window.agentHQResearchCloud.status()}catch(err){window.agentHQResearchConnection({ready:false,message:err.message})}finally{button.disabled=false;button.textContent='Check connection'}});
 let settingsReturn=false;
-function render(){const isChat=screen==="chat";
+function render(){window.agentHQCamera?.onScreenChange(screen);const isChat=screen==="chat";
  if(!isChat)lastViewedThread=null;
  else if(active&&active!==lastViewedThread){lastViewedThread=active;window.agentHQChatCloud?.markRead(active).catch(()=>{});}
-const title=isChat?(active==="hq"?"Company Headquarters":staff.find(x=>x[0]===active)?.[2]):screen==="team"?(teamAssignments.get(teamActive)?.title||"Team discussion"):({home:"Agent HQ",office:"Office",studio:"Worker Studio",accounts:"My Accounts",operations:"Operations",creative:"Creative Desk",email:"Email Center",contacts:"Contacts",messages:"Messages",assignments:"Assignments",approvals:"Approvals",research:"Research",browser:"Browser",reminders:"Reminders",settings:"Settings"})[screen];let body="";if(screen==="home")body=renderHomeScreen(button,{messages:messagesAttention(),approvals:pendingCount(),assignments:assignmentAttention(),research:researchJobs.filter(j=>j.status==="completed").length});else if(screen==="office")body=renderOffice();else if(screen==="studio")body='<section class="bot-studio-page" id="agent-bot-studio-root"><p class="muted">Loading your AI worker marketplace…</p></section>';else if(screen==="creative")body='<section id="agent-creative-root" aria-label="Creative Desk">'+(window.agentHQCreativeDeskRender?.()||'<p class="muted">Loading Creative Desk…</p>')+'</section>';else if(screen==="accounts")body=renderPersonalAccounts();else if(screen==="email")body='<section class="email-center-page" id="email-center"><p class="email-loading">Loading your private Email Center…</p></section>';else if(screen==="operations")body=renderOperations();else if(screen==="browser"||screen==="research")body=renderResearchPage(screen==="browser");else if(screen==="approvals")body=`<p class="notice">${escapeHTML(approvalNotice)} These records do not grant real browsing access.</p><div class="card"><strong>Pending requests: ${pendingCount()}</strong><p class="muted">Open the employee's individual message to approve or deny.</p></div>${[...approvalRequests.values()].filter(r=>r.status==="pending"&&!messageIsDeleted("approval",r.id)).map(r=>`<button class="row" data-chat="${escapeHTML(r.agentId)}"><span class="avatar">⚠️</span><span><strong>${escapeHTML(staff.find(s=>s[0]===r.agentId)?.[2]||r.agentId)}</strong><small>${escapeHTML(r.website)}</small></span></button>`).join("")}<h2>Saved decisions</h2><p class="muted">Approved and denied requests remain visible in the employee conversation.</p>${[...approvalRequests.values()].filter(r=>r.status!=="pending"&&!messageIsDeleted("approval",r.id)).reverse().slice(0,25).map(r=>`<button class="row" data-chat="${escapeHTML(r.agentId)}"><span class="avatar">${r.status==="approved"?"✅":r.status==="denied"?"⛔":"🕒"}</span><span><strong>${escapeHTML(staff.find(s=>s[0]===r.agentId)?.[2]||r.agentId)} · ${escapeHTML(r.status)}</strong><small>${escapeHTML(r.website)}</small></span></button>`).join("")}`;else if(screen==="assignments")body=renderAssignments();else if(screen==="team")body=renderTeamThread();else if(screen==="contacts"||screen==="messages")body=`<input id="search" aria-label="Search workers" placeholder="Search" style="width:100%;padding:12px;border:1px solid #d2d2d7;border-radius:14px"><div id="contact-list"></div>`;else if(isChat)body=renderIPhoneChat();else if(screen==="settings")body='<section id="settings-root" aria-label="Agent HQ settings"></section>';else body=`<div class="card"><strong>Planned feature</strong><p class="muted">This screen will be connected in a later development phase. No live service is connected yet.</p></div>`;if(isChat){
+const title=isChat?(active==="hq"?"Company Headquarters":staff.find(x=>x[0]===active)?.[2]):screen==="team"?(teamAssignments.get(teamActive)?.title||"Team discussion"):({home:"Agent HQ",office:"Office",studio:"Worker Studio",accounts:"My Accounts",operations:"Operations",creative:"Creative Desk",email:"Email Center",contacts:"Contacts",messages:"Messages",assignments:"Assignments",approvals:"Approvals",research:"Research",browser:"Browser",reminders:"Reminders",camera:"Camera",settings:"Settings"})[screen];let body="";if(screen==="home")body=renderHomeScreen(button,{messages:messagesAttention(),approvals:pendingCount(),assignments:assignmentAttention(),research:researchJobs.filter(j=>j.status==="completed").length});else if(screen==="office")body=renderOffice();else if(screen==="studio")body='<section class="bot-studio-page" id="agent-bot-studio-root"><p class="muted">Loading your AI worker marketplace…</p></section>';else if(screen==="camera")body=window.agentHQCamera?.renderCamera?.()||'<div class="card">Camera is starting…</div>';else if(screen==="creative")body='<section id="agent-creative-root" aria-label="Creative Desk">'+(window.agentHQCreativeDeskRender?.()||'<p class="muted">Loading Creative Desk…</p>')+'</section>';else if(screen==="accounts")body=renderPersonalAccounts();else if(screen==="email")body='<section class="email-center-page" id="email-center"><p class="email-loading">Loading your private Email Center…</p></section>';else if(screen==="operations")body=renderOperations();else if(screen==="browser"||screen==="research")body=renderResearchPage(screen==="browser");else if(screen==="approvals")body=`<p class="notice">${escapeHTML(approvalNotice)} These records do not grant real browsing access.</p><div class="card"><strong>Pending requests: ${pendingCount()}</strong><p class="muted">Open the employee's individual message to approve or deny.</p></div>${[...approvalRequests.values()].filter(r=>r.status==="pending"&&!messageIsDeleted("approval",r.id)).map(r=>`<button class="row" data-chat="${escapeHTML(r.agentId)}"><span class="avatar">⚠️</span><span><strong>${escapeHTML(staff.find(s=>s[0]===r.agentId)?.[2]||r.agentId)}</strong><small>${escapeHTML(r.website)}</small></span></button>`).join("")}<h2>Saved decisions</h2><p class="muted">Approved and denied requests remain visible in the employee conversation.</p>${[...approvalRequests.values()].filter(r=>r.status!=="pending"&&!messageIsDeleted("approval",r.id)).reverse().slice(0,25).map(r=>`<button class="row" data-chat="${escapeHTML(r.agentId)}"><span class="avatar">${r.status==="approved"?"✅":r.status==="denied"?"⛔":"🕒"}</span><span><strong>${escapeHTML(staff.find(s=>s[0]===r.agentId)?.[2]||r.agentId)} · ${escapeHTML(r.status)}</strong><small>${escapeHTML(r.website)}</small></span></button>`).join("")}`;else if(screen==="assignments")body=renderAssignments();else if(screen==="team")body=renderTeamThread();else if(screen==="contacts"||screen==="messages")body=`<input id="search" aria-label="Search workers" placeholder="Search" style="width:100%;padding:12px;border:1px solid #d2d2d7;border-radius:14px"><div id="contact-list"></div>`;else if(isChat)body=renderIPhoneChat();else if(screen==="settings")body='<section id="settings-root" aria-label="Agent HQ settings"></section>';else body=`<div class="card"><strong>Planned feature</strong><p class="muted">This screen will be connected in a later development phase. No live service is connected yet.</p></div>`;if(isChat){
  const person=staff.find(row=>row[0]===active);
  const name=active==="hq"?"Company HQ":(person?.[2]||"Worker");
  const role=active==="hq"?"AI team":(person?.[3]||"AI coworker");
@@ -733,7 +740,7 @@ const title=isChat?(active==="hq"?"Company Headquarters":staff.find(x=>x[0]===ac
  app.innerHTML=`<main class="shell ${screen==="home"?"home-shell":screen==="office"?"office-shell":screen==="settings"?"settings-shell":""}"><header class="main-navigation">${screen!=="home"?`<button class="back" data-nav="${screen==="team"?"assignments":settingsReturn?"settings":"home"}" aria-label="Go back">‹ ${settingsReturn?"Settings":"Home"}</button>`:`<button type="button" class="home-brand" data-nav="office" aria-label="Open office">${window.AgentHQIcons?.svg("office")||""}<span>Office</span></button>`}<span class="header-brand">Agent HQ</span></header>${screen==="home"?"":`<h1>${escapeHTML(title||"Agent HQ")}</h1>`}${body}</main>`;
  }if(screen==="contacts"||screen==="messages"){const show=(q="")=>{
  const inbox=screen==="messages";
- const hasConversation=id=>employeeAttention(id)>0||(messages.get(id)||[]).some(m=>m.type==="text"&&String(m.text||"").trim().length>0);
+ const hasConversation=id=>window.agentHQCamera?.hasPhotos?.(id)||employeeAttention(id)>0||(messages.get(id)||[]).some(m=>m.type==="text"&&String(m.text||"").trim().length>0);
  const matches=x=>[x[2],x[3]].join(" ").toLowerCase().includes(q.toLowerCase());
  const shown=inbox?staff.filter(x=>matches(x)&&hasConversation(x[0])):staff.filter(matches);
  const showHQ=!inbox||hasConversation("hq");
@@ -768,7 +775,8 @@ if(screen==="research"||screen==="browser"){
   catch{document.querySelector("#agent-browser-status").textContent="Enter a valid public URL or search phrase."}
  });
  queueMicrotask(()=>window.agentHQResearchCloud?.refresh().catch(()=>{}));
-}if(isChat){
+}if(screen==="camera")queueMicrotask(()=>window.agentHQCamera?.afterRender?.());
+if(isChat){
  const field=document.querySelector("#draft"),form=document.querySelector("#composer");
  field.value=drafts.get(active)||"";
  field.addEventListener("input",event=>drafts.set(active,event.target.value));
