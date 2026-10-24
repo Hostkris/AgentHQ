@@ -2,3 +2,7 @@
 # a browser endpoint. Other functions retain their existing JWT verification.
 [functions.agent-hq-project-runner]
 verify_jwt = false
+
+# Fixed public research diagnostics use the same private Vault credential.
+[functions.agent-hq-research-check]
+verify_jwt = false

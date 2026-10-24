@@ -1,5 +1,6 @@
 import {messageDeleteButton, messageIsDeleted} from './agent-message-controls.js?v=20261024-delete-1';
 import {renderHomeScreen,connectHomeScreen,homeDragInProgress} from './agent-home-layout.js?v=20261024-camera-messages-2';
+import {researchFailureInfo} from './agent-research-status.js?v=20261024-research-recovery-1';
 const staff=[["alex","👔","Alex","General Manager"],["maya","📣","Maya","Chief Marketing Strategist"],["jordan","🎬","Jordan","Creative Content Director"],["riley","🔎","Riley","Market Research Analyst"],["taylor","📧","Taylor","Communications Director"],["casey","📱","Casey","Social Media Director"],["morgan","🛍️","Morgan","E-Commerce Director"],["avery","📊","Avery","Financial Strategy Analyst"],["jamie","📅","Jamie","Scheduling Director"],["quinn","💡","Quinn","Chief Growth Officer"]];const app=document.querySelector("#app");const oauthReturnWorker=(()=>{
  try{
   const callback=new URLSearchParams(location.search);
@@ -765,21 +766,36 @@ function renderOperations(){
  ).join(""):'<p class="operations-empty">No proposed outside actions yet. Start by asking a coworker about reporting, ads, social posts, or automations.</p>')+
  '</section>';
 }
-let researchConnection={ready:false,message:"Tap Check connection to verify web research."},researchJobs=[];
+let researchConnection={ready:false,message:"Tap Check connection to verify model access."},researchJobs=[];
+const retryingResearch=new Set();
 function researchConnectionCard(){return '<section class="card research-connection"><h2>Web Research</h2><p id="research-connection-status" class="notice" role="status">'+escapeHTML(researchConnection.message)+'</p><button type="button" class="back" data-research-check>Check connection</button><p class="notice">All workers can research public sources for their own jobs using the existing Groq connection. Direct research requests and assigned projects authorize relevant public searches. Shared free quotas apply; private accounts and outside actions keep their separate approvals.</p></section>'}
 window.agentHQSettingsResearch=researchConnectionCard;
 function renderResearchHistory(){
  if(!researchJobs.length)return '<p class="notice">Your research requests and reports will appear here.</p>';
  return researchJobs.map(job=>{
   const name=staff.find(x=>x[0]===job.employee_id)?.[2]||studioBots.find(x=>x.id===job.bot_id)?.name||'Company HQ';
-  const target=job.assignment_id?'data-project-open="'+escapeHTML(job.assignment_id)+'"':job.bot_id?'data-studio-worker="'+escapeHTML(job.bot_id)+'"':'data-chat="'+escapeHTML(job.employee_id)+'"';
-  return '<article class="research-history-item"><div class="research-history-heading"><strong>'+escapeHTML(job.status==='completed'?'Report ready':job.status==='running'?'Researching…':job.status==='pending'?'Awaiting your reply':job.status)+'</strong><small>'+escapeHTML(name)+'</small></div><p>'+escapeHTML(job.query)+'</p>'+(job.report?'<details><summary>Read report</summary><div class="research-report">'+messageHTML(job.report)+'</div></details>':'')+(job.error?'<p class="notice">'+escapeHTML(job.error)+'</p>':'')+'<button type="button" class="back" '+target+'>Open conversation</button></article>';
+  const project=job.recovery_assignment_id||job.assignment_id;
+  const target=project?'data-project-open="'+escapeHTML(project)+'"':job.bot_id?'data-studio-worker="'+escapeHTML(job.bot_id)+'"':'data-chat="'+escapeHTML(job.employee_id)+'"';
+  const failed=job.status==='failed',failure=failed?researchFailureInfo(job.error):null;
+  const retry=failed&&(!job.bot_id||project)?'<button type="button" class="primary" data-research-retry="'+escapeHTML(job.id)+'"'+(retryingResearch.has(job.id)?' disabled':'')+'>'+(retryingResearch.has(job.id)?'Retrying…':project?'Retry saved project':'Retry research')+'</button>':'';
+  return '<article class="research-history-item"><div class="research-history-heading"><strong>'+escapeHTML(job.status==='completed'?'Report ready':failed?'Research did not complete':job.status==='running'?'Researching…':job.status==='pending'?'Awaiting your reply':job.status)+'</strong><small>'+escapeHTML(name)+'</small></div><p>'+escapeHTML(job.query)+'</p>'+(job.status==='completed'&&job.report?'<details><summary>Read report</summary><div class="research-report">'+messageHTML(job.report)+'</div></details>':'')+(failure?'<p class="notice">'+escapeHTML(failure.message)+(failure.retryAt?' Retry after '+escapeHTML(new Date(failure.retryAt).toLocaleString())+'.':'')+(project?' Your request is preserved in the saved project; recovery continues automatically within its limits.':'')+'</p>':'')+retry+'<button type="button" class="back" '+target+'>'+(project?'Open saved project':'Open conversation')+'</button></article>';
  }).join('');
 }
 function renderResearchPage(browser){return (browser?'<section class="card"><h2>Browse yourself</h2><form id="agent-browser-form" class="research-browser-form"><input id="agent-browser-input" aria-label="Search or website" placeholder="Search or enter a URL" required><button class="primary" type="submit">Go</button></form><p class="notice" id="agent-browser-status">Opens a new tab for you.</p></section>':'')+researchConnectionCard()+'<section class="card research-request"><h2>Ask a worker</h2><p class="notice">Choose a worker and describe what to find. They can research their specialty and bring back dated findings and source links. You can also ask directly in Messages.</p><form id="live-research-form"><label for="research-agent">Worker</label><select id="research-agent">'+staff.map(x=>'<option value="'+x[0]+'"'+(x[0]==='riley'?' selected':'')+'>'+x[2]+' · '+x[3]+'</option>').join('')+'</select><label for="research-topic">Research topic</label><textarea id="research-topic" required minlength="5" maxlength="1900" rows="4" placeholder="Compare three current options for my project, with prices and sources."></textarea><button class="primary" type="submit">Send research request</button></form><p class="notice" id="research-status" role="status">You can also ask any built-in worker to research directly in Messages. Up to 8 reports per hour.</p></section><section class="card"><h2>Research history</h2><button type="button" class="back" data-research-refresh>Refresh reports</button><p id="research-history-notice" class="notice" role="status"></p><div id="research-history">'+renderResearchHistory()+'</div></section>'}
 window.agentHQResearchSync=(jobs,notice)=>{researchJobs=jobs||[];if(screen==='chat'&&active&&jobs?.some(j=>j.employee_id===active&&j.status==='completed'))renderWithoutInterruptingDraft();if(screen==='studio')window.agentHQBotStudioUIRefresh?.();const history=document.querySelector('#research-history');if(history)history.innerHTML=renderResearchHistory();const status=document.querySelector('#research-history-notice');if(status)status.textContent=notice||''};
 window.agentHQResearchConnection=data=>{researchConnection=data;const status=document.querySelector('#research-connection-status');if(status)status.textContent=data.message};
 app.addEventListener('click',async e=>{const refresh=e.target.closest('[data-research-refresh]');if(refresh){refresh.disabled=true;try{await window.agentHQResearchCloud?.refresh()}catch{}finally{refresh.disabled=false}return}const button=e.target.closest('[data-research-check]');if(!button)return;button.disabled=true;button.textContent='Checking…';try{if(!window.agentHQResearchCloud)throw Error('Research connection is loading. Refresh Agent HQ.');await window.agentHQResearchCloud.status()}catch(err){window.agentHQResearchConnection({ready:false,message:err.message})}finally{button.disabled=false;button.textContent='Check connection'}});
+app.addEventListener('click',async e=>{
+ const button=e.target.closest('[data-research-retry]');if(!button)return;
+ const id=button.dataset.researchRetry;if(retryingResearch.has(id))return;
+ retryingResearch.add(id);button.disabled=true;button.textContent='Retrying…';
+ const notice=message=>{const el=document.querySelector('#research-history-notice');if(el)el.textContent=message;};
+ try{
+  if(!window.agentHQResearchCloud?.retry)throw Error('Research recovery is loading. Refresh Agent HQ.');
+  const result=await window.agentHQResearchCloud.retry(id);if(result)notice(result.message);
+ }catch(error){notice(error.message);}
+ finally{retryingResearch.delete(id);const history=document.querySelector('#research-history');if(history)history.innerHTML=renderResearchHistory();}
+});
 let settingsReturn=false;
 function render(){if(screen==="home"&&homeDragInProgress())return;window.agentHQCamera?.onScreenChange(screen);const isChat=screen==="chat";
  if(!isChat||(chatSelectionWorker&&chatSelectionWorker!==active)){chatSelectionWorker=null;chatSelected.clear()}

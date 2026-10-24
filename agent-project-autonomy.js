@@ -1,4 +1,5 @@
 import {ProjectResponseError} from './agent-project-recovery.js';
+import {researchFailureInfo} from './agent-research-status.js';
 
 export const PROJECT_AUTONOMY_POLICY=`The owner's assignment is standing authorization for its bounded internal work: plan, collaborate, research ordinary public sources, draft, check, correct errors and continue to a finished result. Do not ask the owner to click Retry, approve a plan, confirm a handoff, choose routine wording, or authorize ordinary public research. Diagnose workflow failures, correct the response and continue the SAME saved project. Alex may diagnose coordination or response-format faults; specialists keep responsibility for their own work. Never invent progress or mark unfinished work complete.
 First use the owner brief, saved project information, teammates and genuinely available authorized tools. Resolve ordinary choices among the team and make clearly labelled reasonable assumptions. Research missing public facts using the existing role-scoped tool and its source evidence; prefer official sources. Reuse existing account permissions only within their exact recorded scope. Never invent private facts, prices, balances, account access, tool results or sensitive authorization.
@@ -27,7 +28,8 @@ export function autonomousRecoveryStatus(s,now=Date.now()){
  const worker=String(s.next_worker||'the worker').replace(/^./,c=>c.toUpperCase());
  const text=state==='diagnosing'?'Alex is diagnosing a workflow issue':state==='reconnecting'?'Reconnecting automatically':worker+' is correcting a response';
  const at=Date.parse(s.next_run_at),queued=Number.isFinite(at)&&at>now+1000;
- return {state:state||'correcting',text,queued,retryAt:queued?at:null,note:'The team will continue this saved project automatically. No action needed.'};
+ const research=String(s.recovery_error||'').includes('[research:')?researchFailureInfo(s.recovery_error):null;
+ return {state:state||'correcting',text,queued,retryAt:queued?at:null,note:(research?research.message+' ':'')+'The team will continue this saved project automatically. No action needed.'};
 }
 
 export function connectionRetryDelay(attempt){return [3000,10000,30000,60000][Math.min(Math.max(attempt-1,0),3)];}

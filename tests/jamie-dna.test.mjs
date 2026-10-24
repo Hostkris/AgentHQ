@@ -37,6 +37,6 @@ test("No automatic calendar edits, background reminders, notifications or Alex r
 test("Agent HQ displays Jamie's new title and cache version",()=>{
  const app=read("app.js"),html=read("index.html");
  assert.match(app,/\["jamie","📅","Jamie","Scheduling Director"\]/);
- assert.match(html,/src="\.\/app\.js\?v=20261024-live-activity-1"/);
+ assert.match(html,/src="\.\/app\.js\?v=20261024-research-recovery-1"/);
 });
 

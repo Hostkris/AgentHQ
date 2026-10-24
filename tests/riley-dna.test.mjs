@@ -48,11 +48,12 @@ test('Real research uses separately approved public web tool with traceable sour
  assert.match(contract,/tools:\[\{type:'browser_search'\}\]/);
  assert.match(contract,/tool_choice:choice/);
  assert.doesNotMatch(contract,/(?:reasoning_format|reasoning_effort|citation_options|response_format|temperature)\s*:/);
- assert.match(research,/safeParameter/);
- assert.match(research,/No report was completed/);
+ assert.match(research,/providerResearchError\(response\)/);
+ assert.match(read('agent-research-status.js'),/safeField/);
+ assert.match(read('agent-research-status.js'),/No research report was marked complete/);
  assert.match(research,/hasSearchResults/);
  assert.match(research,/hasBrowserResults/);
- assert.match(research,/No report was completed/);
+ assert.match(read('agent-research-status.js'),/No research report was marked complete/);
  assert.match(research,/researchEvidence\(message\)/);
  assert.match(research,/finish_agent_research/);
  assert.match(research,/Search retrieved:/);

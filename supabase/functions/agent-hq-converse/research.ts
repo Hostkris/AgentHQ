@@ -1,5 +1,7 @@
 // Public research uses only the approved topic. Never forward chat history, email or login tokens.
 import {RILEY_LIVE_RESEARCH_POLICY} from "../_shared/riley-dna.ts";
+import {providerResearchError} from '../_shared/research-provider.ts';
+import {ResearchProviderError,researchFailure} from '../../../agent-research-status.js';
 export const RESEARCH_MODEL='openai/gpt-oss-120b';
 export const RESEARCH_LIMIT=8;
 export function isResearchInstruction(text:string){
@@ -32,16 +34,18 @@ export function researchEvidence(message:any):Source[]{
   const hasBrowserResults=Array.isArray(t.browser_results)&&t.browser_results.length>0;
   return isNamedSearch||hasSearchResults||hasBrowserResults;
  });
- if(!search.length)throw Error('The provider did not confirm a live web search. No research report was marked complete.');
+ if(!search.length)throw new ResearchProviderError('no_evidence');
  const found=new Map<string,Source>();
  const add=(url:unknown,title:unknown='')=>{if(typeof url!=='string')return;const safe=publicURL(url.replace(/[),.;]+$/,''));if(safe&&!found.has(safe))found.set(safe,{url:safe,title:String(title||new URL(safe).hostname).slice(0,180)})};
  for(const tool of search){
   for(const item of tool.search_results?.results||[])add(item.url,item.title);
   for(const item of tool.browser_results||[])add(item.url,item.title);
-  // GPT-OSS browser search may return page headers and URLs as text rather than structured results.
-  for(const url of String(tool.output||'').match(/https?:\/\/[^\s<>"'\]\}]+/gi)||[])add(url);
+  // Prefer structured result links. Only older text-only tool executions need
+  // URL extraction; model prose and unrelated tool output are never evidence.
+  if(!tool.search_results?.results?.length&&!tool.browser_results?.length)
+   for(const url of String(tool.output||'').match(/https?:\/\/[^\s<>"'\]\}]+/gi)||[])add(url);
  }
- if(!found.size)throw Error('Search returned no verifiable source links. Please try a more specific topic.');
+ if(!found.size)throw new ResearchProviderError('no_evidence');
  return [...found.values()].slice(0,12);
 }
 export function researchApproval(query:string){return 'I can check public sources for “'+query.slice(0,400)+'” and save a report with links. Groq web search may have usage limits or charges; this does not grant account access. Want me to go ahead? Reply yes or no within 15 minutes.'}
@@ -54,16 +58,17 @@ export async function createResearchRequest(db:any,owner:string,worker:string,ci
  return data.id;
 }
 export async function researchStatus(key:string,fetcher:typeof fetch=fetch){
- if(!key)return {ready:false,message:'Web research needs GROQ_API_KEY in Supabase Secrets. Your existing chat connection is unchanged.',model:RESEARCH_MODEL};
+ const config={model:RESEARCH_MODEL,tool:'browser_search',tool_choice:'required',live_search_verified:false};
+ if(!key)return {...config,ready:false,model_access:false,message:new ResearchProviderError('missing_key').message};
  try{
   const r=await fetcher('https://api.groq.com/openai/v1/models',{headers:{Authorization:'Bearer '+key},signal:AbortSignal.timeout(10000)});
-  if(!r.ok)return {ready:false,message:r.status===429?'Groq is rate limited. Try the connection check later.':'Groq could not verify the research connection (HTTP '+r.status+'). Check the server key and model access.',model:RESEARCH_MODEL};
+  if(!r.ok)return {...config,ready:false,model_access:false,message:(await providerResearchError(r)).message};
   const data=await r.json();const ready=(data.data||[]).some((m:any)=>m.id===RESEARCH_MODEL&&m.active!==false);
-  return {ready,model:RESEARCH_MODEL,message:ready?'Groq connection verified. Every worker can research public sources for their assigned role and task, within the shared free allowance.':'The Groq key works, but the research model is not available for this project.'};
- }catch{return {ready:false,model:RESEARCH_MODEL,message:'Groq could not be reached. Try the connection check again.'}}
+  return {...config,ready,model_access:ready,message:ready?'Groq model access verified: '+RESEARCH_MODEL+'. Agent HQ is configured to require browser_search. This connection check does not run a search; saved source-backed reports confirm actual search execution.':'The Groq key works, but the research model is not available for this project.'};
+ }catch(error){return {...config,ready:false,model_access:false,message:researchFailure(error).message}}
 }
 export async function runResearch(db:any,owner:string,worker:string,jobId:string,key:string,fetcher:typeof fetch=fetch){
- if(!key)throw Error('Web research needs GROQ_API_KEY in Supabase Secrets.');
+ if(!key)throw new ResearchProviderError('missing_key');
  const {data:job,error:claimError}=await db.rpc('claim_agent_research',{p_owner:owner,p_worker:worker,p_job:jobId});
  if(claimError||!job){
   const info=claimError?.message||'This research approval could not be claimed.';
@@ -110,32 +115,22 @@ export async function runResearch(db:any,owner:string,worker:string,jobId:string
   });
   let response=await requestSearch('required');
   if(!response.ok){
-   let code='',param='',message='';
+   let code='',message='';
    try{
-    const provider=(await response.json())?.error;
+    const provider=(await response.clone().json())?.error;
     code=String(provider?.code||provider?.type||'').slice(0,90);
-    param=String(provider?.param||'').slice(0,90);
     message=String(provider?.message||'').slice(0,400);
    }catch{}
-   // The provider might include request content in the original error message.
-   // Expose only a safe named parameter, never raw error text or the research topic.
-   const knownParam=/^(?:model|messages|tools|tool_choice|reasoning_format|reasoning_effort|citation_options|max_completion_tokens|temperature)(?:[.[\]a-z0-9_]+)?$/i;
-   const parameter=knownParam.test(param)?param:
-    ((message.match(/(?:parameter|param|field) ['"`]?((?:tools|tool_choice|model|messages|reasoning_format|reasoning_effort|citation_options)[\w.\[\]]*)/i)||[])[1]||'');
-   const safeParameter=knownParam.test(parameter)?' Field: '+parameter+'.':'';
    if(response.status===400&&(code==='tool_use_failed'||
      /tool choice is required|did not call a tool|invalid tool call generated/i.test(message))){
     // Only a provider-confirmed tool-generation error permits one bounded retry.
     response=await requestSearch('auto');
-    if(!response.ok)throw Error('Groq browser search could not execute (HTTP '+response.status+'). No report was completed.');
-   }else if(response.status===429)throw Error('Groq research is rate limited. No report was completed.');
-   else if(response.status===401||response.status===403)throw Error('Groq denied this model or tool. Check the Groq project permissions.');
-   else if(response.status===400)throw Error('Groq rejected the browser-search request (HTTP 400, '+(code||'invalid_request_error')+').'+safeParameter+' No report was completed.');
-   else throw Error('Groq research failed (HTTP '+response.status+'). No report was completed.');
+   }
+   if(!response.ok)throw await providerResearchError(response);
   }
   const payload=await response.json(),message=payload?.choices?.[0]?.message;
   const sources=researchEvidence(message);
-  if(typeof message?.content!=='string'||!message.content.trim()||payload?.choices?.[0]?.finish_reason==='length')throw Error('Research did not return a complete report. Try a narrower topic.');
+  if(typeof message?.content!=='string'||!message.content.trim()||payload?.choices?.[0]?.finish_reason==='length')throw new ResearchProviderError('incomplete');
   // Only provider-observed source URLs become clickable. Drop other URLs in the model prose.
   const verified=new Set(sources.map(s=>s.url));
   const answer=message.content.trim().replace(/https?:\/\/[^\s<>"'\]\)]+/gi,(url:string)=>verified.has(publicURL(url.replace(/[.,;]+$/,''))||'')?url:'[unverified link omitted]').slice(0,6600);
@@ -165,9 +160,9 @@ export async function runResearch(db:any,owner:string,worker:string,jobId:string
   // the in-thread expandable attachment. Text like a coworker, not a pasted PDF.
   return 'I finished checking public sources for "'+String(job.query).slice(0,110)+'". I saved the full report with links and limitations below. Want me to walk you through the most useful finding?';
  }catch(e){
-  const info=e instanceof Error?(e.name==='TimeoutError'?'Web research timed out. Ask for a new report to retry.':e.message):'Web research failed.';
+  const failure=researchFailure(e),info=failure.message;
   await db.from('agent_research_jobs').update({status:'failed',error:info.slice(0,300),finished_at:new Date().toISOString()}).eq('id',jobId).eq('owner_id',owner).eq('employee_id',worker).eq('status','running');
-  throw Error(info);
+  throw failure;
  }
 }
 
