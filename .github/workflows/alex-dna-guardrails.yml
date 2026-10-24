@@ -11,6 +11,7 @@ on:
       - 'supabase/migrations/**'
       - 'tests/alex-dna.test.mjs'
       - 'tests/unread-badges.test.mjs'
+      - 'tests/messages-workflow.test.mjs'
       - 'ios-ui.css'
       - 'index.html'
       - '.github/workflows/alex-dna-guardrails.yml'
@@ -36,5 +37,7 @@ jobs:
         run: node --test tests/alex-dna.test.mjs
       - name: Test unread message badges
         run: node --test tests/unread-badges.test.mjs
+      - name: Test conversation-first manager workflow
+        run: node --test tests/messages-workflow.test.mjs
       - name: Test Creative Desk owner approvals and draft escaping
         run: node --test tests/creative-desk.test.mjs
