@@ -31,7 +31,7 @@ export function projectActivity(s,now=Date.now(),labels={},research=[]){
  const text=s.phase==='checking'?name(s.lead_worker)+' → '+next+' · Peer review is next':s.phase==='polishing'?'Team review → '+next+' · Final corrections are next':'Next: '+next+' · '+(s.phase==='planning'?'team planning':s.phase==='drafting'?'shared draft':'team conversation');
  return {...base,text};
 }
-export function threadActivities(worker,{projects=[],selected,local=[],workerRuns=[],research=[],legacyResearch=[],labels={},fresh=true,online=true,now=Date.now()}={}){
+export function threadActivities(worker,{projects=[],selected,local=[],workerRuns=[],research=[],legacyResearch=[],events=[],labels={},fresh=true,online=true,now=Date.now()}={}){
  const name=id=>activityName(id,labels),out=[];
  const activeLocal=local.filter(r=>(r.worker===worker||worker==='hq')&&r.startedAt<=now);
  for(const r of activeLocal)out.push({key:r.id,actor:r.worker,active:online&&now-r.startedAt<150000,state:online?'working':'offline',text:!online?'Connection interrupted — waiting to reconnect':now-r.startedAt>=150000?'This response is taking longer than expected':name(r.worker)+' · '+r.stage,title:r.title||(worker==='hq'&&r.worker!=='hq'?'Direct conversation':'Your message')});
@@ -53,8 +53,23 @@ export function threadActivities(worker,{projects=[],selected,local=[],workerRun
   if(localRow){localRow.text=name(actor)+' is researching public sources';localRow.state='research';continue;}
   out.push({key:'research:'+r.id,actor,active:true,state:'research',text:name(actor)+' is researching public sources',title:r.assignment_id?'Team research':'Your research request'});
  }
+ // Completed/failed actions are historical evidence, not live typing.
+ // Only server-generated events may populate this feed.
+ for(const e of events){
+  const age=now-Date.parse(e.occurred_at);
+  if(!Number.isFinite(age)||age<0||age>120000||e.event_type==='worker_started')continue;
+  const project=projects.find(s=>s.assignment_id===e.assignment_id);
+  if(worker!=='hq'&&worker!=='alex'&&worker!==e.employee_id&&!project?.team_order?.includes(worker))continue;
+  const allowed=new Set(['worker_completed','worker_failed','team_message_sent','phase_changed','recovery_started','owner_action_required','deliverable_ready','project_approved']);
+  if(!allowed.has(e.event_type))continue;
+  out.push({key:'event:'+e.id,projectId:e.assignment_id,actor:e.employee_id,active:false,event:true,
+   state:e.event_type==='worker_failed'?'error':'recorded',
+   text:String(e.summary||'Recorded project activity').slice(0,240),
+   title:project?.assignment?.title||'Verified project event'});
+  if(out.filter(a=>a.event).length>=2)break;
+ }
  if(!fresh||!online){
-  for(const a of out)if(!activeLocal.some(r=>r.id===a.key)||!online){a.active=false;a.state='offline';a.text=online?'Reconnecting to live activity — work is saved':'Connection interrupted — waiting to reconnect';}
+  for(const a of out)if(!a.event&&(!activeLocal.some(r=>r.id===a.key)||!online)){a.active=false;a.state='offline';a.text=online?'Reconnecting to live activity — work is saved':'Connection interrupted — waiting to reconnect';}
  }
  // Show current work first while keeping an explicit selected HQ project visible.
  out.sort((a,b)=>(b.active?1:0)-(a.active?1:0));
