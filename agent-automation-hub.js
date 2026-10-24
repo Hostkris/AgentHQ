@@ -3,12 +3,16 @@
 import {agentCloud} from "./agent-cloud-auth.js";
 const esc=(s)=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 let result=null,message="",busy=false,lastCheck=0,checking=false;
-let nangoLink="",nangoLinkExpiresAt="";
+let nangoLink="",nangoLinkExpiresAt="",nangoVerification=null;
 function render(){
  const root=document.getElementById("agenthq-automation-root");
  if(!root)return;
  const a=result?.activepieces,n=result?.nango;
- const signature=JSON.stringify([!!busy,!!checking,message,result,nangoLink,nangoLinkExpiresAt]);
+ const v=nangoVerification;
+ const verified=v?.state==="api_verified";
+ const found=v?.authorizationFound===true;
+ const nangoLabel=verified?"GitHub connected · API verified":found?"GitHub authorized · API unverified":v?.state==="permissions_needed"?"Verification needs key permission":v?.state==="credentials_invalid"?"Nango verification key rejected":v?.state==="not_found"?"No matching GitHub connection":v?.state==="needs_reconnect"?"GitHub reconnect required":v?"Live verification incomplete":n?.configured?"Configured · not live verified":"Setup required";
+ const signature=JSON.stringify([!!busy,!!checking,message,result,nangoVerification,nangoLink,nangoLinkExpiresAt]);
  if(root.dataset.signature===signature)return;
  root.dataset.signature=signature;
  root.innerHTML='<section class="ah-automation-hub" aria-label="Automation and connected apps">'+
@@ -16,8 +20,9 @@ function render(){
   '<div class="ah-automation-rows">'+
   '<div class="ah-automation-row"><strong>Activepieces · Workflows</strong><span class="ah-badge '+(a?.configured?'ah-pending':'')+'">'+esc(!a?'Status unknown':a.configured?'Configured · unverified':'Setup required')+'</span>'+
   '<small>Protected test webhook only. No unattended external actions enabled.</small><button type="button" data-ah-automation="pilot" '+(busy||!a?.configured?'disabled':'')+'>Test safe workflow delivery</button></div>'+
-  '<div class="ah-automation-row"><strong>Nango · New Accounts</strong><span class="ah-badge '+(n?.configured?'ah-pending':'')+'">'+esc(!n?'Status unknown':n.configured?'Configured · unverified':'Setup required')+'</span>'+
+  '<div class="ah-automation-row"><strong>Nango · New Accounts</strong><span class="ah-badge '+(verified?'ah-verified':n?.configured?'ah-pending':'')+'">'+esc(!n?'Status unknown':nangoLabel)+'</span>'+
   '<small>'+esc(n?.integrations?.length?'Allowed integrations: '+n.integrations.join(", "):"Provider authorizations require a Nango server configuration.")+'</small>'+
+  (v?'<small class="ah-connect-feedback" role="status">'+esc(v.message||"Live connection test returned no detail.")+(v.githubLogin?' GitHub user: '+esc(v.githubLogin)+'.':'')+'</small>':'')+
   '<button type="button" data-ah-automation="connect" '+(busy||!n?.configured?'disabled':'')+'>Authorize a new account</button>'+
   (nangoLink?'<a class="ah-connect-link" href="'+esc(nangoLink)+'" target="_blank" rel="noopener noreferrer">Open secure Nango authorization ↗</a><small>This personal authorization link expires after 30 minutes. Approve GitHub access only if you agree with the permissions.</small>':'')+'</div></div>'+
   '<button type="button" class="ah-status-check" data-ah-automation="status" aria-label="Check Activepieces and Nango integration setup" aria-busy="'+(checking?'true':'false')+'" '+(busy||checking?'disabled':'')+'>'+(checking?'Checking connections…':'↻ Check both integrations')+'</button>'+
@@ -37,16 +42,26 @@ async function refresh(force=false){
  }
  if(busy||(!force&&Date.now()-lastCheck<15000))return;
  checking=true;lastCheck=Date.now();
- if(force)message="Checking Activepieces and Nango settings now…";
+ if(force)message="Checking integration settings and testing GitHub through Nango…";
  render();
  try{
   const {data}=await agentCloud.auth.getUser();
   if(!data?.user){result=null;message="Sign in to Agent HQ to check and connect accounts.";return;}
   result=await invoke("status");
+  if(force){
+    nangoVerification=null;
+    if(result?.nango?.configured){
+      message="Integration settings recognized. Running a read-only GitHub connection test through Nango…";
+      render();
+      try{nangoVerification=await invoke("nango_verify");}
+      catch(err){nangoVerification={state:"unavailable",verified:false,message:"GitHub verification could not finish: "+String(err?.message||err)};}
+    }else nangoVerification={state:"not_configured",verified:false,message:"Configure Nango before attempting live GitHub verification."};
+  }
   const clock=new Date().toLocaleTimeString([], {hour:"numeric",minute:"2-digit",second:"2-digit"});
-  const statusA=result?.activepieces?.configured?"configured":"setup needed";
+  const statusA=result?.activepieces?.configured?"configured (delivery not tested)":"setup needed";
   const statusN=result?.nango?.configured?"configured":"setup needed";
-  message="Checked at "+clock+". Activepieces: "+statusA+". Nango: "+statusN+". This checks settings only; it cannot verify a completed GitHub OAuth connection.";
+  message="Checked at "+clock+". Activepieces: "+statusA+". Nango: "+statusN+". "+
+    (nangoVerification?nangoVerification.message:"Tap Check both integrations for a live, read-only GitHub test.");
  }catch(e){result=null;message="Connection check failed: "+String(e?.message||e)+". Tap Check both integrations to retry.";}
  finally{checking=false;render();}
 }
@@ -83,6 +98,6 @@ document.addEventListener("click",async(e)=>{
 });
 const observer=new MutationObserver(()=>{if(document.getElementById("agenthq-automation-root")){render();refresh().catch(()=>{});}});
 observer.observe(document.getElementById("app")||document.body,{childList:true,subtree:true});
-agentCloud.auth.onAuthStateChange(()=>{lastCheck=0;result=null;nangoLink="";nangoLinkExpiresAt="";message="Sign-in changed; checking integrations…";render();setTimeout(()=>refresh(true),0)});
-window.addEventListener("focus",()=>{if(document.getElementById("agenthq-automation-root"))refresh(true).catch(()=>{})});
+agentCloud.auth.onAuthStateChange(()=>{lastCheck=0;result=null;nangoVerification=null;nangoLink="";nangoLinkExpiresAt="";message="Sign-in changed; checking integrations…";render();setTimeout(()=>refresh(false),0)});
+window.addEventListener("focus",()=>{if(document.getElementById("agenthq-automation-root"))refresh(false).catch(()=>{})});
 render();
