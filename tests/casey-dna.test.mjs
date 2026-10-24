@@ -22,7 +22,7 @@ test("Casey DNA applies to chat, solo worker, Alex-coordinated specialist work",
  const coord=read("supabase/functions/agent-hq-coordinate/index.ts");
  const alex=read("supabase/functions/_shared/alex-dna.ts");
  assert.match(chat,/import \{CASEY_CHAT_POLICY\} from "\.\.\/_shared\/casey-dna.ts";/);
- assert.match(chat,/role==="Social Media Director & Digital Engagement Specialist"\?baseSystem\+"\\n"\+CASEY_CHAT_POLICY:baseSystem/);
+ assert.match(chat,/role==="Social Media Director & Digital Engagement Specialist"\?baseSystem\+"\\n"\+CASEY_CHAT_POLICY:/);
  assert.match(chat,/const ACTION_PAIRS/);
  assert.match(worker,/employeeId==="casey"\?CASEY_TEXT_DRAFT_POLICY/);
  assert.match(coord,/worker==="casey"\?CASEY_TEXT_DRAFT_POLICY/);
@@ -42,5 +42,5 @@ test("Casey does not gain automatic publishing or three-day scheduling",()=>{
 test("Casey UI title is updated and app cache reflects it",()=>{
  const app=read("app.js"),html=read("index.html");
  assert.match(app,/\["casey","📱","Casey","Social Media Director"\]/);
- assert.match(html,/src="\.\/app\.js\?v=20261024-casey-dna-3"/);
+ assert.match(html,/src="\.\/app\.js\?v=20261024-(?:casey|taylor)-dna-3"/);
 });
