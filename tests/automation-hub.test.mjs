@@ -18,7 +18,7 @@ test("Nango credentials remain server-only and scopes are allowlisted",()=>{
  assert.match(api,/AGENT_HQ_NANGO_SECRET_KEY/);
  assert.match(api,/AGENT_HQ_NANGO_INTEGRATIONS/);
  assert.match(api,/connect\/sessions/);
- assert.match(api,/end_user:\{id:owner/);
+ assert.match(api,/tags:\{end_user_id:owner/);
  assert.doesNotMatch(ui,/SECRET_KEY|SERVICE_ROLE_KEY/);
 });
 test("every request is JWT authenticated and owner restricted",()=>{
