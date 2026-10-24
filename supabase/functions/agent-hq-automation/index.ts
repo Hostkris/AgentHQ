@@ -50,7 +50,17 @@ Deno.serve(async(req:Request)=>{
      const payload=await result.json();
      const session=payload?.data?.token;
      if(typeof session!=="string"||!session)return response(req,{error:"Nango did not return a session token"},502);
-     return response(req,{sessionToken:session,expiresAt:payload?.data?.expires_at||null});
+     // Nango's hosted connect link avoids loading a third-party SDK in Safari/PWAs.
+     const connectLink=payload?.data?.connect_link;
+     let safeLink="";
+     try{
+       if(typeof connectLink==="string"){
+         const u=new URL(connectLink);
+         if(u.protocol==="https:"&&u.hostname==="connect.nango.dev"&&!u.username&&!u.password)safeLink=u.toString();
+       }
+     }catch{}
+     if(!safeLink)return response(req,{error:"Nango returned a session but no valid hosted connection link. Retry or check Nango's service status."},502);
+     return response(req,{sessionToken:session,connectLink:safeLink,expiresAt:payload?.data?.expires_at||null});
    }catch{return response(req,{error:"Nango is temporarily unreachable. Retry the connection."},504)}
  }
  if(input.action==="activepieces_pilot"){
