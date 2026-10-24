@@ -17,7 +17,7 @@ async function refresh() {
   }
   const {data:assignments,error:assignmentError}=await agentCloud
     .from('agent_team_assignments')
-    .select('id,title,instructions,info_needed,employee_ids,status,source_employee_id,manager_summary,coordination_status,created_at,updated_at')
+    .select('id,title,instructions,info_needed,employee_ids,status,source_employee_id,manager_summary,coordination_status,owner_paused,created_at,updated_at')
     .order('created_at',{ascending:false}).limit(200);
   if(current!==version)return;
   if(assignmentError){
