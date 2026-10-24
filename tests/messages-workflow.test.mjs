@@ -147,6 +147,6 @@ test('All specialists are directed to finish safe drafts, avoid fabricated exter
  assert.match(coordinator,/Solve routine snags autonomously/);
  assert.match(coordinator,/SMALLEST capable specialist team/);
  assert.match(coordinator,/Nothing will be published or sent externally/);
- assert.match(coordinator,/No web access, tools, account access, or ability to execute external actions/);
+ assert.match(coordinator,/NO web access, tools, account access, or ability to execute external actions/);
  assert.match(coordinator,/If essential owner information genuinely blocks all useful drafting/);
 });
