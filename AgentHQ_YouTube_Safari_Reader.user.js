@@ -6,8 +6,8 @@
 // @match        https://www.youtube.com/*
 // @match        https://m.youtube.com/*
 // @match        https://youtube.com/*
-// @downloadURL  https://hostkris.github.io/AgentHQ/AgentHQ_YouTube_Safari_Reader.user.js
-// @updateURL    https://hostkris.github.io/AgentHQ/AgentHQ_YouTube_Safari_Reader.user.js
+// @downloadURL  https://raw.githubusercontent.com/Hostkris/AgentHQ/main/AgentHQ_YouTube_Safari_Reader.user.js
+// @updateURL    https://raw.githubusercontent.com/Hostkris/AgentHQ/main/AgentHQ_YouTube_Safari_Reader.user.js
 // @grant        none
 // @noframes
 // @run-at       document-idle
