@@ -131,8 +131,9 @@ function getThreadItems(employee){
   caption:p.caption,url:p.url,width:p.width,height:p.height
  }));
 }
-function renderPhotoItem(item){
+function renderPhotoItem(item,selecting=false,selected=false){
  return '<div class="ios-message-row outgoing" data-chat-kind="photo" data-chat-item="'+safe(item.id)+'">'+
+ (selecting?'<button type="button" data-chat-select-kind="photo" data-chat-select-id="'+safe(item.id)+'" class="ios-chat-select-button" aria-label="Select photo" aria-pressed="'+(selected?'true':'false')+'">'+(selected?'✓':'')+'</button>':'')+
  '<figure class="ios-photo-message"><img src="'+safe(item.url)+'" loading="lazy" alt="Photo shared in conversation">'+
  (item.caption?'<figcaption>'+safe(item.caption)+'</figcaption>':'')+'</figure></div>';
 }
