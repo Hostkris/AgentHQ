@@ -26,6 +26,14 @@ function yesNo(text:string){const t=text.trim().toLowerCase().replace(/[.!?]+$/g
  if(/^(no|nope|nah|not yet|stop|don't|do not|decline|denied|deny|cancel)$/i.test(t))return "no";
  return null;
 }
+// One reply controls only one currently pending internal drafting plan. It never
+// authorizes websites, account actions, publishing, payments or permissions.
+function planSignal(value:string):"approve"|"reject"|null{
+ const t=value.trim().toLowerCase().replace(/[.!?]+$/g,"").replace(/\\s+/g," ");
+ if(/^(approved|approve|yes|yes please|green light|you (?:have|got) the green light|go ahead|proceed|you(?:'re| are) authorized|i approve(?: this(?: plan)?)?|approve (?:this |the )?plan|you(?:'re| are) approved|give (?:them|the team) the green light)$/.test(t))return "approve";
+ if(/^(no|nope|red light|stop|stop the plan|reject|reject (?:this |the )?plan|decline|denied|not approved|do not approve|don't approve|hold off|cancel (?:this |the )?plan)$/.test(t))return "reject";
+ return null;
+}
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function provider(){
  if(env("GROQ_API_KEY"))return {name:"groq",key:env("GROQ_API_KEY"),model:env("AGENT_HQ_AI_MODEL")||"openai/gpt-oss-120b",url:"https://api.groq.com/openai/v1/chat/completions"};
@@ -275,7 +283,7 @@ Deno.serve(async(req:Request)=>{
  let related=stored?.assignment_id||null,permission=stored?.permission_request_id||null;
  let pendingAction=stored?.action_proposal_id||null;
  let researchJob=stored?.research_job_id||null,replySaved=false;
- let startAssignment:string|null=null,resumeAssignment:string|null=null;
+ let startAssignment:string|null=null,resumeAssignment:string|null=null,approvedAssignment:string|null=null;
  let replyText="";
  const decision=yesNo(body);
  const state=async(next:string,taskText="",assignmentId:string|null=null,requestId:string|null=null,actionId:string|null=null,researchId:string|null=null)=>{
@@ -307,6 +315,72 @@ Deno.serve(async(req:Request)=>{
   replyText=researchApproval(topic);
  };
  try{
+  // Chat approval is limited to a single saved routing plan awaiting its owner's decision.
+  // "Yes" in confirm_task confirms task creation; it does not approve its later plan.
+  const signal=planSignal(body);
+  let planDecisionHandled=false;
+  if(signal&&stage==="idle"){
+   let query=db.from("agent_team_assignments")
+    .select("id,title,manager_summary,source_employee_id,coordination_status,status")
+    .eq("owner_id",owner).neq("status","completed")
+    .order("updated_at",{ascending:false}).limit(25);
+   if(worker!=="alex"&&worker!=="hq")query=query.eq("source_employee_id",worker);
+   const {data:assignments,error:assignmentReadError}=await query;
+   if(assignmentReadError)throw Error("Could not verify pending assignments");
+   const ids=(assignments||[]).map(a=>a.id);
+   if(ids.length){
+    const [{data:steps,error:stepsError},{data:decisions,error:decisionsError}]=await Promise.all([
+     db.from("agent_task_steps").select("assignment_id,status").eq("owner_id",owner).in("assignment_id",ids),
+     db.from("agent_alex_plan_decisions").select("assignment_id,status").eq("owner_id",owner).in("assignment_id",ids)
+    ]);
+    if(stepsError||decisionsError)throw Error("Could not verify the plan approval ledger");
+    const grouped=new Map<string,string[]>();
+    for(const step of steps||[])grouped.set(step.assignment_id,[...(grouped.get(step.assignment_id)||[]),step.status]);
+    const decided=new Map((decisions||[]).map(x=>[x.assignment_id,x.status]));
+    const available=(assignments||[]).filter(a=>a.manager_summary?.trim()&&
+      (grouped.get(a.id)||[]).length>0&&
+      (grouped.get(a.id)||[]).every(x=>x==="queued")&&decided.get(a.id)!=="approved");
+    const target=available.find(a=>a.id===related)||(available.length===1?available[0]:null);
+    if(available.length>1&&!target){
+     planDecisionHandled=true;
+     replyText="More than one plan needs approval. Please open the specific conversation and say which plan you mean: "+available.slice(0,3).map(x=>x.title).join("; ")+". I have not approved anything.";
+    }else if(target){
+     planDecisionHandled=true;
+     if(signal==="approve"){
+      const {error}=await db.from("agent_alex_plan_decisions").upsert({
+       owner_id:owner,assignment_id:target.id,status:"approved",decided_at:new Date().toISOString()
+      },{onConflict:"owner_id,assignment_id"});
+      if(error)throw Error("Could not record plan approval");
+      approvedAssignment=target.id;
+      await state("idle","",target.id);
+      replyText="Green light recorded for "+target.title+". The approved specialists can draft their assigned work. I'll show their results in Messages. This did NOT authorize posting or outside account actions.";
+     }else{
+      // This is the same bounded rejection behavior as the coordinator.
+      const {error:deleteError}=await db.from("agent_task_steps").delete()
+       .eq("owner_id",owner).eq("assignment_id",target.id).eq("status","queued");
+      if(deleteError)throw Error("Could not stop the proposed specialist plan");
+      const {error:resetError}=await db.from("agent_team_assignments").update({
+       employee_ids:["alex"],manager_summary:"",coordination_status:"planning",status:"planned",updated_at:new Date().toISOString()
+      }).eq("owner_id",owner).eq("id",target.id);
+      if(resetError)throw Error("Could not reset the rejected plan");
+      const {error:decisionError}=await db.from("agent_alex_plan_decisions").upsert({
+       owner_id:owner,assignment_id:target.id,status:"rejected",decided_at:new Date().toISOString()
+      },{onConflict:"owner_id,assignment_id"});
+      if(decisionError)throw Error("Could not log the rejected plan");
+      await state("idle","",target.id);
+      replyText="Red light. I rejected the plan for "+target.title+". No specialist drafts were authorized. Tell me what to change and I will prepare a replacement.";
+     }
+    }else if(related&&(assignments||[]).some(a=>a.id===related)){
+     planDecisionHandled=true;
+     replyText="There is no unapproved specialist plan for that assignment now. I have not changed any permissions or launched other work.";
+    }
+   }
+  }
+  if(planDecisionHandled){
+   await append(replyText);
+   return reply(req,{success:true,owner_message_id:ownerMessage.id,reply:replyText,
+    start_assignment_id:null,resume_assignment_id:null,approved_assignment_id:approvedAssignment});
+  }
   // Alex cannot enter research, account-operation, or permission-approval flows, even from stale saved chat state.
   if(worker==="alex"&&(input.action==="request_research"||["confirm_research","confirm_action","confirm_permission"].includes(stage))){
    await state("idle");
@@ -377,7 +451,7 @@ Deno.serve(async(req:Request)=>{
      owner_id:owner,assignment_id:assignment.id,sender_kind:"owner",sender_id:"owner",
      message_type:"note",body:trimmed
     });
-    await state("idle");
+    await state("idle","",assignment.id);
     startAssignment=assignment.id;
     replyText=worker==="alex"?"I will draft a specialist assignment plan for your review. The specialists will not start until you approve the plan.":"Yes, I can take that on. I'll bring Alex in to organize the work and keep you updated here.";
    }else if(decision==="no"){
@@ -551,7 +625,7 @@ Deno.serve(async(req:Request)=>{
   }
   if(!replySaved)await append(replyText);
   return reply(req,{success:true,owner_message_id:ownerMessage.id,
-   reply:replyText,start_assignment_id:startAssignment,resume_assignment_id:resumeAssignment});
+   reply:replyText,start_assignment_id:startAssignment,resume_assignment_id:resumeAssignment,approved_assignment_id:approvedAssignment});
  }catch(error){
   const info=error instanceof Error?error.message:"Conversation temporarily unavailable";
   const safe="I got your message, but I couldn't finish my reply just now. Please try again. ("+info.slice(0,120)+")";
