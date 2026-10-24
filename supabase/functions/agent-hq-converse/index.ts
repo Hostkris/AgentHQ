@@ -22,8 +22,8 @@ function cors(req:Request){
 }
 function reply(req:Request,data:unknown,status=200){return new Response(JSON.stringify(data),{status,headers:cors(req)})}
 function yesNo(text:string){const t=text.trim().toLowerCase().replace(/[.!?]+$/g,"");
- if(/^(yes|yeah|yep|yup|sure|okay|ok|go ahead|please do|please proceed|proceed|approved|approve|you can|start|resume|continue)$/i.test(t))return "yes";
- if(/^(no|nope|nah|not yet|stop|don't|do not|decline|denied|deny|cancel)$/i.test(t))return "no";
+ if(/^(yes|yeah|yep|yup|sure|okay|ok|go ahead|green light|you got the green light|you're authorized|you are authorized|you have my approval|you got my approval|please do|please proceed|proceed|approved|approve|you can|start|resume|continue)$/i.test(t))return "yes";
+ if(/^(no|nope|nah|red light|not approved|not yet|stop|don't|do not|decline|denied|deny|cancel)$/i.test(t))return "no";
  return null;
 }
 // One reply controls only one currently pending internal drafting plan. It never
