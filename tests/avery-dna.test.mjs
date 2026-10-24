@@ -40,5 +40,6 @@ test("Avery never receives account access, money-moving powers or autonomous mon
 test("Agent HQ displays Avery's new role",()=>{
  const ui=read("app.js"),html=read("index.html");
  assert.match(ui,/\["avery","📊","Avery","Financial Strategy Analyst"\]/);
- assert.match(html,/src="\.\/app\.js\?v=20261024-[a-z]+-dna-3"/);
+ assert.match(html,/src="\.\/app\.js\?v=20261024-team-room-1"/);
 });
+

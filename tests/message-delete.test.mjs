@@ -20,11 +20,11 @@ function harness(){
 const workerIds=['alex','maya','jordan','riley','taylor','casey','morgan','avery','jamie','quinn','hq'];
 const escapeHTML=s=>String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 function fn(name){const s=source('app.js'),start=s.indexOf('function '+name+'('),end=s.indexOf('\nfunction ',start+10);return s.slice(start,end<0?undefined:end)}
-test('Every built-in worker and HQ renders X on owner, worker, handoff, approval and sending bubbles',()=>{
+test('Every private worker thread renders X on owner, worker, handoff, approval and sending bubbles; HQ uses project messages',()=>{
  const h=harness(),c=h.context;
- Object.assign(c,{active:'riley',staff:workerIds.map(id=>[id,'',id,'Worker']),messages:new Map(),approvalRequests:new Map(),sendFeedback:new Map(),sendingAgents:new Set(),escapeHTML,messageHTML:escapeHTML,naturalChatText:escapeHTML,chatSelecting:()=>false,chatSelected:new Set(),chatSelectionKey:(kind,id)=>kind+":"+id,renderConversationResearch:()=>"",renderChatConnectorCard:()=>'',renderConversationWork:()=>''});
+ Object.assign(c,{active:'riley',teamNotes:new Map(),naturalResearchHTML:escapeHTML,workerLabel:x=>x,staff:workerIds.map(id=>[id,'',id,'Worker']),messages:new Map(),approvalRequests:new Map(),sendFeedback:new Map(),sendingAgents:new Set(),escapeHTML,messageHTML:escapeHTML,naturalChatText:escapeHTML,chatSelecting:()=>false,chatSelected:new Set(),chatSelectionKey:(kind,id)=>kind+":"+id,renderConversationResearch:()=>"",renderChatConnectorCard:()=>'',renderConversationWork:()=>''});
  vm.runInContext(fn('renderIPhoneChat'),c);
- for(const id of workerIds){
+ for(const id of workerIds.filter(id=>id!=='hq')){
   c.active=id;c.messages.set(id,[...['owner','employee','system'].map((sender,i)=>({id:id+i,sender,text:'Text <script>unsafe</script>',createdAt:'2026-10-24'})),{id:'req',type:'approval'},{id:'pending',sender:'owner',text:'Sending',pending:true}]);
   c.approvalRequests.set('req',{id:'req',website:'https://example.com',reason:'Test',status:'pending'});
   const html=vm.runInContext('renderIPhoneChat()',c);

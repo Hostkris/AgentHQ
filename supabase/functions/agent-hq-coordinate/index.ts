@@ -10,6 +10,7 @@ import {AVERY_TEXT_DRAFT_POLICY} from "../_shared/avery-dna.ts";
 import {JAMIE_TEXT_DRAFT_POLICY} from "../_shared/jamie-dna.ts";
 import {QUINN_TEXT_DRAFT_POLICY} from "../_shared/quinn-dna.ts";
 import {relevantApprovedExamples,draftIssues} from "../_shared/agent-intelligence.js";
+import {runProjectTurn} from "../_shared/project-engine.ts";
 
 const ALLOWED=["alex",...Object.keys(SPECIALIST_JOBS)];
 const JOBS=SPECIALIST_JOBS;
@@ -95,13 +96,22 @@ Deno.serve(async(req:Request)=>{
  try{const obj=await req.json();if(!obj||typeof obj!=="object"||Array.isArray(obj))throw Error();input=obj}
  catch{return reply(req,{error:"Invalid input"},400)}
  const action=input.action,assignmentId=input.assignment_id;
- if(!["plan","next","approve","reject"].includes(String(action))||typeof assignmentId!=="string"||!uuid.test(assignmentId))
+ if(!["plan","next","approve","reject","project_review","project_answer","project_control"].includes(String(action))||typeof assignmentId!=="string"||!uuid.test(assignmentId))
   return reply(req,{error:"Invalid coordination request"},400);
  const {data:assignment,error:loadError}=await admin.from("agent_team_assignments")
-  .select("id,title,instructions,info_needed,employee_ids,status,source_employee_id,coordination_status,manager_summary,owner_paused")
+  .select("id,title,instructions,info_needed,employee_ids,status,source_employee_id,coordination_status,manager_summary,owner_paused,workflow_version")
   .eq("id",assignmentId).eq("owner_id",owner).maybeSingle();
  if(loadError)return reply(req,{error:"Could not read assignment"},500);
  if(!assignment)return reply(req,{error:"Assignment not found or not authorized"},404);
+ if(assignment.workflow_version===2){
+  try{
+   const policies:Record<string,string>={riley:RILEY_TEXT_DRAFT_POLICY,maya:MAYA_TEXT_DRAFT_POLICY,jordan:JORDAN_TEXT_DRAFT_POLICY,casey:CASEY_TEXT_DRAFT_POLICY,taylor:TAYLOR_TEXT_DRAFT_POLICY,morgan:MORGAN_TEXT_DRAFT_POLICY,avery:AVERY_TEXT_DRAFT_POLICY,jamie:JAMIE_TEXT_DRAFT_POLICY,quinn:QUINN_TEXT_DRAFT_POLICY};
+   const result=await runProjectTurn({db:admin,owner,ai,jobs:JOBS,policyFor:(worker:string)=>policies[worker]||"",issues:draftIssues,relevantExamples:relevantApprovedExamples,
+    call:(system:string,context:unknown,tokens:number)=>completion(ai,system,context,tokens)},assignment,input);
+   return reply(req,{...result,workflow_version:2});
+  }catch(error){return reply(req,{error:error instanceof Error?error.message:"Project coordination unavailable"},409);}
+ }
+ if(String(action).startsWith("project_"))return reply(req,{error:"This is a previous work order, not a team-conversation project"},409);
  if(assignment.status==="completed")return reply(req,{state:"completed",message:"Assignment drafting is already complete."});
  if(assignment.owner_paused&&(action==="next"||action==="plan"))return reply(req,{state:"paused",message:"The owner sent a red light. No new specialist steps may start."});
 
@@ -345,3 +355,4 @@ Prefer a complete, usable text draft and short handoff over questions. Never tur
   return reply(req,{error:"AI coordination stopped safely: "+reason.slice(0,250)+". No external actions occurred."},502);
  }
 });
+

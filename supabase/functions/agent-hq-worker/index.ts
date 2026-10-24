@@ -109,7 +109,7 @@ Deno.serve(async(req:Request)=>{
  // Alex coordinates by proposing specialist plans, never through the generic text-worker endpoint.
  if(employeeId==="alex")return reply(req,{error:"Alex is the General Manager, not a drafting specialist. Open the assignment and ask Alex to propose a team plan."},403);
  const {data:assignment,error:taskError}=await admin.from("agent_team_assignments")
-  .select("id,title,instructions,info_needed,employee_ids,status,manager_summary,coordination_status,owner_paused")
+  .select("id,title,instructions,info_needed,employee_ids,status,manager_summary,coordination_status,owner_paused,workflow_version")
   .eq("id",assignmentId).eq("owner_id",ownerId).maybeSingle();
  if(taskError)return reply(req,{error:"Could not load assignment"},500);
  if(!assignment||!assignment.employee_ids?.includes(employeeId))return reply(req,{error:"Employee is not assigned to this task"},403);
@@ -122,6 +122,7 @@ Deno.serve(async(req:Request)=>{
    error:"Alex's proposed specialist plan needs your approval first. Open the assignment and tap Approve plan."
   },403);
  }
+ if(assignment.workflow_version===2)return reply(req,{error:"This project uses the shared Company HQ conversation. Resume it there so team review and owner questions stay together."},409);
  if(assignment.owner_paused)return reply(req,{error:"Owner stopped this assignment. No drafting may start until resumed."},403);
  if(assignment.status==="completed")return reply(req,{error:"This assignment is marked completed. Reopen it before requesting additional work."},409);
  const tenMinutesAgo=new Date(Date.now()-10*60*1000).toISOString();
@@ -210,3 +211,4 @@ Do not output HTML, links to executable scripts, credentials, or fake worker act
   return reply(req,{error:text},502);
  }
 });
+

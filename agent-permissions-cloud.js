@@ -56,6 +56,7 @@ async function create(agentId, website, reason) {
 async function decide(requestId, decision) {
   await requireUser();
   if (!['approved', 'denied'].includes(decision)) throw new Error('Invalid decision');
+  if(await window.agentHQProjects?.decidePermission?.(requestId,decision)){await refresh();return true;}
   const { data, error } = await agentCloud.rpc('decide_agent_permission_request', {
     p_request_id: requestId,
     p_decision: decision
@@ -79,3 +80,4 @@ setInterval(() => {
   if (!document.hidden) refresh().catch(() => {});
 }, 30000);
 refresh().catch(e => window.agentHQApprovalCloudError?.(e.message));
+

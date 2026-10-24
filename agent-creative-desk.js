@@ -20,7 +20,7 @@ const formats=[
 const destinations=["Instagram","Facebook","TikTok","YouTube","Shopify","Website","Email","Other"];
 const safe=value=>String(value==null?"":value).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#39;");
 const uid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-let jobs=[],steps=new Map(),messages=new Map(),plans=new Map(),notice="Sign in to see your saved creative work.",loading=false,busy=false,lastRoot=null,feedback="";
+let jobs=[],steps=new Map(),messages=new Map(),plans=new Map(),projects=new Map(),notice="Sign in to see your saved creative work.",loading=false,busy=false,lastRoot=null,feedback="";
 let formDraft={business:"",destination:"Instagram",format:"social_post",specialist:"casey",brief:"",requirements:""};
 const summaryType=key=>formats.find(x=>x[0]===key)?.[1]||"Creative content";
 function projectInfo(job){
@@ -58,6 +58,7 @@ function versionOf(job){
  return (hash>>>0).toString(16).padStart(8,"0");
 }
 function reviewOf(job){
+ if(job.workflow_version===2)return projects.get(job.id)?.phase==='approved'?'APPROVED':projects.get(job.id)?.review_status==='changes_requested'?'REVISION_REQUESTED':null;
  const version=versionOf(job);
  const notes=messages.get(job.id)||[];
  const records=notes.filter(n=>n.sender_kind==="owner"&&n.sender_id==="owner")
@@ -66,6 +67,7 @@ function reviewOf(job){
  return records.length?records.at(-1)[1]:null;
 }
 function finished(job){
+ if(job.workflow_version===2){const s=projects.get(job.id);return !!s?.final_output&&['review','approved'].includes(s.phase);}
  const relevant=steps.get(job.id)||[];
  return job.coordination_status==="completed"&&relevant.length>0&&relevant.every(s=>s.status==="completed")&&completed(job).length>0;
 }
@@ -88,7 +90,7 @@ function card(job){
   ?source:(["casey","jordan","maya","morgan","taylor"].includes(info.specialist)?info.specialist:"alex");
  const drafts=all.filter(step=>typeof step.output==="string"&&step.output.trim());
  const label=jobStatus(job);
- const outputs=drafts.map(step=>'<section class="creative-step"><strong>'+safe(step.title||"Draft")+'</strong>'+
+ const outputs=job.workflow_version===2?(finished(job)?'<section class="creative-step"><strong>Finished team deliverable</strong><div class="creative-output">'+safe(projects.get(job.id).final_output)+'</div></section>':''):drafts.map(step=>'<section class="creative-step"><strong>'+safe(step.title||"Draft")+'</strong>'+
   '<div class="creative-output">'+safe(step.output)+'</div></section>').join("");
  return '<article class="creative-job" data-creative-job="'+safe(job.id)+'">'+
   '<div class="creative-job-head"><div><strong>'+safe(job.title)+'</strong><small>'+
@@ -98,7 +100,7 @@ function card(job){
   (outputs?'<div class="creative-output-list">'+outputs+'</div>':'')+
   (imported?'<section class="creative-imported"><strong>Owner-imported text · origin not verified</strong><div class="creative-output">'+safe(imported.body)+'</div></section>':'')+
   (!outputs&&!imported?'<p class="creative-note">No completed drafts yet. Your worker will update the Messages conversation as progress is made.</p>':'')+
-  '<div class="creative-controls"><button type="button" data-chat="'+safe(worker)+'">Open '+safe(worker==="alex"?"Alex":specialists.find(x=>x[0]===worker)?.[1]||"worker")+' Messages →</button></div>'+
+  '<div class="creative-controls">'+(job.workflow_version===2?'<button type="button" data-project-open="'+safe(job.id)+'">Open in Company HQ →</button>':'<button type="button" data-chat="'+safe(worker)+'">Open '+safe(worker==="alex"?"Alex":specialists.find(x=>x[0]===worker)?.[1]||"worker")+' Messages →</button>')+'</div>'+
   '<p class="creative-nopublish">Requests and approvals happen in Messages. No social publishing is active.</p></article>';
 }
 function isCreativeJob(job){
@@ -140,12 +142,14 @@ async function refresh({quiet=false}={}){
  try{
   const user=await currentUser();
   const {data,error}=await agentCloud.from("agent_team_assignments")
-   .select("id,title,instructions,source_employee_id,employee_ids,status,manager_summary,coordination_status,created_at")
+   .select("id,title,instructions,source_employee_id,employee_ids,status,manager_summary,coordination_status,workflow_version,created_at")
    .eq("owner_id",user.id).order("created_at",{ascending:false}).limit(150);
   if(error)throw Error(error.message);
   const visible=(data||[]).filter(isCreativeJob);
   const ids=visible.map(x=>x.id);
   const nextSteps=new Map(),nextMessages=new Map(),nextPlans=new Map();
+  const {data:projectRows,error:projectError}=ids.length?await agentCloud.from("agent_project_sessions").select("assignment_id,phase,review_status,final_output").eq("owner_id",user.id).in("assignment_id",ids):{data:[],error:null};
+  if(projectError)throw Error(projectError.message);
   if(ids.length){
    const [s,m,p]=await Promise.all([
     agentCloud.from("agent_task_steps").select("id,assignment_id,title,employee_id,status,output,question,step_number").in("assignment_id",ids).order("step_number",{ascending:true}),
@@ -157,7 +161,7 @@ async function refresh({quiet=false}={}){
    for(const item of m.data||[])nextMessages.set(item.assignment_id,[...(nextMessages.get(item.assignment_id)||[]),item]);
    for(const item of p.data||[])nextPlans.set(item.assignment_id,item.status);
   }
-  jobs=visible;steps=nextSteps;messages=nextMessages;plans=nextPlans;
+  jobs=visible;steps=nextSteps;messages=nextMessages;plans=nextPlans;projects=new Map((projectRows||[]).map(s=>[s.assignment_id,s]));
   notice="Saved in your signed-in Agent HQ workspace.";
   if(!quiet)feedback="";
  }catch(error){
@@ -186,3 +190,4 @@ if(host)observer.observe(host,{subtree:true,childList:true});
 agentCloud.auth.onAuthStateChange(()=>setTimeout(()=>refresh({quiet:true}),0));
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&document.getElementById("agent-creative-root"))refresh({quiet:true});});
 window.addEventListener("focus",()=>{if(document.getElementById("agent-creative-root"))refresh({quiet:true});});
+

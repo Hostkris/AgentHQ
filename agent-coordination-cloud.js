@@ -61,7 +61,8 @@ async function syncAll(){
 function progress(id,stage,detail){
  window.agentHQCoordProgress?.({assignmentId:id,stage,detail,active:stage==='planning'||stage==='working'});
 }
-async function runTeam(id,{planFirst=false,autoApproveInternal=false,maxSteps=4}={}){
+async function runTeam(id,{planFirst=false,autoApproveInternal=false,maxSteps=4,project=false}={}){
+ if(project||window.agentHQProjects?.isProject(id))return window.agentHQProjects.start(id);
  if(running.has(id))throw Error('This assignment is already running in this browser');
  await getUser();
  running.add(id);
@@ -69,6 +70,7 @@ async function runTeam(id,{planFirst=false,autoApproveInternal=false,maxSteps=4}
   if(planFirst){
    progress(id,'planning','Alex is assigning the work to specialist employees…');
    const planned=await invoke('plan',id);
+   if(planned.workflow_version===2)return window.agentHQProjects?.start(id)||planned;
    await syncAll();
    if(autoApproveInternal&&planned.state==='awaiting_approval'){
     // The signed-in owner explicitly requested THIS internal text-drafting job.
@@ -86,6 +88,7 @@ async function runTeam(id,{planFirst=false,autoApproveInternal=false,maxSteps=4}
   for(let step=0;step<budget;step++){
    progress(id,'working','A specialist is drafting the next step and preparing the handoff…');
    response=await invoke('next',id);
+   if(response.workflow_version===2)return window.agentHQProjects?.start(id)||response;
    await syncAll();
    if(response.state!=='ready')break;
   }
@@ -119,3 +122,4 @@ window.addEventListener('focus',load);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
 setInterval(()=>{if(!document.hidden)load()},20000);
 load();
+

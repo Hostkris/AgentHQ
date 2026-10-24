@@ -91,7 +91,9 @@ async function converse(employeeId,body,options={}){
   else if(/\b(facebook|messenger)\b/i.test(body))throw Error('Riley’s Facebook reader is loading. Refresh this conversation and try again.');
  }
  const {data,error}=await agentCloud.functions.invoke('agent-hq-converse',{
-  body:{employee_id:employeeId,text:body,...(options.research?{action:"request_research"}:{})}
+  body:{employee_id:employeeId,text:body,...(options.research?{action:"request_research"}:{}),
+   ...(options.projectId?{project_id:options.projectId}:{}),...(options.projectVersion?{output_version:options.projectVersion}:{}),
+   ...(options.projectRevision?{project_revision:options.projectRevision}:{})}
  });
  if(error){
   let reason=data?.error;
@@ -174,5 +176,6 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshSav
 setInterval(()=>{if(!document.hidden)refreshSavedReports()},60000);
 refreshSavedReports();
 agentCloud.auth.onAuthStateChange(()=>{researchGeneration++;window.agentHQResearchSync?.([],'Sign in to view research history.');window.agentHQResearchConnection?.({ready:false,message:'Tap Check connection to verify web research.'})});
+
 
 

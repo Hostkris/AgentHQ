@@ -1,4 +1,5 @@
 import {createClient} from "npm:@supabase/supabase-js@2.79.0";
+import {routeProjectChat} from "../_shared/project-chat.ts";
 import {createResearchRequest,isResearchInstruction,researchApproval,researchStatus,runResearch} from "./research.ts";
 import {ALEX_DNA,isAlexForbiddenIntent} from "../_shared/alex-dna.ts";
 import {RILEY_CHAT_POLICY} from "../_shared/riley-dna.ts";
@@ -329,8 +330,8 @@ Deno.serve(async(req:Request)=>{
   });
   await state("idle","",assignment.id);
   startAssignment=assignment.id;
-  replyText=worker==="alex"?"I’m coordinating your assignment and starting the internal drafts. I’ll bring them back here for your review and ask only about genuine blockers.":
-   "I’ve handed your assignment to Alex for specialist routing and internal drafts. I’ll bring back the work for your review.";
+  replyText=worker==="alex"?"I’m putting the team together. They’ll work through the project in Company HQ and ask you privately if anything is missing. I’ll text you when the finished version is ready to review.":
+   "I’ve handed the project to Alex. The team will work together in Company HQ, and I’ll ask you here if I need any details. Alex will text you when it’s ready to review.";
  };
  const currentWaiting=async()=>{
   let query=db.from("agent_task_steps").select("id,assignment_id,employee_id,status,question")
@@ -352,6 +353,13 @@ Deno.serve(async(req:Request)=>{
   replyText=researchApproval(topic);
  };
  try{
+  const projectReply=await routeProjectChat(db,owner,worker,body,{project_id:input.project_id,output_version:input.output_version,project_revision:input.project_revision,stage});
+  if(projectReply?.handled){
+   await append(projectReply.reply);
+   return reply(req,{success:true,owner_message_id:ownerMessage.id,reply:projectReply.reply,
+    start_assignment_id:null,resume_assignment_id:projectReply.resume_assignment_id||null,
+    approved_assignment_id:null,project_workflow:true,project_id:projectReply.project_id||null});
+  }
   // Chat approval is limited to a single saved routing plan awaiting its owner's decision.
   // "Yes" in confirm_task confirms task creation; it does not approve its later plan.
   const signal=planSignal(body);
@@ -738,7 +746,7 @@ Deno.serve(async(req:Request)=>{
   }
   if(!replySaved)await append(replyText);
   return reply(req,{success:true,owner_message_id:ownerMessage.id,
-   reply:replyText,start_assignment_id:startAssignment,resume_assignment_id:resumeAssignment,approved_assignment_id:approvedAssignment});
+   reply:replyText,start_assignment_id:startAssignment,resume_assignment_id:resumeAssignment,approved_assignment_id:approvedAssignment,project_workflow:Boolean(startAssignment)});
  }catch(error){
   const info=error instanceof Error?error.message:"Conversation temporarily unavailable";
   const safe="I got your message, but I couldn't finish my reply just now. Please try again. ("+info.slice(0,120)+")";
@@ -747,3 +755,4 @@ Deno.serve(async(req:Request)=>{
    error:info,start_assignment_id:null,resume_assignment_id:null});
  }
 });
+

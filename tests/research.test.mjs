@@ -1,4 +1,5 @@
 import {test} from 'node:test';
+import {routeProjectChat} from '../supabase/functions/_shared/project-chat.ts';
 import assert from 'node:assert/strict';
 import {publicURL,validateResearchQuery,researchEvidence,runResearch,researchStatus} from '../supabase/functions/agent-hq-converse/research.ts';
 const topic='Compare current public options for a small business website';
@@ -63,7 +64,7 @@ function chatHarness(){
  }};
  const fakeFetch=async()=>{searchCalls++;return Response.json(evidence)};let handler;
  const code=stripTypeScriptTypes(fs.readFileSync(new URL('../supabase/functions/agent-hq-converse/index.ts',import.meta.url),'utf8').replace(/^import .*;\n/gm,''));
- vm.runInNewContext(code,{createClient:()=>db,createResearchRequest,isResearchInstruction,researchApproval,researchStatus:key=>researchStatus(key,fakeFetch),runResearch:(...args)=>runResearch(...args,fakeFetch),Deno:{env:{get:k=>({SUPABASE_URL:'https://test.supabase.co',SUPABASE_SERVICE_ROLE_KEY:'test',GROQ_API_KEY:'test',AGENT_HQ_ALLOWED_OWNER_IDS:owner})[k]},serve:fn=>handler=fn},URL,Request,Response,AbortController,AbortSignal,setTimeout,clearTimeout,console});
+ vm.runInNewContext(code,{createClient:()=>db,routeProjectChat,createResearchRequest,isResearchInstruction,researchApproval,researchStatus:key=>researchStatus(key,fakeFetch),runResearch:(...args)=>runResearch(...args,fakeFetch),Deno:{env:{get:k=>({SUPABASE_URL:'https://test.supabase.co',SUPABASE_SERVICE_ROLE_KEY:'test',GROQ_API_KEY:'test',AGENT_HQ_ALLOWED_OWNER_IDS:owner})[k]},serve:fn=>handler=fn},URL,Request,Response,AbortController,AbortSignal,setTimeout,clearTimeout,console});
  return {tables,get searchCalls(){return searchCalls},async send(text,action,token='valid'){const response=await handler(new Request('https://test.supabase.co/functions/v1/agent-hq-converse',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({employee_id:'riley',text,action})}));return {status:response.status,...await response.json()}}};
 }
 test('chat saves a scoped proposal, then executes only after Yes and saves one report',async()=>{

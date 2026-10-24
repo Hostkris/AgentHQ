@@ -106,6 +106,12 @@ window.agentHQTeamSync=(assignments,notes,notice)=>{
 };
 window.agentHQTeamError=(message)=>{teamNotice=message;if(["team","assignments","messages"].includes(screen))renderWithoutInterruptingDraft()};
 const teamMemberNames=ids=>(ids||[]).map(id=>staff.find(s=>s[0]===id)?.[2]||id).join(", ");
+window.agentHQProjectsChanged=()=>{
+ if(screen==="chat")window.agentHQCameraRefreshUI?.();
+ else if(["messages","contacts","assignments","home"].includes(screen))renderWithoutInterruptingDraft();
+ syncAppBadge();
+};
+window.agentHQProjectsError=message=>{if(screen==="chat"){const el=document.querySelector("#send-feedback");if(el)el.textContent=String(message)}};
 const teamStatusLabel={planned:"Planned",in_progress:"In progress",blocked:"Waiting for information",completed:"Completed"};
 const workerHistory=[];let workerConnection={ready:false,message:"Checking AI connection…",provider:null,model:null},workerBusy=null,workerCheckBusy=false,workerFeedback="";
 window.agentHQWorkerConnection=data=>{const next={ready:!!data.ready,message:String(data.message||""),provider:data.provider||null,model:data.model||null};
@@ -214,7 +220,7 @@ window.agentHQChatCloudNotice=(notice,quiet=false)=>{if(chatNotice===notice)retu
  const waiting=[...coordSteps.values()].flat().some(step=>step.employee_id===id&&["waiting_for_owner","waiting_for_permission"].includes(step.status));
  if(waiting)return " · Waiting for you";
  return "";
-};function renderWithoutInterruptingDraft(){if((screen==="chat"&&(document.activeElement?.id==="draft"||document.activeElement?.hasAttribute?.("data-answer-input")||sendingAgents.has(active)||answeringAssignments.size>0))||((screen==="team"||screen==="assignments")&&(teamSaving||["team-title","team-instructions","team-info","team-note"].includes(document.activeElement?.id)))){const notice=document.querySelector("#chat-sync-status");if(notice)notice.textContent=chatNotice+" Permission requests: "+approvalNotice;return}render()}const button=(label,screenName,emoji)=>{
+};function renderWithoutInterruptingDraft(){if((screen==="chat"&&(document.activeElement?.id==="draft"||document.activeElement?.hasAttribute?.("data-answer-input")||sendingAgents.has(active)||answeringAssignments.size>0))||((screen==="team"||screen==="assignments")&&(teamSaving||["team-title","team-instructions","team-info","team-note"].includes(document.activeElement?.id)))){if(screen==="chat")window.agentHQCameraRefreshUI?.();const notice=document.querySelector("#chat-sync-status");if(notice)notice.textContent=chatNotice+" Permission requests: "+approvalNotice;return}render()}const button=(label,screenName,emoji)=>{
  const count=screenName==="messages"?messagesAttention():screenName==="approvals"?pendingCount():screenName==="assignments"?assignmentAttention():screenName==="operations"?operationsAttention():0;
  return `<button class="tile" data-nav="${screenName}" aria-label="${label}${count?", "+count+" items needing attention":""}"><span class="app-icon app-icon--${screenName}" aria-hidden="true">${window.AgentHQIcons?.svg(screenName)||emoji}</span>${unreadBadge(count,"tile")}<span class="tile-label">${label}</span></button>`;
 };
@@ -428,18 +434,24 @@ function conversationDraftInfo(a){
  return {eligible,approved,rejected,version};
 }
 function finalDraftForChat(worker){
+ if((worker==="hq"&&window.agentHQProjects?.all().length)||(worker==="alex"&&window.agentHQProjects?.all().some(s=>s.phase==="review")))return null;
  const related=[...teamAssignments.values()].filter(a=>
-  (worker==="alex"||worker==="hq"||a.source_employee_id===worker||(a.employee_ids||[]).includes(worker))&&conversationDraftInfo(a).eligible&&!conversationDraftInfo(a).approved&&!conversationDraftInfo(a).rejected);
+  a.workflow_version!==2&&(worker==="alex"||worker==="hq"||a.source_employee_id===worker||(a.employee_ids||[]).includes(worker))&&conversationDraftInfo(a).eligible&&!conversationDraftInfo(a).approved&&!conversationDraftInfo(a).rejected);
  if(related.length!==1)return null;
  const a=related[0];return {a,...conversationDraftInfo(a)};
 }
 function renderConversationWork(worker){
  const relevant=[...teamAssignments.values()].filter(a=>
-  worker==="alex"||worker==="hq"||a.source_employee_id===worker||(a.employee_ids||[]).includes(worker));
+  a.workflow_version!==2&&(worker==="alex"||worker==="hq"||a.source_employee_id===worker||(a.employee_ids||[]).includes(worker)));
  relevant.sort((a,b)=>Date.parse(b.updated_at||b.created_at||0)-Date.parse(a.updated_at||a.created_at||0));
  return relevant.filter(a=>!messageIsDeleted("work",a.id)&&(Date.parse(a.created_at)||0)>=(clearedAtByWorker.get(worker)||0)).slice(0,3).map(a=>{
   const steps=coordSteps.get(a.id)||[];
   const completed=steps.filter(x=>x.status==="completed").length;
+  if(worker==="hq"){
+   if(!steps.length||completed!==steps.length)return "";
+   const review=conversationDraftInfo(a);
+   return '<article class="hq-finished-project hq-previous-project">'+messageDeleteButton("work",a.id)+'<small>PREVIOUS FINISHED WORK</small><h3>'+escapeHTML(a.title)+'</h3>'+steps.filter(s=>s.output).map(s=>'<div class="hq-finished-content">'+naturalResearchHTML(s.output)+'</div>').join("")+'<p class="hq-review-hint">'+(review.approved?'Approved.':review.rejected?'Changes requested.':'Reply “approve draft” or tell Alex what to change.')+'</p></article>';
+  }
   const approved=a.alex_plan_status==="approved";
   const waiting=steps.length>0&&steps.every(x=>x.status==="queued")&&!approved;
   const finished=steps.length>0&&completed===steps.length;
@@ -509,6 +521,7 @@ function renderIPhoneChat(){
  const person=staff.find(s=>s[0]===active);
  const title=active==="hq"?"Company HQ":(person?.[2]||"Worker");
  const role=active==="hq"?"AI team":(person?.[3]||"AI worker");
+ const projectOptions={notes:[...teamNotes.values()].flat(),escape:escapeHTML,format:naturalResearchHTML,remove:messageDeleteButton,label:workerLabel,deleted:messageIsDeleted};
  const initial=active==="hq"?"HQ":title.slice(0,1).toUpperCase();
  const items=[...(messages.get(active)||[]).filter(m=>!messageIsDeleted(m.type==="approval"?"approval":"message",m.id)),...(window.agentHQCamera?.getThreadItems(active)||[])].sort((a,b)=>(Date.parse(a.createdAt)||0)-(Date.parse(b.createdAt)||0));
  let previousDay="";
@@ -544,15 +557,16 @@ function renderIPhoneChat(){
  const status=sendFeedback.get(active)||"";
  const errors=Boolean(status);
  return '<div class="ios-thread'+(editingMessages?' ios-thread-selecting':'')+'">'+
-  '<div class="ios-chat-edit-bar">'+
+  '<div class="ios-chat-edit-bar">'+(active==="hq"?'<button type="button" data-chat="alex">Message Alex</button>':
   (editingMessages?'<button type="button" data-chat-select-all>Select All ('+choices.length+')</button>'+
   '<button type="button" data-chat-delete-selected '+(!chatSelected.size||chatSelectionBusy?'disabled':'')+'>Delete Selected ('+chatSelected.size+')</button>'+
   '<button type="button" data-chat-delete-all class="ios-chat-danger" '+(chatSelectionBusy?'disabled':'')+'>Delete All</button>'+
   '<button type="button" data-chat-cancel-select>Done</button>':
-  '<button type="button" data-chat-enter-select>Select Messages</button>')+'</div>'+
+  '<button type="button" data-chat-enter-select>Select Messages</button>'))+'</div>'+
   '<div class="ios-chat-list" id="chat-scroll" aria-label="Conversation" aria-live="polite">'+
-  (rows||'<div class="ios-empty-chat">Send a message to start the conversation.</div>')+
-  renderChatConnectorCard(items)+
+  (active==="hq"?(window.agentHQProjects?.renderHQ(projectOptions)||'<p class="hq-project-starting">Loading your team’s project conversations…</p>'):
+   (rows||'<div class="ios-empty-chat">Send a message to start the conversation.</div>'))+
+  (active==="hq"?"":renderChatConnectorCard(items)+(window.agentHQProjects?.renderPrivate(active,projectOptions)||""))+
   renderConversationWork(active)+
   renderConversationResearch(active)+
   '<div data-social-read-thread>'+(window.agentHQSocialReadThread?.(active)||'')+'</div>'+
@@ -561,7 +575,7 @@ function renderIPhoneChat(){
   '<form id="composer" class="ios-composer photo-enabled-composer" autocomplete="off">'+
    '<div class="photo-composer-drafts" data-photo-drafts="'+escapeHTML(active)+'">'+(window.agentHQCamera?.renderDrafts(active)||'')+'</div>'+
    '<button type="button" class="ios-camera-attach" data-camera-open-chat="'+escapeHTML(active)+'" aria-label="Take or attach a photo">+</button>'+
-   '<textarea id="draft" aria-label="Text message" placeholder="Text Message" rows="1" maxlength="10000"></textarea>'+
+   '<textarea id="draft" aria-label="Text message" placeholder="'+(active==="hq"?'Feedback on this project':'Text Message')+'" rows="1" maxlength="10000"></textarea>'+
    '<button class="ios-send" id="send-message" type="submit" aria-label="Send message" '+(sendingAgents.has(active)?"disabled":"")+'><span aria-hidden="true">↑</span></button>'+
   '</form>'+
   '<div id="send-feedback" class="ios-chat-feedback" role="status" aria-live="polite">'+(errors?escapeHTML(status):"")+'</div>'+
@@ -774,7 +788,7 @@ const title=isChat?(active==="hq"?"Company Headquarters":staff.find(x=>x[0]===ac
  app.innerHTML=`<main class="shell ${screen==="home"?"home-shell":screen==="office"?"office-shell":screen==="settings"?"settings-shell":""}"><header class="main-navigation">${screen!=="home"?`<button class="back" data-nav="${screen==="team"?"assignments":settingsReturn?"settings":"home"}" aria-label="Go back">‹ ${settingsReturn?"Settings":"Home"}</button>`:`<button type="button" class="home-brand" data-nav="office" aria-label="Open office">${window.AgentHQIcons?.svg("office")||""}<span>Office</span></button>`}<span class="header-brand">Agent HQ</span></header>${screen==="home"?"":`<h1>${escapeHTML(title||"Agent HQ")}</h1>`}${body}</main>`;
  }if(screen==="contacts"||screen==="messages"){const show=(q="")=>{
  const inbox=screen==="messages";
- const hasConversation=id=>window.agentHQCamera?.hasPhotos?.(id)||employeeAttention(id)>0||(messages.get(id)||[]).some(m=>m.type==="text"&&String(m.text||"").trim().length>0);
+ const hasConversation=id=>(id==="hq"&&window.agentHQProjects?.all().length>0)||window.agentHQCamera?.hasPhotos?.(id)||employeeAttention(id)>0||(messages.get(id)||[]).some(m=>m.type==="text"&&String(m.text||"").trim().length>0);
  const matches=x=>[x[2],x[3]].join(" ").toLowerCase().includes(q.toLowerCase());
  const shown=inbox?staff.filter(x=>matches(x)&&hasConversation(x[0])):staff.filter(matches);
  const showHQ=!inbox||hasConversation("hq");
@@ -869,7 +883,7 @@ if(isChat){
    }
    if(/^approve (?:the |this |final )?(?:draft|content|copy)(?: please)?[.!]?$/i.test(value)&&!final)
     throw Error("There is no single unreviewed completed draft here. Ask the worker to show the exact assignment.");
-   const result=await window.agentHQChatCloud.converse(worker,value);
+   const result=await window.agentHQChatCloud.converse(worker,value,window.agentHQProjects?.context(worker)||{});
    drafts.set(worker,"");
    messages.set(worker,(messages.get(worker)||[]).filter(msg=>msg.id!==optimisticId));
    sendFeedback.delete(worker);
@@ -880,7 +894,7 @@ if(isChat){
    if(result.start_assignment_id||result.resume_assignment_id){
     const id=result.start_assignment_id||result.resume_assignment_id;
     const planFirst=Boolean(result.start_assignment_id);
-    window.agentHQCoordCloud?.runTeam(id,{planFirst,autoApproveInternal:planFirst,maxSteps:4}).catch(error=>{
+    window.agentHQCoordCloud?.runTeam(id,{planFirst,autoApproveInternal:planFirst,maxSteps:4,project:!!result.project_workflow}).catch(error=>{
      window.agentHQCoordError?.("AI team paused: "+error.message);
     });
    }
@@ -926,6 +940,30 @@ if(isChat){
  finally{personalBusy=false;if(screen==="accounts")render()}
 });
 app.addEventListener("click",async e=>{
+ const projectAction=e.target.closest("[data-project-open],[data-project-control],[data-project-review],[data-project-answer-thread],[data-project-answer-select],[data-project-permission]");
+ if(projectAction){
+  e.preventDefault();const service=window.agentHQProjects;
+  if(!service){window.agentHQProjectsError?.("Team projects are loading. Refresh Agent HQ.");return;}
+  if(projectAction.hasAttribute("data-project-open")){
+   if(service.select(projectAction.dataset.projectOpen)){active="hq";screen="chat";render();}return;
+  }
+  if(projectAction.hasAttribute("data-project-answer-thread")||projectAction.hasAttribute("data-project-answer-select")){
+   const id=projectAction.dataset.projectAnswerThread||projectAction.dataset.projectAnswerSelect;
+   const worker=service.selectAnswer(id);if(worker){active=worker;screen="chat";render();document.querySelector("#draft")?.focus();}return;
+  }
+  projectAction.disabled=true;
+  try{
+   if(projectAction.hasAttribute("data-project-control"))await service.control(projectAction.dataset.projectId,projectAction.dataset.projectControl);
+   else if(projectAction.hasAttribute("data-project-review"))await service.review(projectAction.dataset.projectId,projectAction.dataset.projectVersion,projectAction.dataset.projectReview);
+   else if(projectAction.hasAttribute("data-project-permission")){
+    const decision=projectAction.dataset.projectPermission;
+    await service.answer(projectAction.dataset.projectId,decision,decision==="approved"?"Approved this specific request.":"Denied this request. Use another available approach.");
+   }
+   if(screen==="chat")window.agentHQCameraRefreshUI?.();
+  }catch(error){sendFeedback.set(active,error.message);const notice=document.querySelector("#send-feedback");if(notice)notice.textContent=error.message;}
+  finally{if(projectAction.isConnected)projectAction.disabled=false;}
+  return;
+ }
  const connectChoice=e.target.closest("[data-chat-connect]");
  if(connectChoice){
   e.preventDefault();
@@ -1286,4 +1324,5 @@ window.agentHQSocialReadSync=()=>{if((screen==='chat'&&active==='riley')||screen
 window.agentHQSocialReadOpen=()=>{active='riley';screen='chat';render()};
 
 document.addEventListener("agenthq-message-deletions",()=>{if(["chat","team","messages","contacts","approvals"].includes(screen))renderWithoutInterruptingDraft()});
+
 

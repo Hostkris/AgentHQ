@@ -19,7 +19,7 @@ test('Home, Messages and worker rows show automatic attention counters',()=>{
  assert.match(app,/screenName==="operations"\?operationsAttention\(\)/);
  assert.match(app,/const employeeAttention=id=>unreadFor\(id\)\+pendingRequestsFor\(id\)/);
  assert.match(app,/unreadBadge\(employeeAttention\(x\[0\]\)\)/);
- assert.match(app,/const hasConversation=id=>window\.agentHQCamera\?\.hasPhotos\?\.\(id\)\|\|employeeAttention\(id\)>0/);
+ assert.match(app,/const hasConversation=id=>.*window\.agentHQCamera\?\.hasPhotos\?\.\(id\)\|\|employeeAttention\(id\)>0/);
  assert.match(app,/markRead\(active\)/);
  assert.match(app,/unreadLabel=n=>n>99\?"99\+":String\(n\)/);
 });
@@ -76,3 +76,4 @@ test('iPhone styling and cache versions include message badges',()=>{
  assert.match(css,/\.agent-unread-badge--thread/);
  assert.ok(index.includes('app.js?v=20261024-'));
 });
+

@@ -17,7 +17,7 @@ async function refresh() {
   }
   const {data:assignments,error:assignmentError}=await agentCloud
     .from('agent_team_assignments')
-    .select('id,title,instructions,info_needed,employee_ids,status,source_employee_id,manager_summary,coordination_status,owner_paused,created_at,updated_at')
+    .select('id,title,instructions,info_needed,employee_ids,status,source_employee_id,manager_summary,coordination_status,owner_paused,workflow_version,created_at,updated_at')
     .order('created_at',{ascending:false}).limit(200);
   if(current!==version)return;
   if(assignmentError){
@@ -36,7 +36,7 @@ async function refresh() {
   const withDecisions=assignments.map(a=>({...a,alex_plan_status:planStatus.get(a.id)||'pending'}));
   const {data:notes,error:notesError}=await agentCloud
     .from('agent_team_messages')
-    .select('id,assignment_id,sender_kind,sender_id,message_type,body,created_at')
+    .select('id,assignment_id,sender_kind,sender_id,message_type,body,created_at,project_revision,project_kind,recipient_id')
     .in('assignment_id',ids)
     .order('created_at',{ascending:true}).limit(1000);
   if(current!==version)return;
@@ -87,3 +87,4 @@ window.addEventListener('focus',load);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
 setInterval(()=>{if(!document.hidden)load()},30000);
 load();
+
