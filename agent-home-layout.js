@@ -52,15 +52,12 @@ function move(id,toPage,toIndex){
 function tile(id,renderButton){
  const def=APPS.find(a=>a[0]===id);if(!def)return "";
  const html=renderButton(def[1],def[0],def[2])
-  .replace('class="tile"','class="tile" data-home-tile="'+id+'" '+(editing?'draggable="true"':''))
+  .replace('class="tile"','class="tile" data-home-tile="'+id+'"')
   .replace(/(<span class="tile-label">)[\s\S]*?(<\/span>)/,
    (_full,open,close)=>open+escapeHTML(HOME_LABELS[id]||def[1])+close);
- return '<div class="home-tile-wrap">'+html+
-  (editing?'<div class="home-edit-arrows">'+
-   '<button type="button" data-home-shift="-1" data-home-id="'+id+'" aria-label="Move '+def[1]+' left">‹</button>'+
-   '<button type="button" data-home-shift="1" data-home-id="'+id+'" aria-label="Move '+def[1]+' right">›</button>'+
-   (state.pages.length>1?'<button type="button" data-home-next-page="'+id+'" aria-label="Move '+def[1]+' to next page">⇥</button>':'')+
-   '</div>':'')+'</div>';
+ // Tiles have NO visible arrows, shift buttons or other move controls.
+ // Long pressing and dragging the icon itself is the entire interaction.
+ return '<div class="home-tile-wrap" data-home-item="'+id+'">'+html+'</div>';
 }
 function widget(kind,values){
  const config={
@@ -99,9 +96,17 @@ export function renderHomeScreen(renderButton,values={}){
  '</section>';
 }
 function action(target,event){
- const edit=target.closest('[data-home-edit]');if(edit){editing=!editing;menu=false;update();return true}
- const page=target.closest('[data-home-page]');if(page){state.current=Number(page.dataset.homePage);update();return true}
- const nav=target.closest('[data-home-nav]');if(nav){state.current=Math.max(0,Math.min(state.pages.length-1,state.current+Number(nav.dataset.homeNav)));update();return true}
+ const edit=target.closest('[data-home-edit]');if(edit){
+  finishDrag();editing=false;menu=false;update();return true
+ }
+ const page=target.closest('[data-home-page]');if(page){
+  if(drag)return true;
+  state.current=Number(page.dataset.homePage);update();return true
+ }
+ const nav=target.closest('[data-home-nav]');if(nav){
+  if(drag)return true;
+  state.current=Math.max(0,Math.min(state.pages.length-1,state.current+Number(nav.dataset.homeNav)));update();return true
+ }
  const addPage=target.closest('[data-home-add-page]');if(addPage){
   if(state.pages.length<6){state.pages.push({apps:[],widgets:[]});state.current=state.pages.length-1;update()}return true
  }
@@ -120,92 +125,229 @@ function action(target,event){
  const removeWidget=target.closest('[data-home-remove-widget]');if(removeWidget){
   const p=state.pages[state.current];p.widgets=p.widgets.filter(k=>k!==removeWidget.dataset.homeRemoveWidget);update();return true
  }
- const shift=target.closest('[data-home-shift]');if(shift){
-  const id=shift.dataset.homeId,p=state.pages[state.current],index=p.apps.indexOf(id),to=index+Number(shift.dataset.homeShift);
-  if(index>=0&&to>=0&&to<p.apps.length)move(id,state.current,to);
-  else if(index>=0&&to>=p.apps.length&&state.current<state.pages.length-1)move(id,state.current+1,0);
-  else if(index===0&&to<0&&state.current>0)move(id,state.current-1,state.pages[state.current-1].apps.length);
-  return true
- }
- const next=target.closest('[data-home-next-page]');if(next){
-  if(state.pages.length>1)move(next.dataset.homeNextPage,(state.current+1)%state.pages.length,0);
-  return true
- }
  const widgetLink=target.closest('[data-home-widget-nav]');if(widgetLink){
   const id=widgetLink.dataset.homeWidgetNav;
   if(!editing){const button=document.createElement('button');button.dataset.nav=id;document.querySelector('#app')?.append(button);button.click();button.remove()}
   return true
  }
- const tile=target.closest('[data-home-tile]');
- if(tile&&editing)return true;
- return false;
+ return Boolean(editing&&target.closest('[data-home-tile]'));
 }
-let dragId=null,longTimer=null,origin=null,suppressClick=false;
+
+// Pointer/touch drag uses a fixed icon copy while actual grid elements flow
+// around the held position, with automatic Home-page changes at either edge.
+let gesture=null,drag=null,holdTimer=null,edgeTimer=null,edgeDirection=0,ignoreClicksUntil=0,swipe=null;
+const now=()=>Date.now();
+function clearHold(){if(holdTimer!==null){clearTimeout(holdTimer);holdTimer=null}}
+function clearEdge(){if(edgeTimer!==null){clearTimeout(edgeTimer);edgeTimer=null}edgeDirection=0}
+function sourceTile(){
+ return document.querySelector('.home-pages .home-dashboard [data-home-item="'+drag?.id+'"]');
+}
+function hideSource(){sourceTile()?.classList.add('home-drag-placeholder')}
+function setGhostPosition(x,y){
+ if(!drag)return;
+ drag.x=x;drag.y=y;
+ drag.ghost.style.left=(x-drag.offsetX)+'px';
+ drag.ghost.style.top=(y-drag.offsetY)+'px';
+}
+function activateHeld(){
+ if(!gesture)return;
+ clearHold();
+ editing=true;menu=false;
+ const id=gesture.id,x=gesture.x,y=gesture.y;
+ ignoreClicksUntil=now()+800;
+ if(navigator.vibrate)try{navigator.vibrate(10)}catch{}
+ update();
+ if(!id)return;
+ const element=document.querySelector('.home-pages [data-home-item="'+id+'"]');
+ if(!element)return;
+ const rect=element.getBoundingClientRect();
+ const ghost=element.cloneNode(true);
+ ghost.removeAttribute('data-home-item');
+ ghost.querySelector('[data-home-tile]')?.removeAttribute('data-home-tile');
+ ghost.classList.add('home-drag-ghost');
+ ghost.setAttribute('aria-hidden','true');
+ ghost.style.width=rect.width+'px';
+ ghost.style.height=rect.height+'px';
+ document.body.append(ghost);
+ drag={id,ghost,offsetX:rect.width/2,offsetY:rect.height/2,x,y};
+ hideSource();
+ setGhostPosition(x,y);
+}
+function gridOrder(){
+ const grid=document.querySelector('.home-pages .home-dashboard');
+ return grid?[...grid.querySelectorAll(':scope > [data-home-item]')].map(e=>e.dataset.homeItem).filter(valid.has.bind(valid)):null;
+}
+function commitGridOrder(){
+ const order=gridOrder();
+ if(order)state.pages[state.current].apps=order;
+}
+function animateReflow(grid,before){
+ // Move neighboring icons smoothly; no rerender until drop or page change.
+ for(const item of grid.querySelectorAll(':scope > [data-home-item]')){
+  if(item.classList.contains('home-drag-placeholder'))continue;
+  const previous=before.get(item.dataset.homeItem);
+  if(!previous)continue;
+  const next=item.getBoundingClientRect();
+  const dx=previous.left-next.left,dy=previous.top-next.top;
+  if((Math.abs(dx)>1||Math.abs(dy)>1)&&typeof item.animate==='function'){
+   item.animate([{transform:'translate('+dx+'px,'+dy+'px)'},{transform:'translate(0,0)'}],
+    {duration:180,easing:'cubic-bezier(.2,.8,.2,1)'});
+  }
+ }
+}
+function reorderAt(x,y){
+ if(!drag)return;
+ const grid=document.querySelector('.home-pages .home-dashboard');
+ if(!grid)return;
+ const source=sourceTile();
+ const under=document.elementFromPoint(x,y);
+ const target=under?.closest?.('.home-pages .home-dashboard [data-home-item]');
+ if(!source||!target||source===target||!grid.contains(target))return;
+ const all=[...grid.querySelectorAll(':scope > [data-home-item]')];
+ const from=all.indexOf(source),to=all.indexOf(target);
+ if(from<0||to<0)return;
+ const before=new Map(all.map(el=>[el.dataset.homeItem,el.getBoundingClientRect()]));
+ if(from<to)target.after(source);else target.before(source);
+ animateReflow(grid,before);
+}
+function switchDragPage(direction){
+ if(!drag)return;
+ const next=state.current+direction;
+ if(next<0||next>state.pages.length)return;
+ if(next===state.pages.length){
+  if(state.pages.length>=6)return;
+  state.pages.push({apps:[],widgets:[]});
+ }
+ commitGridOrder();
+ for(const page of state.pages)page.apps=page.apps.filter(id=>id!==drag.id);
+ const destination=state.pages[next].apps;
+ if(direction>0)destination.unshift(drag.id);
+ else destination.push(drag.id);
+ state.current=next;
+ update();
+ hideSource();
+ setGhostPosition(drag.x,drag.y);
+}
+function edgeAt(x){
+ if(!drag)return;
+ const w=window.innerWidth||document.documentElement.clientWidth||390;
+ const distance=Math.min(36,Math.max(22,w*.065));
+ const requested=x<distance?-1:x>w-distance?1:0;
+ if(!requested){clearEdge();return}
+ if(requested===edgeDirection)return;
+ clearEdge();edgeDirection=requested;
+ if((requested<0&&state.current===0)||(requested>0&&state.current>=5))return;
+ edgeTimer=setTimeout(()=>{
+  const wanted=edgeDirection;
+  edgeTimer=null;edgeDirection=0;
+  if(wanted) switchDragPage(wanted);
+ },720);
+}
+function moveHeld(x,y){
+ if(!gesture)return;
+ gesture.x=x;gesture.y=y;
+ if(drag){
+  setGhostPosition(x,y);
+  reorderAt(x,y);
+  edgeAt(x);
+  const h=window.innerHeight||700;
+  if(y<75)window.scrollBy?.(0,-9);
+  else if(y>h-70)window.scrollBy?.(0,9);
+ }else if(holdTimer!==null&&Math.hypot(x-gesture.startX,y-gesture.startY)>12)clearHold();
+}
+function finishDrag(){
+ clearHold();clearEdge();
+ if(drag){
+  commitGridOrder();
+  drag.ghost.remove();
+  drag=null;
+  ignoreClicksUntil=now()+500;
+  update();
+ }
+ gesture=null;
+}
+function beginHold(id,x,y){
+ if(gesture||drag)return;
+ gesture={id,startX:x,startY:y,x,y};
+ if(editing&&id){activateHeld();return}
+ if(!editing){holdTimer=setTimeout(activateHeld,540)}
+}
+function cancelHold(){
+ clearHold();gesture=null;
+}
 function init(){
- document.addEventListener('click',e=>{
-  if(!e.target.closest?.('.home-pages'))return;
-  if(suppressClick){suppressClick=false;e.preventDefault();e.stopImmediatePropagation();return}
-  if(action(e.target,e)){e.preventDefault();e.stopImmediatePropagation()}
+ document.addEventListener('click',event=>{
+  if(!event.target.closest?.('.home-pages'))return;
+  if(now()<ignoreClicksUntil){
+   event.preventDefault();event.stopImmediatePropagation();return
+  }
+  if(action(event.target,event)){
+   event.preventDefault();event.stopImmediatePropagation()
+  }
  },true);
- document.addEventListener('pointerdown',e=>{
-  const tile=e.target.closest?.('.home-pages [data-home-tile]');
-  const blank=e.target.closest?.('.home-pages');
-  // Like iOS, holding any empty wallpaper area or app icon enters jiggle mode.
-  // Ignore functional controls: only an app or the empty Home canvas can trigger it.
-  if((!tile&&!blank)||(!tile&&e.target.closest?.('button,a,input,textarea,select,summary,[role="button"]'))||
-    e.target.closest?.('[data-home-shift],[data-home-next-page],[data-home-page],[data-home-widget-nav]'))return;
-  dragId=tile?.dataset.homeTile||null;origin={x:e.clientX,y:e.clientY};
-  if(!editing){
-   longTimer=setTimeout(()=>{
-    editing=true;menu=false;suppressClick=true;
-    if(navigator.vibrate)navigator.vibrate(12);
-    update();
-   },550);
-  }
- });
- document.addEventListener('pointermove',e=>{
-  if(!origin)return;
-  if(Math.hypot(e.clientX-origin.x,e.clientY-origin.y)>10&&longTimer){clearTimeout(longTimer);longTimer=null}
- });
- document.addEventListener('pointerup',e=>{
-  if(longTimer){clearTimeout(longTimer);longTimer=null}
-  if(editing&&dragId&&origin&&Math.hypot(e.clientX-origin.x,e.clientY-origin.y)>28){
-   const dest=document.elementFromPoint(e.clientX,e.clientY)?.closest?.('[data-home-tile]');
-   if(dest&&dest.dataset.homeTile!==dragId){
-    const p=state.pages[state.current];move(dragId,state.current,p.apps.indexOf(dest.dataset.homeTile));
-    suppressClick=true;
-   }
-  }
-  dragId=null;origin=null;
- });
- document.addEventListener('pointercancel',()=>{if(longTimer)clearTimeout(longTimer);longTimer=null;dragId=null;origin=null});
- document.addEventListener('contextmenu',e=>{
-  const surface=e.target.closest?.('.home-pages');
-  if(surface&&!e.target.closest?.('[data-home-edit],[data-home-widget-menu],[data-home-page],[data-home-nav],[data-home-widget-nav]')){
-   e.preventDefault();editing=true;menu=false;suppressClick=true;update()
-  }
- });
- document.addEventListener('dragstart',e=>{
-  const tile=e.target.closest?.('.home-pages [data-home-tile]');
-  if(tile&&editing){dragId=tile.dataset.homeTile;if(e.dataTransfer)e.dataTransfer.setData('text/plain',dragId)}
- });
- document.addEventListener('dragover',e=>{if(editing&&e.target.closest?.('.home-pages [data-home-tile]'))e.preventDefault()});
- document.addEventListener('drop',e=>{
-  const to=e.target.closest?.('.home-pages [data-home-tile]');if(!editing||!to||!dragId)return;
-  e.preventDefault();move(dragId,state.current,state.pages[state.current].apps.indexOf(to.dataset.homeTile));dragId=null;
- });
- let swipe=null;
- document.addEventListener('touchstart',e=>{
-  if(editing||!e.target.closest?.('.home-pages'))return;
-  const t=e.touches[0];swipe={x:t.clientX,y:t.clientY};
+ // Touch events are used for Safari to keep finger-tracking alive after the
+ // long-press rerender, and to stop iOS page scrolling ONLY during a drag.
+ document.addEventListener('touchstart',event=>{
+  if(!event.target.closest?.('.home-pages'))return;
+  const touch=event.touches[0];if(!touch)return;
+  const tile=event.target.closest?.('[data-home-tile]');
+  const interactive=event.target.closest?.('button,a,input,textarea,select,summary,[role="button"]');
+  swipe={x:touch.clientX,y:touch.clientY};
+  if(!tile&&interactive)return;
+  beginHold(tile?.dataset.homeTile||null,touch.clientX,touch.clientY);
  },{passive:true});
- document.addEventListener('touchend',e=>{
+ document.addEventListener('touchmove',event=>{
+  if(!event.touches.length)return;
+  const touch=event.touches[0];
+  if(drag){
+   if(event.cancelable)event.preventDefault();
+   moveHeld(touch.clientX,touch.clientY);
+  }else if(gesture)moveHeld(touch.clientX,touch.clientY);
+ },{passive:false});
+ document.addEventListener('touchend',event=>{
+  const hadDrag=Boolean(drag),hadHold=Boolean(gesture);
+  if(hadDrag){finishDrag();swipe=null;return}
+  if(hadHold)cancelHold();
   if(!swipe||editing){swipe=null;return}
-  const t=e.changedTouches[0],dx=t.clientX-swipe.x,dy=t.clientY-swipe.y;swipe=null;
-  if(Math.abs(dx)>80&&Math.abs(dx)>Math.abs(dy)*1.4){
-   const next=Math.min(state.pages.length-1,Math.max(0,state.current+(dx<0?1:-1)));
+  const touch=event.changedTouches[0];if(!touch){swipe=null;return}
+  const dx=touch.clientX-swipe.x,dy=touch.clientY-swipe.y;swipe=null;
+  if(Math.abs(dx)>75&&Math.abs(dx)>Math.abs(dy)*1.35){
+   const next=Math.max(0,Math.min(state.pages.length-1,state.current+(dx<0?1:-1)));
    if(next!==state.current){state.current=next;update()}
   }
  },{passive:true});
+ document.addEventListener('touchcancel',()=>{finishDrag();swipe=null},{passive:true});
+ document.addEventListener('pointerdown',event=>{
+  if(event.pointerType==='touch'||event.button!==0)return;
+  if(!event.target.closest?.('.home-pages'))return;
+  const tile=event.target.closest?.('[data-home-tile]');
+  if(!tile&&event.target.closest?.('button,a,input,textarea,select,summary,[role="button"]'))return;
+  beginHold(tile?.dataset.homeTile||null,event.clientX,event.clientY);
+ });
+ document.addEventListener('pointermove',event=>{
+  if(event.pointerType==='touch')return;
+  if(gesture)moveHeld(event.clientX,event.clientY);
+ });
+ document.addEventListener('pointerup',event=>{
+  if(event.pointerType==='touch')return;
+  if(drag)finishDrag();else cancelHold();
+ });
+ document.addEventListener('pointercancel',event=>{
+  if(event.pointerType!=='touch')finishDrag();
+ });
+ document.addEventListener('contextmenu',event=>{
+  if(!event.target.closest?.('.home-pages'))return;
+  if(!event.target.closest?.('[data-home-tile]')&&
+   event.target.closest?.('button,a,input,textarea,select,summary,[role="button"]'))return;
+  event.preventDefault();
+  clearHold();
+  if(!editing){editing=true;menu=false;ignoreClicksUntil=now()+450;update()}
+ });
+ document.addEventListener('dragstart',event=>{
+  if(event.target.closest?.('.home-pages [data-home-tile]'))event.preventDefault()
+ });
+ document.addEventListener('visibilitychange',()=>{
+  if(document.hidden)finishDrag();
+ });
 }
 export function connectHomeScreen(onChange){change=onChange;init()}
