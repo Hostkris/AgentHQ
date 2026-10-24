@@ -58,7 +58,7 @@ test('Real research uses separately approved public web tool with traceable sour
  assert.match(research,/Search retrieved:/);
  assert.match(research,/RILEY_LIVE_RESEARCH_POLICY/);
  assert.match(research,/employee_id:'alex'/);
- assert.match(research,/NOT yet verified by Alex/);
+ assert.match(research,/still needs your verification before the team relies on it/);
  assert.match(research,/previous\?\.\[0\]/);
  assert.match(research,/\.eq\("owner_id",owner\)\.eq\("employee_id","riley"\)/);
  assert.match(research,/\.eq\("query",String\(job\.query\)\)\.eq\("status","completed"\)/);
