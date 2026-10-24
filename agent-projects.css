@@ -30,6 +30,7 @@
 .hq-team-typing .ios-typing span:nth-child(2){animation-delay:.15s}.hq-team-typing .ios-typing span:nth-child(3){animation-delay:.3s}
 @keyframes hq-team-dot{0%,60%,100%{opacity:.4;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
 .hq-project-notice{font-size:13px;line-height:1.55;color:var(--ui-muted,#6c6c70);padding:12px 14px;border-radius:16px;background:rgba(120,120,128,.07);margin:14px 0;overflow-wrap:anywhere}
+.hq-project-recovery>strong{display:block;color:var(--ui-ink,#1c1c1e);font-size:14px}.hq-project-recovery p{margin:7px 0}.hq-project-recovery button{min-height:44px;padding:6px 0;text-align:left}
 .hq-project-starting{font-size:14px;color:var(--ui-muted,#6c6c70);line-height:1.5;margin:22px 0}
 .hq-finished-project{position:relative;background:var(--ui-card,rgba(255,255,255,.94));border:1px solid rgba(120,120,128,.17);border-radius:24px;padding:20px 18px;margin:24px 0 12px;box-shadow:0 3px 20px rgba(0,0,0,.035);min-width:0}
 .hq-finished-heading{display:flex;gap:11px;align-items:flex-start;padding-right:30px;margin-bottom:19px}

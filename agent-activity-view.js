@@ -1,4 +1,5 @@
 // Activity describes observable requests and saved run state, never hidden reasoning.
+import {projectResponseRecovery} from './agent-project-recovery.js?v=20261024-response-recovery-1';
 const LABELS={alex:'Alex',maya:'Maya',jordan:'Jordan',riley:'Riley',taylor:'Taylor',casey:'Casey',morgan:'Morgan',avery:'Avery',jamie:'Jamie',quinn:'Quinn',hq:'Company HQ'};
 export const activityName=(id,labels={})=>labels[id]||LABELS[id]||'Your worker';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -7,7 +8,10 @@ export function projectActivity(s,now=Date.now(),labels={},research=[]){
  const name=id=>activityName(id,labels),title=s.assignment?.title||'Team project';
  const base={key:'project:'+s.assignment_id,projectId:s.assignment_id,title,actor:s.active_worker||s.next_worker||'alex',active:false,state:'queued'};
  if(s.assignment?.owner_paused)return {...base,state:'paused',text:'Project paused by you'};
- if(s.last_error)return {...base,state:'error',text:'Project needs attention — '+s.last_error};
+ if(s.last_error){
+  const recovery=projectResponseRecovery(s);
+  return {...base,state:'error',text:recovery?.code?name(base.actor)+' needs to correct '+(['self_address','invalid_recipient','recipient_mismatch'].includes(recovery.code)?'a teammate reply':'the current response')+' · Open the team to retry':'Project needs attention — '+(recovery?.summary||'Refresh this project')};
+ }
  if(s.phase==='waiting_owner'||s.phase==='waiting_permission')return {...base,state:'waiting',text:name(s.waiting_worker)+' is waiting for your '+(s.phase==='waiting_permission'?'approval':'answer')};
  if(s.phase==='review')return {...base,state:'review',text:'The team’s finished work is ready for your review'};
  if(s.phase==='approved')return null;

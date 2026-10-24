@@ -11,6 +11,9 @@ on:
       - 'agent-creative-desk.js'
       - 'tests/creative-desk.test.mjs'
       - 'agent-*-cloud.js'
+      - 'agent-project-*.js'
+      - 'tests/project-response-recovery.test.mjs'
+      - 'tests/company-hq.test.mjs'
       - 'supabase/functions/**'
       - 'supabase/migrations/**'
       - 'tests/alex-dna.test.mjs'
@@ -46,6 +49,9 @@ on:
       - 'agent-creative-desk.js'
       - 'tests/creative-desk.test.mjs'
       - 'agent-*-cloud.js'
+      - 'agent-project-*.js'
+      - 'tests/project-response-recovery.test.mjs'
+      - 'tests/company-hq.test.mjs'
       - 'supabase/functions/**'
       - 'supabase/migrations/**'
       - 'tests/alex-dna.test.mjs'
@@ -66,8 +72,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
       - name: Test Alex role and approval boundaries
         run: node --test tests/alex-dna.test.mjs
+      - name: Test project response validation and recovery
+        run: node --test tests/company-hq.test.mjs tests/project-response-recovery.test.mjs
       - name: Test unread message badges
         run: node --test tests/unread-badges.test.mjs
       - name: Test conversation-first manager workflow

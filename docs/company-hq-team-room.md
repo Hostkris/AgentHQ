@@ -40,3 +40,12 @@ New owner-assigned projects use workflow version 2. Earlier work orders and save
 `tests/company-hq-rollback.sql` verifies actual Postgres transitions, private question routing, versioned review, same-project revision, pause/replay handling, hourly limits and RLS. It creates only synthetic assignment/message/run fixtures under an existing owner foreign key and always rolls them back. It never calls a provider, changes existing rows, creates an auth account or mints a login token.
 
 Browser tests use synthetic projects and model responses, with phone/iPad/landscape viewports. They do not claim physical signed-in iPhone testing or live Facebook access.
+## Response validation and recovery
+
+Each model turn must match the saved stage, speaker and assigned teammates. A final result returned during discussion is rejected before it can replace the shared draft. Questions, answers and reviews that address their own sender or an inconsistent teammate are also rejected.
+
+Company HQ explains the problem and offers **Correct response & retry** or **Correct recipient & retry**. Retrying keeps the assignment, revision, team messages, saved draft and previous output. The server reads the last failed run and adds correction instructions only when its worker, stage and revision still match. A valid retry is checked again before committing. Older generic stage and recipient failures also have a correction path.
+
+Each retry reserves one normal worker run and obeys the existing allowance, lease and turn limits. There is no automatic model correction loop. If another invalid response arrives, the project pauses with its correction action still available. Connection errors also stop automatic requests in that tab until the owner retries. At the revision turn limit, the notice directs the owner to Alex to narrow the scope. Internal failure codes stay out of the visible conversation and activity indicator.
+
+Regression checks: `node --test tests/project-response-recovery.test.mjs tests/company-hq.test.mjs`; `node tests/company-hq.browser.mjs`; `node tests/live-activity.browser.mjs`. These use synthetic responses and do not access external accounts or call a paid model.
