@@ -61,7 +61,7 @@ async function syncAll(){
 function progress(id,stage,detail){
  window.agentHQCoordProgress?.({assignmentId:id,stage,detail,active:stage==='planning'||stage==='working'});
 }
-async function runTeam(id,{planFirst=false,maxSteps=3}={}){
+async function runTeam(id,{planFirst=false,maxSteps=4}={}){
  if(running.has(id))throw Error('This assignment is already running in this browser');
  await getUser();
  running.add(id);
@@ -75,7 +75,7 @@ async function runTeam(id,{planFirst=false,maxSteps=3}={}){
     return planned;
    }
   }
-  const budget=Math.max(1,Math.min(3,Number(maxSteps)||3));
+  const budget=Math.max(1,Math.min(4,Number(maxSteps)||4));
   let response={state:'ready',message:''};
   for(let step=0;step<budget;step++){
    progress(id,'working','A specialist is drafting the next step and preparing the handoff…');
@@ -85,7 +85,7 @@ async function runTeam(id,{planFirst=false,maxSteps=3}={}){
   }
   const state=response.state;
   const detail=state==='ready'
-   ?'Handoff saved. More work is queued; tap Continue teamwork to run it.'
+   ?'Handoff saved. More work is queued; reply “continue” in Messages after the remaining work is ready.'
    :state==='completed'
    ?'AI text drafts are complete. Review before any external action.'
    :['waiting_for_owner','waiting_for_permission'].includes(state)
