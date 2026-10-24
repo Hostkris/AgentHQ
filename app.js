@@ -1,3 +1,4 @@
+import {messageDeleteButton, messageIsDeleted} from './agent-message-controls.js?v=20261024-delete-1';
 const staff=[["alex","👔","Alex","General Manager"],["maya","📣","Maya","Marketing"],["jordan","🎬","Jordan","Scripts & Content"],["riley","🔎","Riley","Market Research Analyst"],["taylor","📧","Taylor","Communications"],["casey","📱","Casey","Social Media"],["morgan","🛍️","Morgan","Shopify"],["avery","📊","Avery","Business Analysis"],["jamie","📅","Jamie","Scheduling"],["quinn","💡","Quinn","Growth & Partnerships"]];const app=document.querySelector("#app");const oauthReturnWorker=(()=>{
  try{
   const callback=new URLSearchParams(location.search);
@@ -145,7 +146,7 @@ function renderProgressBar(a){
  const p=taskStats(a);
  return '<div class="assignment-progress"><div class="progress-meta"><span>'+escapeHTML(coordLabels[p.state]||p.state)+'</span><strong>'+p.completed+'/'+p.steps.length+' steps · '+p.percent+'%</strong></div><div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+p.percent+'" aria-label="Completed drafting steps"><div class="progress-fill" style="width:'+p.percent+'%"></div></div></div>';
 }
-const approvalRequests=new Map();let approvalNotice="Connecting saved permission requests…",approvalFingerprint="";const pendingCount=()=>[...approvalRequests.values()].filter(r=>r.status==="pending").length;const requestApproval=async(agentId,website,reason)=>{if(!staff.some(s=>s[0]===agentId))throw Error("Unknown employee");if(!window.agentHQCloudApprovals)throw Error("Permission service is loading. Try again shortly.");return window.agentHQCloudApprovals.create(agentId,website,reason)};window.agentHQRequestApproval=requestApproval;window.agentHQSyncApprovals=(rows,notice)=>{const fingerprint=JSON.stringify(rows);if(fingerprint===approvalFingerprint&&notice===approvalNotice)return;approvalFingerprint=fingerprint;approvalNotice=notice;approvalRequests.clear();for(const [id,items] of messages)messages.set(id,items.filter(m=>m.type!=="approval"));for(const row of rows){if(!staff.some(s=>s[0]===row.employee_id))continue;const status=row.status==="pending"&&Date.parse(row.expires_at)<=Date.now()?"expired":row.status;approvalRequests.set(row.id,{id:row.id,agentId:row.employee_id,website:row.target_url,reason:row.reason,status,kind:row.request_kind,createdAt:row.created_at,expiresAt:row.expires_at});messages.set(row.employee_id,[...(messages.get(row.employee_id)||[]),{type:"approval",id:row.id}])}updateAttentionIndicators();};window.agentHQApprovalCloudError=message=>{approvalNotice=message;approvalFingerprint="";if(screen==="approvals"||screen==="chat")renderWithoutInterruptingDraft()};const escapeHTML=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));window.agentHQSyncMessages=(rows,notice)=>{const next=JSON.stringify(rows);if(next===chatFingerprint&&notice===chatNotice)return;chatFingerprint=next;chatNotice=notice;for(const [id,items] of messages)messages.set(id,items.filter(m=>m.type==="approval"));for(const row of rows){if(!["hq",...staff.map(s=>s[0])].includes(row.employeeId))continue;messages.set(row.employeeId,[...(messages.get(row.employeeId)||[]),{id:row.id,type:"text",text:row.text,sender:row.sender,createdAt:row.createdAt}])}if(screen==="chat"||screen==="messages"||screen==="contacts")renderWithoutInterruptingDraft()};const unreadFor=id=>Math.max(0,Number(unreadCounts.get(id)||0));
+const approvalRequests=new Map();let approvalNotice="Connecting saved permission requests…",approvalFingerprint="";const pendingCount=()=>[...approvalRequests.values()].filter(r=>r.status==="pending"&&!messageIsDeleted("approval",r.id)).length;const requestApproval=async(agentId,website,reason)=>{if(!staff.some(s=>s[0]===agentId))throw Error("Unknown employee");if(!window.agentHQCloudApprovals)throw Error("Permission service is loading. Try again shortly.");return window.agentHQCloudApprovals.create(agentId,website,reason)};window.agentHQRequestApproval=requestApproval;window.agentHQSyncApprovals=(rows,notice)=>{const fingerprint=JSON.stringify(rows);if(fingerprint===approvalFingerprint&&notice===approvalNotice)return;approvalFingerprint=fingerprint;approvalNotice=notice;approvalRequests.clear();for(const [id,items] of messages)messages.set(id,items.filter(m=>m.type!=="approval"));for(const row of rows){if(!staff.some(s=>s[0]===row.employee_id))continue;const status=row.status==="pending"&&Date.parse(row.expires_at)<=Date.now()?"expired":row.status;approvalRequests.set(row.id,{id:row.id,agentId:row.employee_id,website:row.target_url,reason:row.reason,status,kind:row.request_kind,createdAt:row.created_at,expiresAt:row.expires_at});messages.set(row.employee_id,[...(messages.get(row.employee_id)||[]),{type:"approval",id:row.id}])}updateAttentionIndicators();};window.agentHQApprovalCloudError=message=>{approvalNotice=message;approvalFingerprint="";if(screen==="approvals"||screen==="chat")renderWithoutInterruptingDraft()};const escapeHTML=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));window.agentHQSyncMessages=(rows,notice)=>{const next=JSON.stringify(rows);if(next===chatFingerprint&&notice===chatNotice)return;chatFingerprint=next;chatNotice=notice;for(const [id,items] of messages)messages.set(id,items.filter(m=>m.type==="approval"));for(const row of rows){if(!["hq",...staff.map(s=>s[0])].includes(row.employeeId))continue;messages.set(row.employeeId,[...(messages.get(row.employeeId)||[]),{id:row.id,type:"text",text:row.text,sender:row.sender,createdAt:row.createdAt}])}if(screen==="chat"||screen==="messages"||screen==="contacts")renderWithoutInterruptingDraft()};const unreadFor=id=>Math.max(0,Number(unreadCounts.get(id)||0));
 const totalUnread=()=>[...unreadCounts.values()].reduce((sum,n)=>sum+n,0);
 const pendingRequestsFor=id=>[...approvalRequests.values()].filter(r=>r.status==="pending"&&r.agentId===id).length;
 const employeeAttention=id=>unreadFor(id)+pendingRequestsFor(id);
@@ -284,7 +285,7 @@ function renderTeamThread(){
   (step.output?'<div class="archive-deliverable">'+messageHTML(step.output)+'</div>':'')+
   (step.question?'<p>Question: '+escapeHTML(step.question)+'</p>':'')+
   '</details>').join("");
- const discussion=notes.map(n=>'<article class="team-message"><strong>'+
+ const discussion=notes.filter(n=>!messageIsDeleted("team",n.id)).map(n=>'<article class="team-message">'+messageDeleteButton("team",n.id)+'<strong>'+
   escapeHTML(n.sender_kind==="owner"?"You":n.sender_kind==="agent"?workerLabel(n.sender_id):"System")+'</strong>'+
   '<small> · '+escapeHTML(new Date(n.created_at).toLocaleString())+'</small><p>'+escapeHTML(n.body)+'</p></article>').join("");
  return '<section class="card assignment-archive"><h2>'+escapeHTML(a.title)+'</h2>'+
@@ -301,13 +302,13 @@ function renderWorkerTeamLinks(employeeId){
  return `<section class="team-related"><h2>Team assignments and coworker discussions</h2>
  <p class="notice">Task details and shared messages from the workers assigned to these projects appear here.</p>
  ${related.map(a=>{
- const recent=(teamNotes.get(a.id)||[]).slice(-3);
+ const recent=(teamNotes.get(a.id)||[]).filter(n=>!messageIsDeleted("team",n.id)).slice(-3);
  return `<div class="card"><button type="button" class="row" data-team-open="${escapeHTML(a.id)}"><span class="avatar">👥</span><span><strong>${escapeHTML(a.title)}</strong><small>${escapeHTML(teamMemberNames(a.employee_ids))}</small><small>View full team discussion ›</small></span></button>
  <p><strong>Information needed:</strong> ${escapeHTML(a.info_needed||"No outstanding information listed.")}</p>
  <strong>Recent team messages</strong>
  ${recent.length?recent.map(n=>{
  const speaker=n.sender_kind==="owner"?"You":n.sender_kind==="agent"?(staff.find(s=>s[0]===n.sender_id)?.[2]||"Agent"):"System";
- return `<p><small>${escapeHTML(speaker)}:</small> ${escapeHTML(n.body.length>180?n.body.slice(0,180)+"…":n.body)}</p>`;
+ return `<div class="team-message">${messageDeleteButton("team",n.id)}<small>${escapeHTML(speaker)}:</small> ${escapeHTML(n.body.length>180?n.body.slice(0,180)+"…":n.body)}</div>`;
  }).join(""):'<p class="muted">No team messages yet.</p>'}</div>`;
  }).join("")}</section>`;
 }
@@ -320,6 +321,8 @@ function renderChatConnectorCard(items){
  const recent=items.slice(-3);
  const last=recent.at(-1);
  if(!last)return "";
+ const dismissalKey=active+":"+String(last.id||last.createdAt||"connection");
+ if(messageIsDeleted("connector",dismissalKey))return "";
  const owner=[...recent].reverse().find(m=>m.sender==="owner");
  const request=String(last.text||"")+" "+String(owner?.text||"");
  const socialRead=active==="riley"&&/\b(facebook|messenger)\b/i.test(request);
@@ -381,7 +384,7 @@ function renderChatConnectorCard(items){
  if(email&&returned)result+='<p class="ios-connection-feedback">Google sign-in return: '+
   escapeHTML(({connected:"Connected",cancelled:"Cancelled",setup:"Setup required",scope:"Scopes missing",error:"Not completed",invalid:"Expired link",refresh:"Reconnect needed"})[returned]||returned)+
   '. Check the connection before continuing.</p>';
- return '<div class="ios-message-row incoming"><div class="ios-message-bubble theirs ios-connect-bubble">'+result+'</section></div></div>';
+ return '<div class="ios-message-row incoming"><div class="ios-message-bubble theirs ios-connect-bubble">'+messageDeleteButton("connector",dismissalKey)+result+'</section></div></div>';
 }
 
 function messageHTML(value){
@@ -412,7 +415,7 @@ function renderConversationWork(worker){
  const relevant=[...teamAssignments.values()].filter(a=>
   worker==="alex"||worker==="hq"||a.source_employee_id===worker||(a.employee_ids||[]).includes(worker));
  relevant.sort((a,b)=>Date.parse(b.updated_at||b.created_at||0)-Date.parse(a.updated_at||a.created_at||0));
- return relevant.slice(0,3).map(a=>{
+ return relevant.filter(a=>!messageIsDeleted("work",a.id)).slice(0,3).map(a=>{
   const steps=coordSteps.get(a.id)||[];
   const completed=steps.filter(x=>x.status==="completed").length;
   const approved=a.alex_plan_status==="approved";
@@ -433,7 +436,7 @@ function renderConversationWork(worker){
   const review=conversationDraftInfo(a);
   const prompt=a.owner_paused?'<p class="ios-work-prompt">🔴 Red light — specialists are stopped. Reply <b>green light</b> to resume only this previously approved internal drafting work.</p>':waiting?'<p class="ios-work-prompt">Text <b>green light</b> or <b>approved</b> to authorize these drafts. Text <b>red light</b> or <b>stop</b> to reject. This never authorizes publishing or outside account access.</p>':
    finished?'<p class="ios-work-prompt">'+(review.approved?'✅ Written draft approved. Nothing was published.':'Draft ready. Reply <b>approve draft</b> in Messages to approve the final text, or describe revisions. Nothing will be published.')+'</p>':'';
-  return '<div class="ios-message-row incoming"><article class="ios-work-card">'+
+  return '<div class="ios-message-row incoming"><article class="ios-work-card">'+messageDeleteButton("work",a.id)+
    '<div class="ios-work-type">📎 Team work order · Alex</div><h3>'+escapeHTML(a.title)+'</h3>'+
    '<div class="ios-work-status">'+escapeHTML(label)+(steps.length?' · '+completed+'/'+steps.length:'')+'</div>'+
    (a.manager_summary?'<p class="ios-work-summary">'+escapeHTML(a.manager_summary)+'</p>':'')+
@@ -446,7 +449,7 @@ function renderIPhoneChat(){
  const title=active==="hq"?"Company HQ":(person?.[2]||"Worker");
  const role=active==="hq"?"AI team":(person?.[3]||"AI worker");
  const initial=active==="hq"?"HQ":title.slice(0,1).toUpperCase();
- const items=(messages.get(active)||[]).slice().sort((a,b)=>(Date.parse(a.createdAt)||0)-(Date.parse(b.createdAt)||0));
+ const items=(messages.get(active)||[]).filter(m=>!messageIsDeleted(m.type==="approval"?"approval":"message",m.id)).slice().sort((a,b)=>(Date.parse(a.createdAt)||0)-(Date.parse(b.createdAt)||0));
  let previousDay="";
  const rows=items.map(item=>{
   const date=new Date(item.createdAt||Date.now());
@@ -457,15 +460,15 @@ function renderIPhoneChat(){
    const r=approvalRequests.get(item.id);if(!r)return "";
    const message="Website request: "+r.website+"\nReason: "+r.reason+
     "\n"+(r.status==="pending"?"Please reply yes or no if you want to discuss approval for this specific website. No browsing will start.":"Request "+r.status+".");
-   return label+'<div class="ios-message-row incoming"><div class="ios-message-bubble theirs">'+escapeHTML(message)+'</div></div>';
+   return label+'<div class="ios-message-row incoming"><div class="ios-message-bubble theirs">'+messageDeleteButton("approval",r.id)+escapeHTML(message)+'</div></div>';
   }
   const social=window.agentHQSocialReadMessage?.(active,item.id);
   if(social)return label+social;
   const mine=item.sender==="owner",system=item.sender==="system";
   return label+'<div class="ios-message-row '+(mine?"outgoing":"incoming")+'"><div class="ios-message-bubble '+(mine?"mine":"theirs")+(item.pending?" sending":"")+'">'+
+    messageDeleteButton("message",item.id,item.pending)+
     (system?'<span class="ios-message-source">Team handoff</span>':"")+
     '<span class="ios-message-text">'+messageHTML(item.text||"")+'</span>'+
-    (item.id&&!item.pending?'<button type="button" class="ios-message-delete" data-delete-message="'+escapeHTML(item.id)+'" aria-label="Delete message" title="Delete message">×</button>':"")+
     '</div></div>';
  }).join("");
  const status=sendFeedback.get(active)||"";
@@ -676,7 +679,7 @@ function render(){const isChat=screen==="chat";
  else if(active&&active!==lastViewedThread){lastViewedThread=active;window.agentHQChatCloud?.markRead(active).catch(()=>{});}
 const title=isChat?(active==="hq"?"Company Headquarters":staff.find(x=>x[0]===active)?.[2]):screen==="team"?(teamAssignments.get(teamActive)?.title||"Team discussion"):({home:"Agent HQ",office:"Office",studio:"Worker Studio",accounts:"My Accounts",operations:"Operations",creative:"Creative Desk",email:"Email Center",contacts:"Contacts",messages:"Messages",assignments:"Assignments",approvals:"Approvals",research:"Research",browser:"Browser",reminders:"Reminders",settings:"Settings"})[screen];let body="";if(screen==="home")body=`<div class="grid home-dashboard" role="navigation" aria-label="Home apps">
  ${button("Office","office","🏢")}${button("Messages","messages","💬")}${button("Email Center","email","✉️")}${button("Contacts","contacts","👥")}${button("My Accounts","accounts","🔐")}${button("Worker Studio","studio","🧬")}${button("Assignments","assignments","📋")}${button("Operations","operations","📈")}${button("Creative Desk","creative","🎨")}${button("Company HQ","hq","🧑‍💼")}${button("Approvals","approvals","🔐")}${button("Research","research","🔎")}${button("Browser","browser","🌐")}${button("Reminders","reminders","📅")}${button("Settings","settings","⚙️")}
- </div>`;else if(screen==="office")body=renderOffice();else if(screen==="studio")body='<section class="bot-studio-page" id="agent-bot-studio-root"><p class="muted">Loading your AI worker marketplace…</p></section>';else if(screen==="creative")body='<section id="agent-creative-root" aria-label="Creative Desk">'+(window.agentHQCreativeDeskRender?.()||'<p class="muted">Loading Creative Desk…</p>')+'</section>';else if(screen==="accounts")body=renderPersonalAccounts();else if(screen==="email")body='<section class="email-center-page" id="email-center"><p class="email-loading">Loading your private Email Center…</p></section>';else if(screen==="operations")body=renderOperations();else if(screen==="browser"||screen==="research")body=renderResearchPage(screen==="browser");else if(screen==="approvals")body=`<p class="notice">${escapeHTML(approvalNotice)} These records do not grant real browsing access.</p><div class="card"><strong>Pending requests: ${pendingCount()}</strong><p class="muted">Open the employee's individual message to approve or deny.</p></div>${[...approvalRequests.values()].filter(r=>r.status==="pending").map(r=>`<button class="row" data-chat="${escapeHTML(r.agentId)}"><span class="avatar">⚠️</span><span><strong>${escapeHTML(staff.find(s=>s[0]===r.agentId)?.[2]||r.agentId)}</strong><small>${escapeHTML(r.website)}</small></span></button>`).join("")}<h2>Saved decisions</h2><p class="muted">Approved and denied requests remain visible in the employee conversation.</p>${[...approvalRequests.values()].filter(r=>r.status!=="pending").reverse().slice(0,25).map(r=>`<button class="row" data-chat="${escapeHTML(r.agentId)}"><span class="avatar">${r.status==="approved"?"✅":r.status==="denied"?"⛔":"🕒"}</span><span><strong>${escapeHTML(staff.find(s=>s[0]===r.agentId)?.[2]||r.agentId)} · ${escapeHTML(r.status)}</strong><small>${escapeHTML(r.website)}</small></span></button>`).join("")}`;else if(screen==="assignments")body=renderAssignments();else if(screen==="team")body=renderTeamThread();else if(screen==="contacts"||screen==="messages")body=`<input id="search" aria-label="Search workers" placeholder="Search" style="width:100%;padding:12px;border:1px solid #d2d2d7;border-radius:14px"><div id="contact-list"></div>`;else if(isChat)body=renderIPhoneChat();else if(screen==="settings")body='<section id="settings-root" aria-label="Agent HQ settings"></section>';else body=`<div class="card"><strong>Planned feature</strong><p class="muted">This screen will be connected in a later development phase. No live service is connected yet.</p></div>`;if(isChat){
+ </div>`;else if(screen==="office")body=renderOffice();else if(screen==="studio")body='<section class="bot-studio-page" id="agent-bot-studio-root"><p class="muted">Loading your AI worker marketplace…</p></section>';else if(screen==="creative")body='<section id="agent-creative-root" aria-label="Creative Desk">'+(window.agentHQCreativeDeskRender?.()||'<p class="muted">Loading Creative Desk…</p>')+'</section>';else if(screen==="accounts")body=renderPersonalAccounts();else if(screen==="email")body='<section class="email-center-page" id="email-center"><p class="email-loading">Loading your private Email Center…</p></section>';else if(screen==="operations")body=renderOperations();else if(screen==="browser"||screen==="research")body=renderResearchPage(screen==="browser");else if(screen==="approvals")body=`<p class="notice">${escapeHTML(approvalNotice)} These records do not grant real browsing access.</p><div class="card"><strong>Pending requests: ${pendingCount()}</strong><p class="muted">Open the employee's individual message to approve or deny.</p></div>${[...approvalRequests.values()].filter(r=>r.status==="pending"&&!messageIsDeleted("approval",r.id)).map(r=>`<button class="row" data-chat="${escapeHTML(r.agentId)}"><span class="avatar">⚠️</span><span><strong>${escapeHTML(staff.find(s=>s[0]===r.agentId)?.[2]||r.agentId)}</strong><small>${escapeHTML(r.website)}</small></span></button>`).join("")}<h2>Saved decisions</h2><p class="muted">Approved and denied requests remain visible in the employee conversation.</p>${[...approvalRequests.values()].filter(r=>r.status!=="pending"&&!messageIsDeleted("approval",r.id)).reverse().slice(0,25).map(r=>`<button class="row" data-chat="${escapeHTML(r.agentId)}"><span class="avatar">${r.status==="approved"?"✅":r.status==="denied"?"⛔":"🕒"}</span><span><strong>${escapeHTML(staff.find(s=>s[0]===r.agentId)?.[2]||r.agentId)} · ${escapeHTML(r.status)}</strong><small>${escapeHTML(r.website)}</small></span></button>`).join("")}`;else if(screen==="assignments")body=renderAssignments();else if(screen==="team")body=renderTeamThread();else if(screen==="contacts"||screen==="messages")body=`<input id="search" aria-label="Search workers" placeholder="Search" style="width:100%;padding:12px;border:1px solid #d2d2d7;border-radius:14px"><div id="contact-list"></div>`;else if(isChat)body=renderIPhoneChat();else if(screen==="settings")body='<section id="settings-root" aria-label="Agent HQ settings"></section>';else body=`<div class="card"><strong>Planned feature</strong><p class="muted">This screen will be connected in a later development phase. No live service is connected yet.</p></div>`;if(isChat){
  const person=staff.find(row=>row[0]===active);
  const name=active==="hq"?"Company HQ":(person?.[2]||"Worker");
  const role=active==="hq"?"AI team":(person?.[3]||"AI coworker");
@@ -939,19 +942,6 @@ app.addEventListener("click",async e=>{
   return;
  }
 
- const messageDelete=e.target.closest("[data-delete-message]");
- if(messageDelete){
-  const id=messageDelete.dataset.deleteMessage;
-  if(!window.confirm("Delete this message from your conversation?"))return;
-  try{
-   if(!window.agentHQChatCloud?.deleteMessage)throw Error("Message service unavailable");
-   await window.agentHQChatCloud.deleteMessage(id);
-   const items=messages.get(active)||[];
-   messages.set(active,items.filter(x=>x.id!==id));
-   if(screen==="chat")render();
-  }catch(error){sendFeedback.set(active,"Could not delete message: "+error.message);if(screen==="chat")render()}
-  return;
- }
  const assignmentDelete=e.target.closest("[data-delete-assignment]");
  if(assignmentDelete){
   const id=assignmentDelete.dataset.deleteAssignment;
@@ -1031,3 +1021,6 @@ const check=e.target.closest("[data-worker-check]");if(check){
 
 window.agentHQSocialReadSync=()=>{if((screen==='chat'&&active==='riley')||screen==='accounts')renderWithoutInterruptingDraft()};
 window.agentHQSocialReadOpen=()=>{active='riley';screen='chat';render()};
+
+
+document.addEventListener("agenthq-message-deletions",()=>{if(["chat","team","messages","contacts","approvals"].includes(screen))renderWithoutInterruptingDraft()});

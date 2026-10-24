@@ -240,3 +240,13 @@ button:disabled{cursor:default}
 .assignment-archive .archived-step{padding:12px 0;border-bottom:1px solid var(--ui-line,#ddd)}
 .assignment-archive .archived-step summary{cursor:pointer;font-weight:700}
 .archive-deliverable{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.5;padding:12px;margin:7px 0;border-radius:12px;background:var(--ui-card,#f2f5f8)}
+
+
+/* Always-visible X controls, with a 44px touch target, including long replies. */
+.ios-message-bubble:has(>.chat-delete-bar),.ios-work-card:has(>.chat-delete-bar),.team-message:has(>.chat-delete-bar),.studio-chat-bubble:has(>.chat-delete-bar),.studio-chat-tip:has(>.chat-delete-bar){position:relative;padding-right:56px}
+.chat-delete-bar{position:sticky;top:8px;height:0;display:flex;justify-content:flex-end;margin-right:-48px;z-index:2;pointer-events:none;white-space:normal}
+.chat-delete-button{flex:0 0 44px;min-width:44px!important;width:44px;min-height:44px!important;height:44px;padding:0!important;border:0!important;border-radius:50%!important;display:grid!important;place-items:center;background:transparent!important;color:inherit!important;cursor:pointer;pointer-events:auto;transform:translateY(-8px)}
+.chat-delete-button span{width:28px;height:28px;line-height:26px;border-radius:50%;text-align:center;font-size:24px;font-weight:500;background:color-mix(in srgb,currentColor 12%,transparent)}
+.chat-delete-button:focus-visible{outline:2px solid #007aff;outline-offset:-2px}
+.chat-delete-button:disabled{opacity:.45;cursor:wait}
+.chat-delete-error{font-size:14px;white-space:normal;color:inherit}

@@ -1,4 +1,6 @@
 import { agentCloud } from './agent-cloud-auth.js';
+import {connectMessageControls} from './agent-message-controls.js?v=20261024-delete-1';
+connectMessageControls(agentCloud);
 let syncGeneration=0;
 let unreadGeneration=0;
 const employees = new Set(['alex','maya','jordan','riley','taylor','casey','morgan','avery','jamie','quinn','hq']);
@@ -135,4 +137,5 @@ async function researchStatus(){
 }
 window.agentHQResearchCloud={refresh:researchRefresh,status:researchStatus};
 agentCloud.auth.onAuthStateChange(()=>{researchGeneration++;window.agentHQResearchSync?.([],'Sign in to view research history.');window.agentHQResearchConnection?.({ready:false,message:'Tap Check connection to verify web research.'})});
+
 

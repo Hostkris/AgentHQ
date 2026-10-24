@@ -80,8 +80,9 @@ test('late research responses cannot repopulate history after sign-out',async()=
  const mock={auth:{getUser:async()=>({data:{user:{id:'owner-a'}}}),onAuthStateChange:fn=>handlers.push(fn)},from(name){const q={select(){return q},eq(){return q},order(){return q},limit(){return history},then(resolve){resolve({data:[],error:null})}};return q}};
  const window={addEventListener(){},agentHQResearchSync:(rows)=>published.push(rows)};
  const code=fs.readFileSync(new URL('../agent-messages-cloud.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
- vm.runInNewContext(code,{agentCloud:mock,window,document:{addEventListener(){}},setInterval(){},setTimeout(){},console});
+ vm.runInNewContext(code,{connectMessageControls:()=>{},agentCloud:mock,window,document:{addEventListener(){}},setInterval(){},setTimeout(){},console});
  const pending=window.agentHQResearchCloud.refresh();await Promise.resolve();await Promise.resolve();handlers.at(-1)();
  resolveHistory({data:[{id:'private-owner-a-report'}],error:null});await pending;
  assert(published.length>0);assert(published.every(rows=>rows.length===0));
 });
+

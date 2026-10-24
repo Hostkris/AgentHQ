@@ -122,13 +122,13 @@
   }else if(tab==="chat"){
    const bot=selectedBot();
    if(!bot)return html+'<p class="studio-empty">Choose a worker from My workers.</p>';
-   const history=chats.get(bot.id)||[];
+   const history=(chats.get(bot.id)||[]).filter(m=>!window.agentHQMessageControls?.isDeleted("bot",m.id));
    html+='<section class="studio-chat"><header><button type="button" data-studio-tab="library">‹ Workers</button>'+
      '<span class="studio-chat-face" data-rpg-worker="'+E(bot.id)+'"></span><div><strong>'+E(bot.name)+'</strong><small>'+E(bot.role)+'</small></div></header>'+
      '<div class="studio-chat-bubbles">'+
-     (!history.length?'<div class="studio-chat-tip">'+E(bot.starting_message||"What can I help you with?")+'</div>':
+     (!history.length?(window.agentHQMessageControls?.isDeleted('welcome',bot.id)?'':'<div class="studio-chat-tip">'+(window.agentHQMessageControls?.button('welcome',bot.id)||'')+E(bot.starting_message||"What can I help you with?")+'</div>'):
       history.map(m=>'<div class="studio-chat-row '+(m.sender==="owner"?"mine":"theirs")+(m.sender==="handoff"?" handoff":"")+'"><div class="studio-chat-bubble">'+
-       E(m.body)+'</div></div>').join(""))+
+       (window.agentHQMessageControls?.button('bot',m.id)||'')+E(m.body)+'</div></div>').join(""))+
      (busy?'<div class="studio-chat-row theirs"><div class="studio-typing">● ● ●</div></div>':"")+
      '</div><form class="studio-chat-composer" id="studio-message-form"><textarea name="message" maxlength="4500" rows="2" placeholder="Text '+E(bot.name)+'…"'+(busy?" disabled":"")+'></textarea>'+
      '<button type="submit" class="studio-primary"'+(busy?" disabled":"")+'>Send</button></form>'+
@@ -236,8 +236,10 @@
   else if(!app.querySelector("#agent-bot-studio-root"))lastScreen=false;
  });
  observer.observe(app,{childList:true,subtree:false});
+ document.addEventListener("agenthq-message-deletions",draw);
  window.agentHQBotStudioUIRefresh=draw;
  const existing=window.agentHQBotStudioSnapshot;
  if(existing)sync(existing.rows||[],existing.notice||"",existing.messaged||[]);
  draw();
 })();
+

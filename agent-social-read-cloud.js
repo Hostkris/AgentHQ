@@ -1,3 +1,4 @@
+import {messageDeleteButton, messageIsDeleted} from './agent-message-controls.js?v=20261024-delete-1';
 import {agentCloud} from './agent-cloud-auth.js';
 let generation=0,rows=[],fingerprint='';
 const bootTime=Date.now();let returnChecked=false,lastOwner=null;const connectionNotes=new Map();
@@ -11,6 +12,7 @@ window.agentHQFacebookReadAccount=account=>'<section class="personal-browser-set
 
 function stateOf(r){return ['pending','approved','analyzing'].includes(r.status)&&Date.parse(r.expires_at)<=Date.now()?'expired':r.status}
 function requestBubble(r){
+ if(messageIsDeleted("social",r.id)||r.prompt_message_id&&messageIsDeleted("message",r.prompt_message_id))return "";
  const status=stateOf(r),disabled=busy.has(r.id)?' disabled':'';let actions='';
  if(status==='pending')actions='<p>Reply <strong>approved</strong> to start this one-page review, or <strong>denied</strong> to decline. One page analysis through Agent HQ’s Groq connection, with permission lasting 15 minutes after approval. Safari opens the page while reading; the report returns here. No posting or sending permission.</p><details><summary>Approval buttons</summary><div class="social-read-actions"><button type="button" class="personal-primary" data-social-decision="approve" data-social-id="'+esc(r.id)+'"'+disabled+'>Approve reading</button><button type="button" class="back" data-social-decision="deny" data-social-id="'+esc(r.id)+'"'+disabled+'>Deny</button></div></details>';
  if(status==='approved')actions='<p>Approved for this page until '+esc(new Date(r.expires_at).toLocaleTimeString())+'. Reply <strong>continue</strong> to reconnect the reader, or <strong>stop</strong> to revoke permission.</p><p data-safari-feedback role="status">'+esc(connectionNotes.get(r.id)||'')+'</p><details><summary>Reader options</summary><button type="button" class="personal-primary" data-safari-connect="'+esc(r.id)+'"'+disabled+'>Retry Safari reader</button><a href="'+esc(r.source_url)+'" target="_blank" rel="noopener noreferrer">Open approved page ↗</a>'+readerHelp()+'<form data-social-analyze="'+esc(r.id)+'"><label>Manual Safari capture<textarea name="capture" required maxlength="90000" rows="5">'+esc(captures.get(r.id)||'')+'</textarea></label><button type="submit" class="personal-primary"'+disabled+'>Share approved text &amp; analyze</button><p data-social-read-feedback role="status"></p></form></details>';
@@ -18,7 +20,7 @@ function requestBubble(r){
  if(['approved','analyzing'].includes(status))actions+='<button type="button" class="back" data-social-decision="revoke" data-social-id="'+esc(r.id)+'"'+disabled+'>Stop this review</button>';
  if(status==='completed')actions='<p>Report saved in this thread. This permission has been used.</p>';
  if(status==='failed')actions='<p>'+esc(r.error||'Analysis could not finish. Ask Riley for a new review to try again.')+'</p>';
- return '<div class="ios-message-row incoming"><section class="ios-message-bubble theirs social-read-card" data-social-read-card="'+esc(r.id)+'"><strong>Riley · Facebook review</strong><span class="social-read-status">'+esc(status)+'</span><p>'+esc(r.purpose)+'</p><p class="social-read-source">'+esc(r.source_url)+'</p>'+actions+'</section></div>';
+ return '<div class="ios-message-row incoming"><section class="ios-message-bubble theirs social-read-card" data-social-read-card="'+esc(r.id)+'">'+messageDeleteButton('social',r.id)+'<strong>Riley · Facebook review</strong><span class="social-read-status">'+esc(status)+'</span><p>'+esc(r.purpose)+'</p><p class="social-read-source">'+esc(r.source_url)+'</p>'+actions+'</section></div>';
 }
 window.agentHQSocialReadMessage=(worker,messageId)=>worker==='riley'&&messageId?rows.filter(r=>r.prompt_message_id===messageId).map(requestBubble).join(''):'';
 window.agentHQSocialReadThread=worker=>worker==='riley'?rows.filter(r=>!r.prompt_message_id).slice(0,10).reverse().map(requestBubble).join(''):'';
@@ -87,4 +89,5 @@ document.addEventListener('submit',async e=>{
 const load=()=>refresh().catch(()=>{});
 agentCloud.auth.onAuthStateChange((event)=>{if(event==='SIGNED_OUT'&&lastOwner){try{localStorage.removeItem('agenthq_riley_read_return:'+lastOwner)}catch{}}connectionNotes.clear();if(['SIGNED_OUT','SIGNED_IN'].includes(event))safariCommand('clear',undefined,500).catch(()=>{});generation++;rows=[];fingerprint='';captures.clear();busy.clear();window.agentHQSocialReadSync?.();setTimeout(load,0)});
 window.addEventListener('focus',load);document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});setInterval(()=>{if(!document.hidden)load()},30000);load();
+
 
