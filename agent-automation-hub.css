@@ -10,3 +10,6 @@
 .ah-automation-hub .ah-status-check:focus-visible{outline:3px solid #78adff;outline-offset:3px}
 .ah-automation-hub .ah-status-check[aria-busy="true"]{background:#456d9a;opacity:1;cursor:progress}
 .ah-automation-hub .ah-status{min-height:2.5em;padding:9px 11px;border-radius:10px;background:rgba(90,120,170,.11);font-size:13px;font-weight:600;overflow-wrap:anywhere}
+
+.ah-automation-hub .ah-badge.ah-verified{display:inline-block;border:1px solid rgba(27,101,70,.5);background:rgba(34,142,90,.10);color:#176944;padding:6px 9px;border-radius:9px;font-weight:750}
+.ah-automation-hub .ah-automation-row .ah-connect-feedback{display:block;line-height:1.55;white-space:normal;font-weight:600;font-size:12px;overflow-wrap:anywhere}
