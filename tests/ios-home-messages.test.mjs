@@ -49,6 +49,11 @@ test('Large research output collapses and new verified reports remain in the thr
  assert.match(research,/return 'I finished checking public sources for/);
  assert.match(research,/finish_agent_research/);
  assert.match(research,/researchEvidence\(message\)/);
+ const sql=src('supabase/migrations/20261024023500_research_save_full_report_send_short_chat.sql');
+ assert.match(sql,/report=p_report/);
+ assert.match(sql,/The full report, sources and limitations are saved/);
+ assert.doesNotMatch(sql,/values\(p_owner,job\.conversation_id,'employee',p_report\)/);
+ assert.match(sql,/grant execute on function public\.finish_agent_research.*to service_role/);
 });
 
 test('Riley responds to casual status checks without searching those words',()=>{
