@@ -273,24 +273,27 @@ function renderWorkerPanel(a){
 }
 function renderTeamThread(){
  const a=teamAssignments.get(teamActive);
- if(!a)return '<div class="card"><p>Assignment not found. Return to Assignments and sync.</p></div>';
- const notes=teamNotes.get(a.id)||[];
- return `<p class="notice">${escapeHTML(teamNotice)} ${workerConnection.ready?"Use the AI Worker Desk to request a draft from a selected worker. Nothing runs automatically.":"Worker drafts require an AI provider connection. You can save your notes now."}</p>
- <section class="card"><strong>Team</strong><p>${escapeHTML(teamMemberNames(a.employee_ids))}</p><strong>Assignment</strong><p>${escapeHTML(a.instructions)}</p>
- <strong>Information needed</strong><p>${a.info_needed?escapeHTML(a.info_needed):"Nothing specified yet. Use the discussion below to add details."}</p>
- <label for="team-status">Assignment status (set manually)</label>
- <select id="team-status" class="form-field">${Object.entries(teamStatusLabel).map(([value,label])=>`<option value="${value}" ${a.status===value?"selected":""}>${label}</option>`).join("")}</select></section>
- ${renderCoordinationPanel(a)}${renderWorkerPanel(a)}<h2>Team discussion</h2>
- <p class="notice">Assigned workers share this discussion through manual AI steps once connected. No fake replies or automatic background work.</p>
- <div class="team-thread" aria-live="polite">${notes.length?notes.map(n=>{
- const author=n.sender_kind==="owner"?"You":n.sender_kind==="agent"?(staff.find(s=>s[0]===n.sender_id)?.[2]||"Agent"):"System";
- return `<article class="team-message ${n.sender_kind==="owner"?"team-message-mine":""}"><strong>${escapeHTML(author)}</strong>${n.sender_kind==="agent"?'<small> · AI-generated draft</small>':""}<small> · ${escapeHTML(new Date(n.created_at).toLocaleString())}</small><p>${escapeHTML(n.body)}</p></article>`;
- }).join(""):'<p class="muted">No messages yet. Add assignment information or an instruction to start the discussion.</p>'}</div>
- <form id="team-note-form"><label for="team-note">Add a note or information for the team</label>
- <textarea class="form-field" id="team-note" maxlength="10000" placeholder="Share instructions, research context, resources, or information the team needs"></textarea>
- <button class="primary" type="submit">Post to team discussion</button></form>
- <p id="team-post-feedback" role="status" class="notice">${escapeHTML(teamPostFeedback)}</p>`;
+ if(!a)return '<section class="card">Assignment not found. Return to Assignments.</section>';
+ const steps=coordSteps.get(a.id)||[],notes=teamNotes.get(a.id)||[];
+ const completed=steps.filter(x=>x.status==="completed").length;
+ const status=steps.length?completed+"/"+steps.length+" drafts saved":(teamStatusLabel[a.status]||a.status);
+ const records=steps.map(step=>'<details class="archived-step"><summary>'+
+  escapeHTML(workerLabel(step.employee_id))+' — '+escapeHTML(step.title)+' · '+escapeHTML(step.status)+'</summary>'+
+  '<p>'+escapeHTML(step.instructions)+'</p>'+
+  (step.output?'<div class="archive-deliverable">'+messageHTML(step.output)+'</div>':'')+
+  (step.question?'<p>Question: '+escapeHTML(step.question)+'</p>':'')+
+  '</details>').join("");
+ const discussion=notes.map(n=>'<article class="team-message"><strong>'+
+  escapeHTML(n.sender_kind==="owner"?"You":n.sender_kind==="agent"?workerLabel(n.sender_id):"System")+'</strong>'+
+  '<small> · '+escapeHTML(new Date(n.created_at).toLocaleString())+'</small><p>'+escapeHTML(n.body)+'</p></article>').join("");
+ return '<section class="card assignment-archive"><h2>'+escapeHTML(a.title)+'</h2>'+
+  '<p class="notice">Saved assignment log · '+escapeHTML(status)+'</p>'+
+  '<p>'+escapeHTML(a.instructions)+'</p><h3>Specialists</h3><p>'+escapeHTML(teamMemberNames(a.employee_ids))+'</p>'+
+  '<h3>Completed work and drafts</h3>'+(records||'<p class="notice">Alex has not routed this task yet.</p>')+
+  '<h3>Team assignment discussions</h3>'+(discussion||'<p class="notice">No saved discussion notes.</p>')+
+  '<p class="notice">Review-only history. Return to Messages to give instructions or approvals.</p></section>';
 }
+
 function renderWorkerTeamLinks(employeeId){
  const related=[...teamAssignments.values()].filter(a=>(a.employee_ids||[]).includes(employeeId));
  if(!related.length)return "";
