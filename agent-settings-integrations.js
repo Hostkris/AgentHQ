@@ -50,6 +50,7 @@ function renderConnections(){
  '<p class="ah-status" role="status">'+escapeText(state.message)+'</p>'+
  (!state.signedIn?'<button type="button" data-ah-show-account>Sign in to Agent HQ</button>':'<span class="ah-signed-in">Agent HQ account signed in</span>')+
  '</div>'+
+ '<div id="agenthq-automation-root"></div>'+ 
  '<div class="ah-service-list">'+SERVICES.map(service=>{
   const [badge,style]=socialBadge(service);
   return '<article class="ah-service" data-ah-card="'+service.id+'">'+
