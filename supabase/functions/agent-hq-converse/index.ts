@@ -22,6 +22,8 @@ function cors(req:Request){
  "Content-Type":"application/json; charset=utf-8"};
 }
 function reply(req:Request,data:unknown,status=200){return new Response(JSON.stringify(data),{status,headers:cors(req)})}
+// Sensitive action/research/site approvals accept explicit yes/no ONLY.
+// Draft emoji reactions are handled in the UI and can NEVER approve external actions.
 function yesNo(text:string){const t=text.trim().toLowerCase().replace(/[.!?]+$/g,"");
  if(/^(yes|yeah|yep|yup|sure|okay|ok|go ahead|green light|you got the green light|you're authorized|you are authorized|you have my approval|you got my approval|please do|please proceed|proceed|approved|approve|you can|start|resume|continue)$/i.test(t))return "yes";
  if(/^(no|nope|nah|red light|not approved|not yet|stop|don't|do not|decline|denied|deny|cancel)$/i.test(t))return "no";
@@ -42,10 +44,10 @@ function provider(){
  return null;
 }
 async function decide(ai:NonNullable<ReturnType<typeof provider>>,role:string,context:unknown){
- const system=role==="Research analyst"?RILEY_CHAT_POLICY:role==="General Manager"?`You are Alex, General Manager of Agent HQ. Permanent mission: ${ALEX_DNA.mission}. Your ONLY professional work is to clarify assignments, draft proposed work routing, coordinate specialists, monitor progress and report status. You are not a specialist. Do NOT answer as the Research, Marketing, Writing, Social, Communications, Shopify, Analysis, Scheduling or Growth specialist. No web search, Gmail, external account tools, purchase, publication, sending, code editing or permission changes. No actions are executed by this conversation. The backend requires separate owner approval for your plans. For any specialist or external task, classify as "task", briefly describe that you will route it to a specialist, and ask "Should I create a proposed assignment? Yes or no?". If essential assignment details are missing classify as "collect" and ask ONE precise question. For internal workflow/status questions use "answer" to give a concise, factual response without pretending work occurred. Return ONLY valid JSON {"intent":"answer|collect|task","reply":"brief professional response"} with no code fences.`:`You are a friendly, concise AI coworker working as ${role} in Agent HQ. This is the OWNER'S PRIVATE PERSONAL-USE workspace for their own social accounts, advertising accounts and projects, not a commercial agency. This is a casual one-to-one text conversation, not a task dashboard.
+ const system=role==="Research analyst"?RILEY_CHAT_POLICY:role==="General Manager"?`You are Alex, General Manager of Agent HQ. Permanent mission: ${ALEX_DNA.mission}. Your ONLY professional work is to clarify assignments, draft proposed work routing, coordinate specialists, monitor progress and report status. You are not a specialist. Do NOT answer as the Research, Marketing, Writing, Social, Communications, Shopify, Analysis, Scheduling or Growth specialist. No web search, Gmail, external account tools, purchase, publication, sending, code editing or permission changes. No actions are executed by this conversation. The owner’s direct message already authorizes a safe, internal text-drafting assignment. Coordinate and begin specialist drafting without another yes/no question. Outside accounts, publishing, purchases and spending still need separate explicit scoped owner approval and supported tools. For specialist work classify as "task"; use clearly labeled placeholders for missing marketing facts. Classify "collect" only if a concrete deliverable is truly impossible, and ask just ONE blocking question. For internal workflow/status questions use "answer" to give a concise, factual response without pretending work occurred. Return ONLY valid JSON {"intent":"answer|collect|task","reply":"brief professional response"} with no code fences.`:`You are a friendly, concise AI coworker working as ${role} in Agent HQ. This is the OWNER'S PRIVATE PERSONAL-USE workspace for their own social accounts, advertising accounts and projects, not a commercial agency. This is a casual one-to-one text conversation, not a task dashboard.
 You can answer general knowledge questions, discuss assignments, and ask for missing task details. Public web research is available through a separate owner-approved research flow. You cannot browse in this classification call. Account access, purchasing, posting, and file modification are unavailable. Never imply you actually researched a website or completed external work. Do not fabricate sources.
 Interpret the user's most recent message in context. Reply naturally, warmly but briefly (up to 450 characters) as a human coworker might text, not corporate UI language.
-For a request that appears to be internal text drafting or specialist teamwork, classify as "task" if details suffice, or "collect" when important details are missing; ask ONE focused question. For a general question, classify as "answer" and answer from general knowledge.
+For an internal text drafting or specialist request, classify as "task", even for "Create a promotional post". Make an editable first draft with placeholders rather than asking routine questions; classify "collect" only when the task cannot proceed responsibly, and ask ONE blocker question. For a general question, classify as "answer" and answer from general knowledge.
 For up-to-date business account metrics (e.g., ad spend yesterday), changing an ad budget, publishing to Instagram/TikTok/Facebook/YouTube, sending an email, replying on a real social account, or building a Manychat automation, classify as "action" (NOT "task" or "answer"). Do not invent account metrics or claim a provider is connected.
 For "action", describe exactly what the owner is asking to authorize and that an external connection is required; DO NOT say any action has been executed. Only use these provider and action pairs:
 meta_ads: read_metrics,change_ad_budget
@@ -55,7 +57,7 @@ email: send_email
 other: other.
 For "action", return {"intent":"action","reply":"short conversational approval question ending Yes or no?","action":{"provider":"meta_ads","kind":"change_ad_budget","summary":"specific proposed change","scope":"named account, target and amount; mention missing information explicitly"}}. Never assume an account, ID, price or spend amount. If amount/target is missing, ask to clarify instead of issuing an incomplete budget change.
 For requests to research online, search the web, look something up, find current public information, or compare current public options, classify as "research". The server will ask approval before searching; do not claim to have searched. For requests requiring account data or actions, still use "action".
-For "task", ask if they want to START the assignment, ending with "Yes or no?".
+For "task", state that the safe internal assignment is starting. Do not ask "Should I start?" or repeat a confirmation.
 Return ONLY valid JSON with {"intent":"answer|collect|task|action|research","reply":"short natural message","action":optional object as above} and no code fences.`;
  const abort=new AbortController(),timer=setTimeout(()=>abort.abort(),25000);
  try{
@@ -317,8 +319,8 @@ Deno.serve(async(req:Request)=>{
   });
   await state("idle","",assignment.id);
   startAssignment=assignment.id;
-  replyText=worker==="alex"?"I've asked the team planner to prepare a specialist work order here in Messages. You'll see the full plan and can reply green light or red light before anyone starts.":
-   "I've handed your request to Alex to choose the right specialists. The plan will show in this conversation, and nothing starts without your approval.";
+  replyText=worker==="alex"?"I’m coordinating your assignment and starting the internal drafts. I’ll bring them back here for your review and ask only about genuine blockers.":
+   "I’ve handed your assignment to Alex for specialist routing and internal drafts. I’ll bring back the work for your review.";
  };
  const currentWaiting=async()=>{
   let query=db.from("agent_task_steps").select("id,assignment_id,employee_id,status,question")
@@ -533,26 +535,25 @@ Deno.serve(async(req:Request)=>{
       proposal.summary+"? Yes or no? This will not connect the account or execute the change.";
    }
   }else if(stage==="confirm_task"){
-   if(decision==="yes"){
-    await createAssignment(pending);
-   }else if(decision==="no"){
-    await state("idle");
-    replyText="Okay, no assignment will start. Tell me what you want changed.";
-   }else{
-    pending=(pending+"\nAdditional information: "+body).slice(0,10000);
-    await state("confirm_task",pending);
-    replyText="Got it. Should I create the proposed work order? Yes or no?";
-   }
+   // Legacy task confirmations resolve once. A fresh instruction is itself a request.
+   if(decision==="yes"&&pending.trim())await createAssignment(pending);
+   else if(decision==="no"){await state("idle");replyText="Okay, that request is cancelled.";}
+   else if(body.trim().length>=5)await createAssignment(body);
+   else{await state("idle");replyText="Send me the assignment in one message, and I'll start drafting.";}
   }else if(stage==="confirm_resume"){
-   if(decision==="yes"&&related){
-    await state("idle");resumeAssignment=related;
-    replyText="Sounds good. I'll get the team going again and keep the updates in our messages.";
-   }else if(decision==="no"){
-    await state("idle");
-    replyText="Okay, I'll leave that assignment paused. Just tell me when you're ready.";
-   }else{
-    replyText="Just to confirm: should I resume the team on this assignment now? Yes or no?";
-   }
+   // Stale yes/no resume prompts can never keep asking indefinitely.
+   await state("idle");
+   if(decision==="no")replyText="Okay, I'll leave the assignment paused. You can send updated instructions anytime.";
+   else if(decision==="yes"&&related){
+    const {data:target}=await db.from("agent_team_assignments").select("id,owner_paused,status")
+     .eq("owner_id",owner).eq("id",related).maybeSingle();
+    if(target&&!target.owner_paused&&target.status!=="completed"){
+     resumeAssignment=related;
+     replyText="Continuing the saved drafting assignment now. I'll share the result here.";
+    }else replyText="That assignment is no longer ready to resume. Nothing new was started.";
+   }else if(decision==="yes")replyText="No specific assignment is waiting to resume. Nothing was started.";
+   else if(body.trim().length>=5)await createAssignment(body);
+   else replyText="Tell me what you'd like done next.";
   }else if(stage==="confirm_permission"){
    const {data:request}=permission?await db.from("agent_permission_requests").select("id,status,target_url,reason,expires_at")
      .eq("owner_id",owner).eq("employee_id",worker).eq("id",permission).maybeSingle():{data:null};
@@ -602,8 +603,9 @@ Deno.serve(async(req:Request)=>{
      await db.from("agent_team_assignments").update({
       coordination_status:"ready",status:"in_progress",updated_at:new Date().toISOString()
      }).eq("id",waiting.assignment_id).eq("owner_id",owner);
-     await state("confirm_resume","",waiting.assignment_id);
-     replyText="Thanks for that information. I can draft from what you shared without opening the website. Want me to resume the team now? Yes or no?";
+     await state("idle","",waiting.assignment_id);
+     resumeAssignment=waiting.assignment_id;
+     replyText="That information is saved. I'm continuing the internal text draft without opening the website.";
     }
    }
    if(!replyText&&waiting?.status==="waiting_for_owner"){
@@ -619,8 +621,9 @@ Deno.serve(async(req:Request)=>{
     await db.from("agent_team_assignments").update({
      coordination_status:"ready",status:"in_progress",updated_at:new Date().toISOString()
     }).eq("id",waiting.assignment_id).eq("owner_id",owner);
-    await state("confirm_resume","",waiting.assignment_id);
-    replyText="Thanks, that helps. Should I resume this assignment with the team now? Yes or no?";
+    await state("idle","",waiting.assignment_id);
+    resumeAssignment=waiting.assignment_id;
+    replyText="Thanks, that answers the blocker. I'm continuing the specialist draft and will bring the result here.";
    }
    if(!replyText){
     const actual=stage!=="idle"?null:worker==="alex"?(/\b(?:daily brief|weekly brief|weekly digest|operations status|status report|team progress|manager brief)\b/i.test(body)?await alexBrief(db,owner,/\bweek(?:ly)?\b/i.test(body)?"weekly":"daily"):null):(await liveGmailAnswer(db,owner,worker,body))||(await liveMetaAnswer(db,owner,token,worker,body));
@@ -649,6 +652,8 @@ Deno.serve(async(req:Request)=>{
      }else if(worker==="alex"&&isAlexForbiddenIntent(result.intent)){
       await state("idle");
       replyText="I cannot perform that work or request those permissions myself. I can create an assignment for the qualified specialist and show you the proposed plan for approval.";
+     }else if(result.intent==="action"&&result.action?.kind==="create_content"&&!/\b(publish|post (?:it|this|to|on)|upload|send|schedule (?:it|a post)|share publicly)\b/i.test(composed)){
+      await createAssignment(composed);
      }else if(result.intent==="action"){
       const proposed=validatedAction(result.action);
       if(!proposed){

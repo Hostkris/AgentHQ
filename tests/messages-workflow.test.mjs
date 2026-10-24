@@ -88,8 +88,8 @@ test('Final text approval is a scoped owner Messages reply, never publication ap
  const app=source('app.js');
  assert.match(app,/function conversationDraftInfo\(a\)/);
  assert.match(app,/function finalDraftForChat\(worker\)/);
- assert.match(app,/isContentApproval/);
- assert.match(app,/No single unapproved final draft/);
+ assert.match(app,/reviewDecision/);
+ assert.match(app,/There is no single unreviewed completed draft/);
  assert.match(app,/CREATIVE_REVIEW_V1/);
  assert.match(app,/Owner approved the written draft only\. No publishing/);
  assert.match(app,/window\.agentHQChatCloud\.send\(worker,value\)/);
@@ -103,4 +103,49 @@ test('Creative Desk intake is removed and worker Messages owns requests',()=>{
  assert.doesNotMatch(creative,/data-creative-approve=/);
  assert.match(creative,/data-nav="messages"/);
  assert.match(creative,/isCreativeJob/);
+});
+
+test('Direct assignments work without another "Yes or no?" and keep owner approval ledger',()=>{
+ const chat=source('supabase/functions/agent-hq-converse/index.ts');
+ const client=source('agent-coordination-cloud.js');
+ const app=source('app.js');
+ assert.match(chat,/For "task", state that the safe internal assignment is starting/);
+ assert.match(chat,/await createAssignment\(composed\)/);
+ assert.doesNotMatch(chat,/Should I create the proposed work order\? Yes or no\?/);
+ assert.doesNotMatch(chat,/Just to confirm: should I resume the team/);
+ assert.match(client,/autoApproveInternal=false/);
+ assert.match(client,/autoApproveInternal&&planned\.state==='awaiting_approval'/);
+ assert.match(client,/invoke\('approve',id\)/);
+ assert.match(app,/autoApproveInternal:planFirst/);
+ assert.match(chat,/Outside accounts, publishing, purchases and spending still need separate/);
+});
+test('Resolved blocker clears confirmation stage and starts the queued specialist draft',()=>{
+ const chat=source('supabase/functions/agent-hq-converse/index.ts');
+ const segment=chat.split('}else if(stage==="confirm_resume"){')[1].split('}else if(stage==="confirm_permission"){')[0];
+ assert.match(segment,/await state\("idle"\)/);
+ assert.match(segment,/resumeAssignment=related/);
+ assert.doesNotMatch(segment,/Just to confirm/);
+ assert.match(chat,/resumeAssignment=waiting\.assignment_id/);
+ assert.doesNotMatch(chat,/await state\("confirm_resume","",waiting\.assignment_id\)/);
+});
+test('Final copy accepts natural owner likes, dislikes, green and red light, and thumbs with no publishing',()=>{
+ const app=source('app.js');
+ assert.match(app,/approveSignals=/);
+ assert.match(app,/rejectSignals=/);
+ assert.match(app,/thumbs up\|thumb up\|👍/);
+ assert.match(app,/thumbs down\|thumb down\|👎/);
+ assert.match(app,/REVISION_REQUESTED/);
+ assert.match(app,/No publishing, sending, account access or spending approved/);
+ const chat=source('supabase/functions/agent-hq-converse/index.ts');
+ const gate=chat.split('function yesNo')[1].split('// One reply controls')[0];
+ assert.doesNotMatch(gate,/thumbs up|thumbs down|👍|👎/);
+});
+test('All specialists are directed to finish safe drafts, avoid fabricated external actions, and ask only true blockers',()=>{
+ const chat=source('supabase/functions/agent-hq-converse/index.ts');
+ const coordinator=source('supabase/functions/agent-hq-coordinate/index.ts');
+ assert.match(chat,/make an editable first draft with placeholders/i);
+ assert.match(coordinator,/Solve routine snags autonomously/);
+ assert.match(coordinator,/SMALLEST capable specialist team/);
+ assert.match(coordinator,/no account permission is granted|No publishing, spending, website or account permission is granted/i);
+ assert.match(coordinator,/If essential owner information genuinely blocks all useful drafting/);
 });

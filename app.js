@@ -402,12 +402,16 @@ function conversationDraftInfo(a){
  const content=steps.filter(x=>x.status==="completed"&&typeof x.output==="string"&&x.output.trim()).map(x=>x.id+"|"+x.output).join("\n\n")+"\nOWNER_IMPORT|"+String(imported?.body?.slice("CHATGPT_OWNER_IMPORT_V1\n".length)||"");
  let hash=2166136261;for(let i=0;i<content.length;i++){hash^=content.charCodeAt(i);hash=Math.imul(hash,16777619)}
  const version=(hash>>>0).toString(16).padStart(8,"0");
- const approval=[...notes].reverse().find(n=>n.sender_kind==="owner"&&n.sender_id==="owner"&&String(n.body||"").startsWith(CREATIVE_REVIEW_PREFIX+"|APPROVED|"+version+"\n"));
- return {eligible,approved:!!approval,version};
+ const review=[...notes].reverse().find(n=>n.sender_kind==="owner"&&n.sender_id==="owner"&&
+  (String(n.body||"").startsWith(CREATIVE_REVIEW_PREFIX+"|APPROVED|"+version+"\n")||
+   String(n.body||"").startsWith(CREATIVE_REVIEW_PREFIX+"|REVISION_REQUESTED|"+version+"\n")));
+ const approved=String(review?.body||"").includes("|APPROVED|");
+ const rejected=String(review?.body||"").includes("|REVISION_REQUESTED|");
+ return {eligible,approved,rejected,version};
 }
 function finalDraftForChat(worker){
  const related=[...teamAssignments.values()].filter(a=>
-  (worker==="alex"||worker==="hq"||a.source_employee_id===worker||(a.employee_ids||[]).includes(worker))&&conversationDraftInfo(a).eligible&&!conversationDraftInfo(a).approved);
+  (worker==="alex"||worker==="hq"||a.source_employee_id===worker||(a.employee_ids||[]).includes(worker))&&conversationDraftInfo(a).eligible&&!conversationDraftInfo(a).approved&&!conversationDraftInfo(a).rejected);
  if(related.length!==1)return null;
  const a=related[0];return {a,...conversationDraftInfo(a)};
 }
@@ -435,7 +439,7 @@ function renderConversationWork(worker){
   }).join("");
   const review=conversationDraftInfo(a);
   const prompt=a.owner_paused?'<p class="ios-work-prompt">🔴 Red light — specialists are stopped. Reply <b>green light</b> to resume only this previously approved internal drafting work.</p>':waiting?'<p class="ios-work-prompt">Text <b>green light</b> or <b>approved</b> to authorize these drafts. Text <b>red light</b> or <b>stop</b> to reject. This never authorizes publishing or outside account access.</p>':
-   finished?'<p class="ios-work-prompt">'+(review.approved?'✅ Written draft approved. Nothing was published.':'Draft ready. Reply <b>approve draft</b> in Messages to approve the final text, or describe revisions. Nothing will be published.')+'</p>':'';
+   finished?'<p class="ios-work-prompt">'+( review.approved?'✅ Final written draft approved. Nothing was published.':review.rejected?'👎 Draft rejected. Tell your worker what to change in a new message; the revision will be another internal assignment.':'Draft ready. Reply <b>green light</b>, <b>thumbs up</b>, or <b>I like it</b> to approve the text; <b>red light</b> or <b>thumbs down</b> to reject. Nothing will be published.')+'</p>':'';
   return '<div class="ios-message-row incoming"><article class="ios-work-card">'+messageDeleteButton("work",a.id)+
    '<div class="ios-work-type">📎 Team work order · Alex</div><h3>'+escapeHTML(a.title)+'</h3>'+
    '<div class="ios-work-status">'+escapeHTML(label)+(steps.length?' · '+completed+'/'+steps.length:'')+'</div>'+
@@ -469,6 +473,7 @@ function renderIPhoneChat(){
     messageDeleteButton("message",item.id,item.pending)+
     (system?'<span class="ios-message-source">Team handoff</span>':"")+
     '<span class="ios-message-text">'+messageHTML(item.text||"")+'</span>'+
+
     '</div></div>';
  }).join("");
  const status=sendFeedback.get(active)||"";
@@ -747,23 +752,31 @@ if(screen==="research"||screen==="browser"){
   if(screen==="chat"&&active===worker)render();
   try{
    if(!window.agentHQChatCloud?.converse)throw Error("Conversation service is loading. Please refresh Agent HQ.");
-   const isContentApproval=/^approve (?:the |this |final )?(?:draft|content|copy)(?: please)?[.!]?$/i.test(value);
-   const final=isContentApproval?finalDraftForChat(worker):null;
-   if(isContentApproval&&!final)throw Error("No single unapproved final draft was found in this conversation. Ask your worker to identify the draft.");
-   if(final){
+   const reviewText=value.trim().toLowerCase().replace(/[.!?]+$/g,"").replace(/\s+/g," ");
+   const approveSignals=/^(approve(?: (?:the|this|final))? (?:draft|content|copy)(?: please)?|approved|i approve|green light|green thumb|thumbs up|thumb up|👍|✅|like it|i like it|looks good|love it|i love it|good to go|yes,? i like it)$/i;
+   const rejectSignals=/^(reject(?: (?:the|this|final))? (?:draft|content|copy)|deny|denied|red light|thumbs down|thumb down|👎|❌|dislike it|i dislike it|i don't like it|not approved)$/i;
+   const reviewDecision=approveSignals.test(reviewText)?"APPROVED":rejectSignals.test(reviewText)?"REVISION_REQUESTED":null;
+   const final=reviewDecision?finalDraftForChat(worker):null;
+   if(reviewDecision&&final){
+    // Reread owner-scoped evidence before recording the decision. Never treat
+    // a draft review as external permission to send, publish or use accounts.
     await Promise.allSettled([window.agentHQTeamCloud?.refresh(),window.agentHQCoordCloud?.refresh()]);
     const latest=conversationDraftInfo(teamAssignments.get(final.a.id)||final.a);
-    if(!latest.eligible||latest.approved||latest.version!==final.version)
-     throw Error("The draft changed. Review it again before approving.");
+    if(!latest.eligible||latest.approved||latest.rejected||latest.version!==final.version)
+     throw Error("This draft changed or was already reviewed. Check the latest work before replying.");
     await window.agentHQChatCloud.send(worker,value);
-    await window.agentHQTeamCloud.post(final.a.id,CREATIVE_REVIEW_PREFIX+"|APPROVED|"+latest.version+
-     "\nOwner approved the written draft only. No publishing, sending, account access or spending approved.");
+    const reviewNote=reviewDecision==="APPROVED"?
+     "Owner approved the written draft only. No publishing, sending, account access or spending approved.":
+     "Owner rejected this text draft. Ask for the specific changes and prepare a NEW internal revision draft before another review.";
+    await window.agentHQTeamCloud.post(final.a.id,CREATIVE_REVIEW_PREFIX+"|"+reviewDecision+"|"+latest.version+"\n"+reviewNote);
     await Promise.allSettled([window.agentHQChatCloud.refresh(),window.agentHQTeamCloud.refresh()]);
     drafts.set(worker,"");
     messages.set(worker,(messages.get(worker)||[]).filter(msg=>msg.id!==optimisticId));
-    sendFeedback.set(worker,"Written draft approved. Nothing was published or sent.");
+    sendFeedback.set(worker,reviewDecision==="APPROVED"?"Written draft approved. Nothing was published or sent.":"Draft marked for revision. Text what you want changed; your worker can start a revision assignment.");
     return;
    }
+   if(/^approve (?:the |this |final )?(?:draft|content|copy)(?: please)?[.!]?$/i.test(value)&&!final)
+    throw Error("There is no single unreviewed completed draft here. Ask the worker to show the exact assignment.");
    const result=await window.agentHQChatCloud.converse(worker,value);
    drafts.set(worker,"");
    messages.set(worker,(messages.get(worker)||[]).filter(msg=>msg.id!==optimisticId));
@@ -775,7 +788,7 @@ if(screen==="research"||screen==="browser"){
    if(result.start_assignment_id||result.resume_assignment_id){
     const id=result.start_assignment_id||result.resume_assignment_id;
     const planFirst=Boolean(result.start_assignment_id);
-    window.agentHQCoordCloud?.runTeam(id,{planFirst,maxSteps:4}).catch(error=>{
+    window.agentHQCoordCloud?.runTeam(id,{planFirst,autoApproveInternal:planFirst,maxSteps:4}).catch(error=>{
      window.agentHQCoordError?.("AI team paused: "+error.message);
     });
    }
@@ -942,6 +955,7 @@ app.addEventListener("click",async e=>{
   return;
  }
 
+
  const assignmentDelete=e.target.closest("[data-delete-assignment]");
  if(assignmentDelete){
   const id=assignmentDelete.dataset.deleteAssignment;
@@ -1021,6 +1035,5 @@ const check=e.target.closest("[data-worker-check]");if(check){
 
 window.agentHQSocialReadSync=()=>{if((screen==='chat'&&active==='riley')||screen==='accounts')renderWithoutInterruptingDraft()};
 window.agentHQSocialReadOpen=()=>{active='riley';screen='chat';render()};
-
 
 document.addEventListener("agenthq-message-deletions",()=>{if(["chat","team","messages","contacts","approvals"].includes(screen))renderWithoutInterruptingDraft()});
