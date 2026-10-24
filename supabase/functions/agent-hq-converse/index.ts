@@ -300,6 +300,25 @@ Deno.serve(async(req:Request)=>{
   });
   if(error)throw Error("Couldn't save the worker's reply");
  };
+ const createAssignment=async(details:string)=>{
+  const trimmed=details.trim().slice(0,10000);
+  if(trimmed.length<5)throw Error("Assignment details are missing");
+  const first=trimmed.split(/[\\r\\n]/)[0].trim().slice(0,120)||"New team assignment";
+  const assignee=worker==="hq"?"alex":worker;
+  const {data:assignment,error}=await db.from("agent_team_assignments").insert({
+   owner_id:owner,title:first,instructions:trimmed,employee_ids:[assignee],
+   source_employee_id:worker,coordination_status:"planning"
+  }).select("id").single();
+  if(error||!assignment)throw Error("Could not save Alex's proposed assignment");
+  await db.from("agent_team_messages").insert({
+   owner_id:owner,assignment_id:assignment.id,sender_kind:"owner",
+   sender_id:"owner",message_type:"note",body:trimmed
+  });
+  await state("idle","",assignment.id);
+  startAssignment=assignment.id;
+  replyText=worker==="alex"?"I've asked the team planner to prepare a specialist work order here in Messages. You'll see the full plan and can reply green light or red light before anyone starts.":
+   "I've handed your request to Alex to choose the right specialists. The plan will show in this conversation, and nothing starts without your approval.";
+ };
  const currentWaiting=async()=>{
   const {data:tasks}=await db.from("agent_task_steps").select("id,assignment_id,employee_id,status,question")
    .eq("owner_id",owner).eq("employee_id",worker).in("status",["waiting_for_owner","waiting_for_permission"])
@@ -438,29 +457,14 @@ Deno.serve(async(req:Request)=>{
    }
   }else if(stage==="confirm_task"){
    if(decision==="yes"){
-    if(pending.length<5)throw Error("Assignment details are missing");
-    const trimmed=pending.slice(0,10000);
-    const first=trimmed.split(/[\r\n]/)[0].trim().slice(0,120)||"New team assignment";
-    const assignee=worker==="hq"?"alex":worker;
-    const {data:assignment,error}=await db.from("agent_team_assignments").insert({
-     owner_id:owner,title:first,instructions:trimmed,employee_ids:[assignee],
-     source_employee_id:worker,coordination_status:"planning"
-    }).select("id").single();
-    if(error||!assignment)throw Error("Could not create this assignment");
-    await db.from("agent_team_messages").insert({
-     owner_id:owner,assignment_id:assignment.id,sender_kind:"owner",sender_id:"owner",
-     message_type:"note",body:trimmed
-    });
-    await state("idle","",assignment.id);
-    startAssignment=assignment.id;
-    replyText=worker==="alex"?"I will draft a specialist assignment plan for your review. The specialists will not start until you approve the plan.":"Yes, I can take that on. I'll bring Alex in to organize the work and keep you updated here.";
+    await createAssignment(pending);
    }else if(decision==="no"){
     await state("idle");
-    replyText="No problem. We can just talk about it. What would you like to know?";
+    replyText="Okay, no assignment will start. Tell me what you want changed.";
    }else{
-    pending=(pending+"\nAdditional information: "+body).slice(0,10000);
+    pending=(pending+"\\nAdditional information: "+body).slice(0,10000);
     await state("confirm_task",pending);
-    replyText="Got it. Should I go ahead and turn that into an assignment for the team? Yes or no?";
+    replyText="Got it. Should I create the proposed work order? Yes or no?";
    }
   }else if(stage==="confirm_resume"){
    if(decision==="yes"&&related){
@@ -611,8 +615,9 @@ Deno.serve(async(req:Request)=>{
      }else if(result.intent==="research"){
       await proposeResearch(composed);
      }else if(result.intent==="task"){
-      await state("confirm_task",composed);
-      replyText=result.text.match(/yes or no/i)?result.text:result.text+" Should I start this assignment? Yes or no?";
+      // Drafting the work order is safe; the owner still must approve the
+      // SPECIFIC specialist plan before any AI drafting or external action.
+      await createAssignment(composed);
      }else if(result.intent==="collect"){
       await state("collecting_task",composed);
       replyText=result.text;
