@@ -149,10 +149,11 @@ function init(){
  },true);
  document.addEventListener('pointerdown',e=>{
   const tile=e.target.closest?.('.home-pages [data-home-tile]');
-  const blank=e.target.closest?.('.home-pages .home-dashboard');
-  // Like iOS, a long press on an icon OR empty grid space enters jiggle mode.
-  // Never intercept widget controls, navigation, or accessibility buttons.
-  if((!tile&&!blank)||e.target.closest('[data-home-shift],[data-home-next-page],[data-home-page],[data-home-widget-nav]'))return;
+  const blank=e.target.closest?.('.home-pages');
+  // Like iOS, holding any empty wallpaper area or app icon enters jiggle mode.
+  // Ignore functional controls: only an app or the empty Home canvas can trigger it.
+  if((!tile&&!blank)||(!tile&&e.target.closest?.('button,a,input,textarea,select,summary,[role="button"]'))||
+    e.target.closest?.('[data-home-shift],[data-home-next-page],[data-home-page],[data-home-widget-nav]'))return;
   dragId=tile?.dataset.homeTile||null;origin={x:e.clientX,y:e.clientY};
   if(!editing){
    longTimer=setTimeout(()=>{
@@ -179,8 +180,10 @@ function init(){
  });
  document.addEventListener('pointercancel',()=>{if(longTimer)clearTimeout(longTimer);longTimer=null;dragId=null;origin=null});
  document.addEventListener('contextmenu',e=>{
-  const surface=e.target.closest?.('.home-pages .home-dashboard');
-  if(surface){e.preventDefault();editing=true;menu=false;suppressClick=true;update()}
+  const surface=e.target.closest?.('.home-pages');
+  if(surface&&!e.target.closest?.('[data-home-edit],[data-home-widget-menu],[data-home-page],[data-home-nav],[data-home-widget-nav]')){
+   e.preventDefault();editing=true;menu=false;suppressClick=true;update()
+  }
  });
  document.addEventListener('dragstart',e=>{
   const tile=e.target.closest?.('.home-pages [data-home-tile]');
