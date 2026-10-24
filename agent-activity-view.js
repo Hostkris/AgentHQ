@@ -73,7 +73,7 @@ export function threadActivities(worker,{projects=[],selected,local=[],workerRun
   out.push({key:'event:'+e.id,projectId:e.assignment_id,actor:e.employee_id,active:false,event:true,
    state:e.event_type==='worker_failed'?'error':'recorded',
    text:String(e.summary||'Recorded project activity').slice(0,240),
-   title:project?.assignment?.title||'Verified project event'});
+   title:'Update at '+new Date(e.occurred_at).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})+(project?.assignment?.title?' · '+project.assignment.title:'')});
   if(out.filter(a=>a.event).length>=2)break;
  }
  if(!fresh||!online){

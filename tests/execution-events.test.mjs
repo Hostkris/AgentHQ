@@ -14,6 +14,7 @@ test('recorded outcomes appear without claiming a worker is currently typing',()
  assert.equal(r[0].event,true);
  assert.equal(r[0].active,false);
  assert.equal(r[0].text,base.summary);
+ assert.match(r[0].title,/^Update at /);
  const html=activityHTML(r,{hq:true});
  assert.doesNotMatch(html,/data-activity-running="true"/);
  assert.doesNotMatch(html,/ios-typing/);
