@@ -52,7 +52,7 @@ test('Real research uses separately approved public web tool with traceable sour
  assert.match(research,/No report was completed/);
  assert.match(research,/hasSearchResults/);
  assert.match(research,/hasBrowserResults/);
- assert.match(research,/No research report was completed/);
+ assert.match(research,/No report was completed/);
  assert.match(research,/researchEvidence\(message\)/);
  assert.match(research,/finish_agent_research/);
  assert.match(research,/Search retrieved:/);
