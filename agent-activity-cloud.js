@@ -1,5 +1,5 @@
 import {agentCloud} from './agent-cloud-auth.js';
-import {threadActivities,activityHTML} from './agent-activity-view.js?v=20261024-autonomy-1';
+import {threadActivities,activityHTML} from './agent-activity-view.js?v=20261024-execution-events-1';
 let ownerId=null,generation=0,serial=0,pollTimer=null,polling=null,lastSync=0,labels={},workerRuns=[],research=[],legacyResearch=[],events=[],pollError=false,eventChannel=null;
 const requests=new Map();
 function projects(){return (window.agentHQProjects?.all?.()||[]).filter(s=>ownerId&&s.owner_id===ownerId);}
@@ -37,8 +37,11 @@ async function refresh(){
     agentCloud.from('agent_execution_events').select('id,assignment_id,employee_id,event_type,state,summary,occurred_at').eq('owner_id',id).order('occurred_at',{ascending:false}).limit(20)
    ]);
    if(epoch!==generation||id!==ownerId)return;
-   if(results.some(r=>r.error))throw Error('Live activity could not be refreshed');
-   [workerRuns,research,legacyResearch,events]=results.map(r=>r.data||[]);lastSync=Date.now();pollError=false;
+   // The event journal is additive. Older deployments must still show live
+   // worker indicators until the database migration has been applied.
+   if(results.slice(0,3).some(r=>r.error))throw Error('Live activity could not be refreshed');
+   [workerRuns,research,legacyResearch]=results.slice(0,3).map(r=>r.data||[]);
+   events=results[3]?.error?[]:results[3]?.data||[];lastSync=Date.now();pollError=false;
   }catch{pollError=true;}
   finally{paint();}
  })();polling=task;
