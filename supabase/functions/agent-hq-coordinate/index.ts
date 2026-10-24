@@ -1,5 +1,6 @@
 import {createClient} from "npm:@supabase/supabase-js@2.79.0";
 import {ALEX_DNA, SPECIALIST_JOBS, isAlexSpecialist} from "../_shared/alex-dna.ts";
+import {RILEY_TEXT_DRAFT_POLICY} from "../_shared/riley-dna.ts";
 
 const ALLOWED=["alex",...Object.keys(SPECIALIST_JOBS)];
 const JOBS=SPECIALIST_JOBS;
@@ -182,7 +183,7 @@ Given the owner's assignment, choose 1–4 specialist workers in sensible depend
 ${Object.entries(JOBS).map(([id,job])=>id+": "+job).join("; ")}.
 If the message was sent to a specialist (not Alex), give that specialist the first step if reasonably appropriate; otherwise explain reassignment. NEVER assign any specialist execution step to Alex.
 Make handoffs specific, not generic. No impersonation or claims of completed real-world work.
-Do not invent facts, web searches, source verification, user sign-ins, purchases, or emails. Mark research as unverified until owner supplies sources.
+Do not invent facts, web searches, source verification, user sign-ins, purchases, or emails. Route evidence-based research to Riley. Mark research UNVERIFIED until separately approved public research provides verifiable source links.
 Respond ONLY as valid JSON with exactly:
 {"summary":"short task breakdown","steps":[{"worker":"riley","title":"clear step name","instructions":"deliverable and handoff details"}]}
 Choose a maximum of 4 DIFFERENT workers. No markdown.`;
@@ -247,7 +248,7 @@ Return ONLY valid JSON without code fences, one of:
 {"kind":"deliverable","text":"actionable draft for team, with clear handoff context"}
 {"kind":"question","text":"short status","question":"specific information needed from owner"}
 {"kind":"permission_request","text":"short status","url":"https://specific-site.example/","reason":"what limited access is being requested"}
-Prefer concrete deliverables over unnecessary questions. Stay under 3000 characters. No fake citations.`;
+Prefer concrete deliverables over unnecessary questions. Stay under 3000 characters. No fake citations.\n${worker==="riley"?RILEY_TEXT_DRAFT_POLICY:""}`;
   const decision=await completion(ai,system,{
    assignment_title:assignment.title,owner_instructions:safeText(assignment.instructions,6500),
    info_needed:safeText(assignment.info_needed,2000),manager_summary:assignment.manager_summary,
