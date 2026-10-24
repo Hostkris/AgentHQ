@@ -833,10 +833,19 @@ if(isChat){
      "Owner approved the written draft only. No publishing, sending, account access or spending approved.":
      "Owner rejected this text draft. Ask for the specific changes and prepare a NEW internal revision draft before another review.";
     await window.agentHQTeamCloud.post(final.a.id,CREATIVE_REVIEW_PREFIX+"|"+reviewDecision+"|"+latest.version+"\n"+reviewNote);
+    // Only owner-APPROVED, version-checked written results become reusable examples.
+    // This is not training, account access or publishing authorization.
+    let knowledgeWarning="";
+    if(reviewDecision==="APPROVED"){
+     try{
+      if(!window.agentHQKnowledge?.rememberApproved)throw Error("Knowledge module is still loading");
+      await window.agentHQKnowledge.rememberApproved(final.a,latest.version,coordSteps.get(final.a.id)||[],worker);
+     }catch(error){knowledgeWarning=" Example memory was not saved: "+(error?.message||"unavailable");}
+    }
     await Promise.allSettled([window.agentHQChatCloud.refresh(),window.agentHQTeamCloud.refresh()]);
     drafts.set(worker,"");
     messages.set(worker,(messages.get(worker)||[]).filter(msg=>msg.id!==optimisticId));
-    sendFeedback.set(worker,reviewDecision==="APPROVED"?"Written draft approved. Nothing was published or sent.":"Draft marked for revision. Text what you want changed; your worker can start a revision assignment.");
+    sendFeedback.set(worker,(reviewDecision==="APPROVED"?"Written draft approved. Nothing was published or sent. Your approved text can inform future drafts.":"Draft marked for revision. Text what you want changed; your worker can start a revision assignment.")+knowledgeWarning);
     return;
    }
    if(/^approve (?:the |this |final )?(?:draft|content|copy)(?: please)?[.!]?$/i.test(value)&&!final)
