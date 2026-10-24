@@ -73,7 +73,7 @@ test("Owner-imported ChatGPT text is clearly labeled and can receive editorial a
  assert.equal(c.ownerImport(assignment).body,imported);
  assert.match(c.card(assignment),/not verified as a ChatGPT response/);
  assert.match(c.card(assignment),/&lt;em&gt;markup&lt;\/em&gt;/);
- assert.match(c.jobStatus(assignment),"Ready for your review");
+ assert.equal(c.jobStatus(assignment),"Ready for your review");
  const version=c.versionOf(assignment);
  c.messages.get(assignment.id).push({sender_kind:"owner",sender_id:"owner",body:c.REVIEW+"|APPROVED|"+version+"\nOwner review only"});
  assert.equal(c.reviewOf(assignment),"APPROVED");
