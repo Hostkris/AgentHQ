@@ -83,7 +83,7 @@ Deno.serve(async(req:Request)=>{
        const u=new URL("https://api.nango.dev/connections");
        u.searchParams.set("tags[end_user_id]",owner);
        u.searchParams.set("limit","100");
-       u.searchParams.set("page",String(page));
+       if(page>1)u.searchParams.set("page",String(page)); // Use Nango's default first page to avoid a possible pagination offset.
        const res=await fetch(u.toString(),{method:"GET",headers:requestHeaders,signal:AbortSignal.timeout(12000)});
        if(res.status===401)return output("credentials_invalid","Nango rejected the verification API key. Check the key and its environment in Supabase.");
        if(res.status===403)return output("permissions_needed","Nango does not allow this key to list connections. It needs the environment:connections:list permission (without credentials access). The read-only GitHub test also requires environment:proxy.");
@@ -116,7 +116,7 @@ Deno.serve(async(req:Request)=>{
          for(let page=1;page<=5;page++){
            const u=new URL("https://api.nango.dev/connections");
            u.searchParams.set("limit","100");
-           u.searchParams.set("page",String(page));
+           if(page>1)u.searchParams.set("page",String(page)); // Use Nango's default first page to avoid a possible pagination offset.
            const res=await fetch(u.toString(),{method:"GET",headers:requestHeaders,signal:AbortSignal.timeout(12000)});
            if(!res.ok)break;
            const json=await res.json();
