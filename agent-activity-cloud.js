@@ -1,37 +1,50 @@
 import {agentCloud} from './agent-cloud-auth.js';
-import {threadActivities,activityHTML} from './agent-activity-view.js?v=20261024-autonomy-1';
-let ownerId=null,generation=0,serial=0,pollTimer=null,polling=null,lastSync=0,labels={},workerRuns=[],research=[],legacyResearch=[],pollError=false;
+import {threadActivities,activityHTML} from './agent-activity-view.js?v=20261024-activity-verified-1';
+let ownerId=null,generation=0,serial=0,pollTimer=null,polling=null,lastSync=0,labels={},workerRuns=[],research=[],legacyResearch=[],events=[],pollError=false,eventChannel=null;
 const requests=new Map();
 function projects(){return (window.agentHQProjects?.all?.()||[]).filter(s=>ownerId&&s.owner_id===ownerId);}
-function snapshot(worker){return threadActivities(worker,{projects:projects(),selected:window.agentHQProjects?.context?.('hq')?.projectId,local:[...requests.values()],workerRuns,research,legacyResearch,labels,fresh:!pollError&&(!lastSync||Date.now()-lastSync<15000),online:navigator.onLine!==false});}
+function snapshot(worker){return threadActivities(worker,{projects:projects(),selected:window.agentHQProjects?.context?.('hq')?.projectId,local:[...requests.values()],workerRuns,research,legacyResearch,events,verifiedRuns:true,labels,fresh:!pollError&&lastSync>0&&Date.now()-lastSync<15000,online:navigator.onLine!==false,now:Date.now()});}
 function render(worker){return activityHTML(snapshot(worker),{hq:worker==='hq'});}
 function paint(){
  for(const root of document.querySelectorAll('[data-agent-activity-thread]')){
   const worker=root.dataset.agentActivityThread;if(root.dataset.agentActivityName)labels[worker]=root.dataset.agentActivityName;
-  let html=render(worker);
-  // The first frame can precede loading this module or reserving a server run.
-  if(!html&&root.dataset.activityLocal==='true')html=activityHTML([{key:'sending',actor:worker,active:navigator.onLine!==false,state:navigator.onLine===false?'offline':'working',text:navigator.onLine===false?'Connection interrupted — waiting to reconnect':'Preparing a response…',title:'Your message'}]);
+  const html=render(worker);
   if(root.innerHTML!==html)root.innerHTML=html;
   root.hidden=!html;
  }
 }
 function schedule(ms){clearTimeout(pollTimer);if(!document.hidden)pollTimer=setTimeout(tick,ms);}
-function setOwner(id){if(id===ownerId)return;generation++;ownerId=id;requests.clear();labels={};workerRuns=[];research=[];legacyResearch=[];lastSync=0;polling=null;pollError=false;paint();}
+function setOwner(id){
+ if(id===ownerId)return;
+ if(eventChannel){agentCloud.removeChannel(eventChannel);eventChannel=null;}
+ generation++;ownerId=id;requests.clear();labels={};workerRuns=[];research=[];legacyResearch=[];events=[];lastSync=0;polling=null;pollError=false;paint();
+ if(id&&agentCloud.channel)eventChannel=agentCloud.channel('hq-execution-'+id)
+  .on('postgres_changes',{event:'INSERT',schema:'public',table:'agent_execution_events',filter:'owner_id=eq.'+id},()=>schedule(0)).subscribe();
+}
 async function refresh(){
  if(polling)return polling;
  const current=generation;
  const task=(async()=>{
   try{
    if(!ownerId){const {data,error}=await agentCloud.auth.getUser();if(current!==generation)return;if(error||!data?.user){pollError=true;paint();return;}setOwner(data.user.id);}
-   const epoch=generation,id=ownerId;
+   const epoch=generation,id=ownerId,signal=AbortSignal.timeout(8000);
    const results=await Promise.all([
-    agentCloud.from('agent_worker_runs').select('id,assignment_id,employee_id,status,created_at,assignment:agent_team_assignments(title,employee_ids,owner_paused)').eq('owner_id',id).eq('status','running').order('created_at',{ascending:false}).limit(30),
-    agentCloud.from('agent_role_research').select('id,employee_id,assignment_id,bot_id,status,started_at').eq('owner_id',id).eq('status','running').order('started_at',{ascending:false}).limit(30),
-    agentCloud.from('agent_research_jobs').select('id,employee_id,status,started_at').eq('owner_id',id).eq('status','running').order('started_at',{ascending:false}).limit(30)
+    agentCloud.from('agent_worker_runs').select('id,assignment_id,employee_id,status,created_at,assignment:agent_team_assignments(title,employee_ids,owner_paused)').eq('owner_id',id).eq('status','running').order('created_at',{ascending:false}).limit(30).abortSignal(signal),
+    agentCloud.from('agent_role_research').select('id,employee_id,assignment_id,bot_id,status,started_at').eq('owner_id',id).eq('status','running').order('started_at',{ascending:false}).limit(30).abortSignal(signal),
+    agentCloud.from('agent_research_jobs').select('id,employee_id,status,started_at').eq('owner_id',id).eq('status','running').order('started_at',{ascending:false}).limit(30).abortSignal(signal),
+    agentCloud.from('agent_execution_events').select('id,assignment_id,employee_id,event_type,state,summary,source_id,occurred_at').eq('owner_id',id).order('occurred_at',{ascending:false}).limit(20).abortSignal(signal)
    ]);
    if(epoch!==generation||id!==ownerId)return;
-   if(results.some(r=>r.error))throw Error('Live activity could not be refreshed');
-   [workerRuns,research,legacyResearch]=results.map(r=>r.data||[]);lastSync=Date.now();pollError=false;
+   // The event journal is additive. Older deployments must still show live
+   // worker indicators until the database migration has been applied.
+   if(results.slice(0,3).some(r=>r.error))throw Error('Live activity could not be refreshed');
+   [workerRuns,research,legacyResearch]=results.slice(0,3).map(r=>r.data||[]);
+   const nextEvents=results[3]?.error?[]:results[3]?.data||[];
+   const changed=nextEvents.some(e=>!events.some(previous=>previous.id===e.id));
+   events=nextEvents;lastSync=Date.now();pollError=false;
+   // A recorded handoff or terminal run must refresh the real project stage,
+   // rather than leaving an older lease/worker visible until its next poll.
+   if(changed){paint();Promise.resolve(window.agentHQProjects?.refresh?.()).catch(()=>{});}
   }catch{pollError=true;}
   finally{paint();}
  })();polling=task;
@@ -54,7 +67,10 @@ window.agentHQActivity={begin,refresh,paint,render,snapshot,rememberWorkers(work
 agentCloud.auth.onAuthStateChange((_event,session)=>{setOwner(session?.user?.id||null);schedule(0);});
 document.addEventListener('agenthq-project-activity',paint);
 window.addEventListener('online',()=>schedule(0));window.addEventListener('offline',paint);
-window.addEventListener('focus',()=>schedule(0));
-document.addEventListener('visibilitychange',()=>{if(document.hidden)clearTimeout(pollTimer);else schedule(0);});
+window.addEventListener('focus',()=>{paint();schedule(0);});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)clearTimeout(pollTimer);else{paint();schedule(0);}});
 const app=document.getElementById('app');if(app)new MutationObserver(paint).observe(app,{childList:true,subtree:true});
+// Expire dots even if a status request stalls. This only repaints elapsed time;
+// it never reserves work, calls a model or manufactures activity.
+setInterval(()=>{if(!document.hidden)paint();},1000);
 paint();schedule(0);

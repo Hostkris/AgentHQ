@@ -2,11 +2,8 @@
 -- Run in one transaction (optionally after the migration) and ALWAYS roll back.
 begin;
 create temporary table project_test_ids(owner uuid,other_owner uuid,assignment uuid,run uuid,version uuid);
--- Reuse an existing owner only as a foreign key. Touch no existing rows.
-insert into project_test_ids
- select u.id,gen_random_uuid(),gen_random_uuid(),null,null from auth.users u
- where not exists(select 1 from public.agent_worker_runs r where r.owner_id=u.id and r.status='running')
- order by (select count(*) from public.agent_worker_runs r where r.owner_id=u.id and r.created_at>now()-interval '1 hour') limit 1;
+insert into project_test_ids values(gen_random_uuid(),gen_random_uuid(),gen_random_uuid(),null,null);
+insert into auth.users(id,aud,role) select owner,'authenticated','authenticated' from project_test_ids;
 insert into public.agent_team_assignments(id,owner_id,title,instructions,employee_ids,source_employee_id,coordination_status)
  select assignment,owner,'Synthetic team script','Write a 30-second landscape photography video script. Audience: beginners. Use the owner’s actual destination, not an invented one.',array['alex'],'alex','planning' from project_test_ids;
 
@@ -101,5 +98,10 @@ set local role authenticated;
 select pg_temp.assert_project((select count(*)=0 from public.agent_project_sessions),'another owner cannot read projects');
 select pg_temp.assert_project(not has_function_privilege('authenticated','public.commit_agent_project_turn(uuid,uuid,uuid,integer,jsonb)','EXECUTE'),'browser cannot forge team turns');
 select pg_temp.assert_project(not has_function_privilege('anon','public.review_agent_project(uuid,uuid,uuid,text,text)','EXECUTE'),'anonymous users cannot approve');
+select pg_temp.assert_project((select count(*)=0 from public.agent_execution_events),'another owner cannot read execution events');
+select pg_temp.assert_project(not has_table_privilege('authenticated','public.agent_execution_events','INSERT'),'browser cannot invent execution events');
 reset role;
+select pg_temp.assert_project((select count(distinct event_type)>=6 from public.agent_execution_events where assignment_id=(select assignment from project_test_ids)),'real backend transitions record starts, completions, handoffs, questions, review and approval');
+select pg_temp.assert_project((select count(*)>=1 from public.agent_execution_events where assignment_id=(select assignment from project_test_ids) and event_type='team_message_sent' and summary like '%casey%'),'named handoff comes from the saved team message');
+select pg_temp.assert_project((select count(*)>=1 from public.agent_execution_events where assignment_id=(select assignment from project_test_ids) and event_type='deliverable_ready'),'finished summary is backed by review state');
 rollback;

@@ -2,7 +2,7 @@
 // The database enforces sequence, owner scope, leases, usage caps and final review.
 import {PUBLIC_WEB_CAPABILITY,researchForRole} from './role-research.ts';
 import {ProjectResponseError,projectResponseContract,projectResponseFailure,projectResponseRecovery} from '../../../agent-project-recovery.js';
-import {PROJECT_AUTONOMY_POLICY,validateOwnerInterruption} from '../../../agent-project-autonomy.js';
+import {PROJECT_AUTONOMY_POLICY,validateOwnerInterruption,routineOwnerQuestion} from '../../../agent-project-autonomy.js';
 export const PROJECT_PHASES = ['planning','discussion','drafting','checking','polishing'] as const;
 const workers = ['maya','jordan','riley','taylor','casey','morgan','avery','jamie','quinn'];
 const text = (value:unknown,max=1600) => typeof value==='string'?value.trim().slice(0,max):'';
@@ -17,7 +17,18 @@ export function safeProjectURL(value:unknown){
 }
 export function normalizeProjectTurn(raw:any,s:any,issues:(body:string,options:any)=>string[]=()=>[]){
  try{return validateProjectTurn(raw,s,issues);}
- catch(error){if(error instanceof ProjectResponseError)error.responseKind=text(raw?.kind,30);throw error;}
+ catch(error){
+  // A repeated routine question is an internal team decision, not an endless
+  // failure loop or a reason to interrupt the owner. Never transform a budget,
+  // private fact, authorization, deliverable or another stage into a completed task.
+  if(error instanceof ProjectResponseError&&error.code==='nonessential_question'&&routineOwnerQuestion(raw)&&s.phase==='discussion'&&projectResponseRecovery(s,s.recovery_error)?.code==='nonessential_question'){
+   const contract=projectResponseContract(s),recipient=contract.recipients[0];
+   const choice='Resolve this routine choice from the saved brief and team context; use a clearly labelled reasonable assumption if needed. '+text(raw.question,900);
+   if(s.peer_target)return validateProjectTurn({kind:'answer',text:s.peer_return_worker+', this is an internal team decision. '+choice},s,issues);
+   return validateProjectTurn(contract.allowed.includes('ask_team')?{kind:'ask_team',recipient,text:recipient+', '+choice}:{kind:'contribute',text:'Team decision to resolve internally: '+choice},s,issues);
+  }
+  if(error instanceof ProjectResponseError)error.responseKind=text(raw?.kind,30);throw error;
+ }
 }
 function validateProjectTurn(raw:any,s:any,issues:(body:string,options:any)=>string[]){
  if(!raw||typeof raw!=='object'||Array.isArray(raw))throw new ProjectResponseError('invalid_response','No structured team response was returned');

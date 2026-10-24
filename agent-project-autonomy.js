@@ -7,14 +7,17 @@ Interrupt the owner only for an essential owner-only fact that cannot responsibl
 Once the owner supplies the essential fact or decides the specific request, resume the same project automatically without another confirmation. Keep working within the existing usage and spending limits; wait automatically for a free allowance to reset rather than requesting a larger budget. Stop at the finished deliverable for the owner's final editorial approval. Final editorial approval alone does not grant unrelated account, financial, publishing or execution authority.`;
 
 export const HUMAN_APPROVAL_CATEGORIES=Object.freeze(['account_authorization','private_data','spending','budget_change','account_change','public_release','risky_site','irreversible_commitment']);
+export function routineOwnerQuestion(raw){
+ const question=String(raw?.question||'');
+ return raw?.kind==='ask_owner'&&/\b(?:tone|writing style|colour|color|font|success metrics?|key metrics?|primary content formats?)\b/i.test(question)&&!/\b(?:actual|recorded|historical|previous|last|account|budget|balance|spend|payment|private|confidential|legal|deadline|consent|authorization)\b/i.test(question);
+}
 
 export function validateOwnerInterruption(raw){
  if(raw.kind==='permission'){
   if(!HUMAN_APPROVAL_CATEGORIES.includes(raw.approval_category)||typeof raw.why_blocking!=='string'||raw.why_blocking.trim().length<20)
    throw new ProjectResponseError('unnecessary_approval','Routine drafting, public research and internal corrections are already authorized. Request only a specific sensitive human authorization and explain why it is necessary.');
  }else if(raw.kind==='ask_owner'){
-  const question=String(raw.question||'');
-  if(/\b(?:tone|writing style|colour|color|font|success metrics?|key metrics?|primary content formats?)\b/i.test(question)&&!/\b(?:actual|recorded|historical|previous|last|account|budget|balance|spend|payment|private|confidential|legal|deadline|consent|authorization)\b/i.test(question))
+  if(routineOwnerQuestion(raw))
    throw new ProjectResponseError('nonessential_question','Resolve tone, style, formatting and proposed success metrics within the team. Ask only the single essential owner-only fact that prevents completion.');
   if(raw.blocking_reason!=='owner_only_fact'||typeof raw.why_blocking!=='string'||raw.why_blocking.trim().length<20)
    throw new ProjectResponseError('nonessential_question','Use saved project information, teammates and available research first. Ask the owner only for a genuinely essential owner-only fact and explain why it blocks completion.');

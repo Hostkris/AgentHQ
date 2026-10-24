@@ -4,12 +4,13 @@ import {createServer} from 'node:http';
 import {readFile,mkdir} from 'node:fs/promises';
 import {resolve,extname} from 'node:path';
 import assert from 'node:assert/strict';
-const {chromium}=createRequire(import.meta.url)('playwright');
+const {chromium,webkit}=createRequire(import.meta.url)('playwright');
+const engine=process.env.AGENTHQ_TEST_BROWSER==='webkit'?webkit:chromium,mac=process.env.AGENTHQ_TEST_DEVICE==='mac';
 const root=resolve(new URL('..',import.meta.url).pathname),results=[];
 const server=createServer(async(req,res)=>{try{const path=resolve(root,'.'+new URL(req.url,'http://localhost').pathname);if(!path.startsWith(root+'/'))throw Error();res.setHeader('Content-Type',extname(path)==='.js'?'text/javascript':extname(path)==='.css'?'text/css':'text/html');res.end(await readFile(path));}catch{res.statusCode=404;res.end();}});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+server.address().port;
-const browser=await chromium.launch({headless:true,executablePath:process.env.AGENTHQ_TEST_CHROME||'/tmp/chromium',args:['--no-sandbox','--disable-dev-shm-usage','--disable-gpu']});
-const context=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,isMobile:true});
+const browser=await engine.launch({headless:true,...(engine===chromium?{executablePath:process.env.AGENTHQ_TEST_CHROME||'/tmp/chromium',args:['--no-sandbox','--disable-dev-shm-usage','--disable-gpu']}:process.env.AGENTHQ_TEST_WEBKIT?{executablePath:process.env.AGENTHQ_TEST_WEBKIT}:{} )});
+const context=await browser.newContext({viewport:mac?{width:1440,height:900}:{width:390,height:844},hasTouch:!mac,isMobile:!mac});
 const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
 const core=new Set(['agent-research-status.js','app.js','icons.js','agent-home-layout.js','agent-message-controls.js','agent-project-view.js','agent-project-recovery.js','agent-project-autonomy.js','agent-projects-cloud.js','agent-activity-view.js','agent-activity-cloud.js','agent-messages-cloud.js','agent-bot-studio-cloud.js','agent-bot-studio-ui.js']);
 await page.route('**/*',async route=>{const url=new URL(route.request().url()),name=url.pathname.split('/').at(-1);if(url.origin!==base){await route.abort();return;}if(name==='agent-cloud-auth.js'){await route.fulfill({contentType:'text/javascript',body:'export const agentCloud=window.__cloud;'});return;}if(name.endsWith('.js')&&!core.has(name)){await route.fulfill({contentType:'text/javascript',body:''});return;}await route.continue();});
@@ -24,11 +25,11 @@ await page.addInitScript(()=>{
  state.release=(worker,fail=false)=>holds.get(worker)?.(fail);
  state.auth=(owner,event='SIGNED_IN')=>{state.owner=owner;listeners.forEach(f=>f(event,{user:{id:owner}}));};
  window.__cloud={auth:{getUser:async()=>({data:{user:{id:state.owner}}}),onAuthStateChange:f=>listeners.push(f)},from(table){let filters=[],single=false;
-  const q={select(){return q},eq(k,v){filters.push(r=>r[k]===v);return q},in(k,v){filters.push(r=>v.includes(r[k]));return q},order(){return q},limit(){return q},maybeSingle(){single=true;return q},then(fn){const error=state.failMetadata&&['agent_worker_runs','agent_role_research','agent_research_jobs'].includes(table)?{message:'Temporarily offline'}:null;const rows=(tables[table]||[]).filter(r=>filters.every(f=>f(r)));return Promise.resolve({data:single?rows[0]||null:structuredClone(rows),error}).then(fn);}};return q;},rpc:async()=>({data:[]}),functions:{async invoke(name,{body}){
+  const q={select(){return q},eq(k,v){filters.push(r=>r[k]===v);return q},in(k,v){filters.push(r=>v.includes(r[k]));return q},order(){return q},limit(){return q},abortSignal(){return q},maybeSingle(){single=true;return q},then(fn){const error=state.failMetadata&&['agent_worker_runs','agent_role_research','agent_research_jobs'].includes(table)?{message:'Temporarily offline'}:null;const rows=(tables[table]||[]).filter(r=>filters.every(f=>f(r)));return Promise.resolve({data:single?rows[0]||null:structuredClone(rows),error}).then(fn);}};return q;},rpc:async()=>({data:[]}),functions:{async invoke(name,{body}){
    state.calls.push({name,...body});
    if(name==='agent-hq-coordinate'){
-    await new Promise(r=>setTimeout(r,state.claimDelay));project.active_run='held-run';project.active_worker=project.next_worker;project.lease_until=new Date(Date.now()+85000).toISOString();
-    await new Promise(r=>holds.set('project',r));project.active_run=null;project.phase='waiting_owner';project.waiting_worker='riley';return {data:{state:'waiting_owner'}};
+    await new Promise(r=>setTimeout(r,state.claimDelay));project.active_run='held-run';project.active_worker=project.next_worker;tables.agent_worker_runs=[{id:'held-run',owner_id:state.owner,assignment_id:id,employee_id:project.next_worker,status:'running',created_at:new Date().toISOString()}];project.lease_until=new Date(Date.now()+85000).toISOString();
+    await new Promise(r=>holds.set('project',r));tables.agent_worker_runs=[];project.active_run=null;project.phase='waiting_owner';project.waiting_worker='riley';return {data:{state:'waiting_owner'}};
    }
    const worker=body.bot_id||body.employee_id,fail=await new Promise(r=>holds.set(worker,r));holds.delete(worker);
    if(fail)return {error:{message:'Synthetic provider failure'}};
@@ -68,7 +69,7 @@ try{
   await open('riley');await page.locator('#draft').fill('Keep this unsent text');await page.locator('#draft').focus();
   await page.evaluate(()=>{const f=document.querySelector('#draft');f.setSelectionRange(5,9);document.querySelector('#chat-scroll').scrollTop=0;__activityMock.project.pending_research_query='Landscape campaign evidence';});await projectRefresh();
   assert.match(await dock().innerText(),/researching public sources/);assert.equal(await page.locator('#draft').inputValue(),'Keep this unsent text');assert.deepEqual(await page.locator('#draft').evaluate(e=>[e===document.activeElement,e.selectionStart,e.selectionEnd]),[true,5,9]);assert.equal(await page.locator('#chat-scroll').evaluate(e=>e.scrollTop),0);
-  const area=await dock().boundingBox(),composer=await page.locator('#composer').boundingBox();assert(area.height>30&&area.y+area.height<=composer.y+1);assert(area.y>0&&composer.y+composer.height<=844);
+  const area=await dock().boundingBox(),composer=await page.locator('#composer').boundingBox();assert(area.height>30&&area.y+area.height<=composer.y+1);assert(area.y>0&&composer.y+composer.height<=page.viewportSize().height+1);
  });
  await check('A teammate’s answer and peer review have distinct visible stages',async()=>{
   await page.evaluate(()=>{const s=__activityMock.project;s.pending_research_query=null;s.peer_target='riley';s.peer_return_worker='casey';});await projectRefresh();assert.match(await dock().innerText(),/answering Casey/);
@@ -92,6 +93,14 @@ try{
   for(const worker of ['quinn','alex','hq']){await open(worker);assert.match(await dock().innerText(),/Quinn.*assigned work/);}await open('casey');assert(await dock().evaluate(e=>e.hidden));
   await page.evaluate(()=>__activityMock.tables.agent_worker_runs=[]);await projectRefresh();
  });
+ await check('Recorded handoffs and final summaries stay visible without starting stopped dots',async()=>{
+  await open('hq');await page.evaluate(()=>{
+   const m=__activityMock,s=m.project;s.phase='checking';s.next_worker='casey';s.active_run=null;s.next_run_at=new Date(Date.now()+3600000).toISOString();
+   m.tables.agent_execution_events=[{id:'handoff',owner_id:m.owner,assignment_id:s.assignment_id,employee_id:'jordan',event_type:'team_message_sent',state:'team_question',summary:'Jordan sent an assignment message to casey',occurred_at:new Date().toISOString()}];
+  });await projectRefresh();assert.match(await dock().innerText(),/Jordan sent an assignment message to casey/);assert.equal(await dock().locator('.ios-typing').count(),0);
+  await page.evaluate(()=>{const m=__activityMock,s=m.project;s.phase='review';s.review_status='pending';s.output_version=m.other;s.final_output='A complete synthetic landscape campaign with a clear beginner audience, an actionable horizon correction and a finished closing invitation.';m.tables.agent_execution_events=[{id:'finished',owner_id:m.owner,assignment_id:s.assignment_id,employee_id:'jordan',event_type:'deliverable_ready',state:'review',summary:'Jordan submitted work for owner review',occurred_at:new Date().toISOString()}];});
+  await projectRefresh();assert.match(await dock().innerText(),/finished work is ready for your review/);assert.match(await dock().innerText(),/submitted work for owner review/);assert.equal(await dock().locator('.ios-typing').count(),0);assert.equal(await page.locator('[data-project-final]').count(),1);
+ });
  await check('Custom workers use the same three-dot indicator without showing another bot as typing',async()=>{
   await page.evaluate(()=>agentHQCameraReturnToChat(null));await page.locator('[data-nav=studio]').click();
   await page.evaluate(()=>agentHQBotStudioUI.openBot(__activityMock.bot));await page.locator('#studio-message-form').waitFor();
@@ -101,8 +110,8 @@ try{
   await page.evaluate(()=>agentHQBotStudioUI.openBot(__activityMock.bot));await page.locator('[data-activity-running=true]').waitFor();await page.evaluate(async()=>{__activityMock.release(__activityMock.bot);await __studioResult;});assert(await dock().evaluate(e=>e.hidden));
  });
  await check('Light, dark, reduced motion, iPad and landscape retain visible activity above the composer',async()=>{
-  await open('hq');await page.evaluate(()=>{const s=__activityMock.project;s.phase='checking';s.next_run_at=new Date(0).toISOString();s.active_run='layout-run';s.active_worker='casey';s.lease_until=new Date(Date.now()+80000).toISOString();});await projectRefresh();
-  for(const viewport of [{width:390,height:844},{width:820,height:1180},{width:844,height:390}]){await page.setViewportSize(viewport);const a=await dock().boundingBox(),c=await page.locator('#composer').boundingBox();assert(a.y>=0&&a.y+a.height<=c.y+1);assert(c.y+c.height<=viewport.height+1);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));}
+  await open('hq');await page.evaluate(()=>{const s=__activityMock.project;s.phase='checking';s.next_run_at=new Date(0).toISOString();s.active_run='layout-run';s.active_worker='casey';s.lease_until=new Date(Date.now()+80000).toISOString();__activityMock.tables.agent_worker_runs=[{id:'layout-run',owner_id:__activityMock.owner,assignment_id:s.assignment_id,employee_id:'casey',status:'running',created_at:new Date().toISOString()}];});await projectRefresh();
+  for(const viewport of [{width:390,height:844},{width:820,height:1180},{width:844,height:390},{width:1440,height:900}]){await page.setViewportSize(viewport);const a=await dock().boundingBox(),c=await page.locator('#composer').boundingBox();assert(a.y>=0&&a.y+a.height<=c.y+1);assert(c.y+c.height<=viewport.height+1);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));}
   await page.setViewportSize({width:390,height:844});await page.emulateMedia({colorScheme:'dark',reducedMotion:'reduce'});assert.equal(await dock().locator('.ios-typing span').first().evaluate(e=>getComputedStyle(e).animationName),'none');assert.notEqual(await dock().evaluate(e=>getComputedStyle(e).color),await dock().evaluate(e=>getComputedStyle(e).backgroundColor));
   await mkdir('/tmp/agenthq-live-activity',{recursive:true});await page.screenshot({path:'/tmp/agenthq-live-activity/hq-dark.png'});await page.emulateMedia({colorScheme:'light',reducedMotion:'no-preference'});await page.screenshot({path:'/tmp/agenthq-live-activity/hq-light.png'});
  });

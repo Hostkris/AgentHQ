@@ -13,6 +13,11 @@ on:
       - 'agent-*-cloud.js'
       - 'agent-project-*.js'
       - 'agent-research-status.js'
+      - 'agent-activity-*.js'
+      - 'tests/activity-validation.test.mjs'
+      - 'tests/execution-events.test.mjs'
+      - 'tests/live-activity*'
+      - 'tests/company-hq.browser.mjs'
       - 'tests/research*.test.mjs'
       - 'tests/role-research.test.mjs'
       - 'tests/project-response-recovery.test.mjs'
@@ -55,6 +60,11 @@ on:
       - 'agent-*-cloud.js'
       - 'agent-project-*.js'
       - 'agent-research-status.js'
+      - 'agent-activity-*.js'
+      - 'tests/activity-validation.test.mjs'
+      - 'tests/execution-events.test.mjs'
+      - 'tests/live-activity*'
+      - 'tests/company-hq.browser.mjs'
       - 'tests/research*.test.mjs'
       - 'tests/role-research.test.mjs'
       - 'tests/project-response-recovery.test.mjs'
@@ -89,6 +99,8 @@ jobs:
         run: node --test tests/company-hq.test.mjs tests/project-response-recovery.test.mjs tests/project-autonomy.test.mjs
       - name: Test Groq public research and provider recovery
         run: node --test tests/research*.test.mjs tests/role-research.test.mjs
+      - name: Test live activity and backend event authenticity
+        run: node --test tests/activity-validation.test.mjs tests/execution-events.test.mjs tests/live-activity.test.mjs
       - name: Test unread message badges
         run: node --test tests/unread-badges.test.mjs
       - name: Test conversation-first manager workflow
@@ -123,3 +135,23 @@ jobs:
         run: node --test tests/account-signins-publishing.test.mjs
       - name: Test approved knowledge, owner privacy and draft self-correction
         run: node --test tests/agent-intelligence.test.mjs && node --check agent-knowledge-cloud.js
+
+  safari-activity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install Safari engine for browser validation
+        run: npm install --no-save --package-lock=false playwright@1.62.1 && npx playwright install --with-deps webkit
+      - name: Verify iPhone activity and collaboration
+        env:
+          AGENTHQ_TEST_BROWSER: webkit
+        run: node tests/live-activity.browser.mjs && node tests/company-hq.browser.mjs
+      - name: Verify Mac activity and collaboration
+        env:
+          AGENTHQ_TEST_BROWSER: webkit
+          AGENTHQ_TEST_DEVICE: mac
+        run: node tests/live-activity.browser.mjs && node tests/company-hq.browser.mjs

@@ -1,6 +1,6 @@
 // Pure presentation helpers, shared by the app and browser/Node checks.
 import {projectResponseRecovery} from './agent-project-recovery.js?v=20261024-autonomy-1';
-import {autonomousRecoveryStatus} from './agent-project-autonomy.js?v=20261024-research-recovery-1';
+import {autonomousRecoveryStatus} from './agent-project-autonomy.js?v=20261024-activity-verified-1';
 export const projectPhaseLabel=s=>s.assignment?.owner_paused?'Paused':autonomousRecoveryStatus(s)?.text|| (s.last_error?'Needs attention':s.pending_research_query&&s.active_run?'Researching public sources':
  ({planning:'Alex is assembling the team',discussion:'Team discussion',drafting:'Writing the shared draft',checking:'Peer review',polishing:'Applying the team’s feedback',waiting_owner:'Waiting for a private answer',waiting_permission:'Waiting for a private approval',review:'Ready for your review',approved:'Approved'})[s.phase]||'Team project');
 export function projectIsTyping(s,now=Date.now()){
