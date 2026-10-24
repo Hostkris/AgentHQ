@@ -572,7 +572,7 @@ Deno.serve(async(req:Request)=>{
     replyText="For "+request.target_url+" ("+request.reason+"), should I record approval for this specific request? Yes or no? It won't start browsing.";
    }
   }else{
-   if(worker!=="alex"&&isResearchInstruction(body)&&stage==="idle")await proposeResearch(body);
+   if(worker!=="alex"&&worker!=="riley"&&isResearchInstruction(body)&&stage==="idle")await proposeResearch(body);
    const waiting=replyText?null:await currentWaiting();
    if(waiting?.status==="waiting_for_permission"&&decision){
     const {data:requests}=await db.from("agent_permission_requests")
