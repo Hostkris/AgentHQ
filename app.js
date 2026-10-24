@@ -464,10 +464,10 @@ function naturalResearchHTML(report){
 }
 function renderConversationResearch(worker){
  const after=clearedAtByWorker.get(worker)||0;
- const latest=researchJobs.filter(j=>j.employee_id===worker&&j.status==="completed"&&j.report&&
+ const latest=researchJobs.filter(j=>(j.employee_id===worker||(worker==="alex"&&j.employee_id==="riley"))&&j.status==="completed"&&j.report&&
   (Date.parse(j.created_at)||0)>=after).slice(0,2);
  return latest.map(j=>'<div class="ios-message-row incoming"><article class="ios-research-attachment">'+
-  '<div class="ios-work-type">🔎 Saved research</div>'+
+  '<div class="ios-work-type">🔎 '+(worker==="alex"?"Riley's research for review":"Saved research")+'</div>'+
   '<strong>'+escapeHTML(j.query.slice(0,115))+'</strong>'+
   '<small>Full report · Public sources and limitations</small>'+
   '<details><summary>Read findings and sources</summary><div class="ios-research-report">'+naturalResearchHTML(j.report)+'</div></details>'+
