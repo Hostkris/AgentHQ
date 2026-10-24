@@ -26,7 +26,9 @@ test("All requested accounts are shown, with truthful connection status",()=>{
  for(const name of ["chatgpt","gmail","facebook","instagram","tiktok","youtube","icloud","meta"])
   assert.ok(ids.includes(name),name+" not in Settings");
  const html=u.renderConnections();
- assert.match(html,/Not available/);
+ assert.match(html,/Manual use ready/);
+ assert.match(html,/Request OpenAI access/);
+ assert.match(html,/Open ChatGPT/);
  assert.match(html,/Not linked to Agent HQ/);
  assert.match(html,/Connect with Google|Set up Gmail/);
  assert.match(html,/Open official website/);
