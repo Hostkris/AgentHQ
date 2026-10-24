@@ -21,7 +21,7 @@ test('iPhone-style home layout supports page management, drag rearranging and wi
  assert.match(js,/addEventListener\('pointerdown'/);
  assert.match(js,/addEventListener\('touchmove'/);
  assert.match(js,/event\.preventDefault\(\)/);
- assert.match(js,/commitGridOrder\(\)/);
+ assert.match(js,/commitGridOrders\(\)/);
  assert.match(js,/addEventListener\('touchend'/);
  assert.match(js,/Messages/);
  assert.match(js,/Approvals/);
@@ -83,36 +83,26 @@ test('New home files are linked and iPhone touch styles are present',()=>{
  assert.match(css,/\.ios-research-attachment/);
 });
 
-test('Home Screen hides editing chrome and enters jiggle mode on long press',()=>{
+test('Home starts with swipeable pages and editing chrome remains hidden until requested',()=>{
  const source=src('agent-home-layout.js');
- const handlers=new Map();
- let timer=null,output='';
  const renderButton=(label,id,emoji)=>'<button class="tile" aria-label="'+label+'"><span class="app-icon">'+emoji+'</span><span class="tile-label">'+label+'</span></button>';
  const scope={
-  localStorage:{getItem:()=>null,setItem:()=>{}},
-  navigator:{},
-  document:{addEventListener:(type,fn)=>handlers.set(type,fn)},
-  window:{alert:()=>{}},
-  setTimeout:fn=>{timer=fn;return 1},
-  clearTimeout:()=>{timer=null}
+  localStorage:{getItem:()=>null,setItem:()=>{}},navigator:{},
+  document:{addEventListener:()=>{}},window:{alert:()=>{}},
+  setTimeout:()=>1,clearTimeout:()=>{}
  };
- runInNewContext(source.replace(/^export /gm,'')+';globalThis.renderHomeScreenTest=renderHomeScreen;globalThis.connectHomeScreenTest=connectHomeScreen;',scope);
- const render=()=>scope.renderHomeScreenTest(renderButton,{});
- output=render();
- assert.ok(!output.includes('Edit Home Screen'));
+ runInNewContext(source.replace(/^export /gm,'')+';globalThis.renderHomeScreenTest=renderHomeScreen;',scope);
+ const output=scope.renderHomeScreenTest(renderButton,{});
  assert.ok(!output.includes('data-home-edit'));
- assert.ok(!output.includes('Page 1 of 1'));
- for(const id of ['Email','Accounts','Studio','Creative'])assert.ok(output.includes('<span class="tile-label">'+id+'</span>'),id+' caption');
+ assert.match(output,/class="home-slide-track"/);
+ assert.match(output,/data-home-slide="1"/);
+ assert.match(output,/data-home-page="1"/);
+ for(const name of ['Email','Accounts','Studio','Creative'])assert.ok(output.includes('<span class="tile-label">'+name+'</span>'));
  assert.ok(!output.includes('<span class="tile-label">Email Center</span>'));
- scope.connectHomeScreenTest(()=>{output=render()});
- const target={closest:sel=>sel==='.home-pages'?{}:null};
- handlers.get('pointerdown')({target,button:0,pointerType:'mouse',clientX:10,clientY:20});
- assert.ok(timer,'Holding an icon should schedule edit mode');
- timer();
- assert.ok(output.includes('>Done</button>'),'Only edit mode shows Done');
- assert.ok(output.includes('data-home-widget-menu'));
- assert.ok(!output.includes('Edit Home Screen'));
- assert.ok(source.includes("const blank=e.target.closest?.('.home-pages')"));
+ assert.match(source,/startSwipe\(/);
+ assert.match(source,/setTrackPosition\(/);
+ assert.match(source,/source\.classList\.add\('home-drag-placeholder'\)/);
+ assert.match(source,/requestAnimationFrame\(animateGhost\)/);
 });
 
 test('Home captions fit their grid cell with frosted background',()=>{
