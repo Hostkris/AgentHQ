@@ -101,6 +101,19 @@ export async function runResearch(db:any,owner:string,worker:string,jobId:string
   const report=prefix+answer.slice(0,9900-prefix.length-suffix.length)+suffix;
   const {data:saved,error:saveError}=await db.rpc('finish_agent_research',{p_owner:owner,p_worker:worker,p_job:jobId,p_report:report,p_sources:listed});
   if(saveError||saved!==true)throw Error('The report could not be saved. Check Research history before requesting another.');
+  // Research is not complete operationally until Alex has a traceable handoff.
+  // Only an owner-scoped copy of the report is sent, never credentials or account data.
+  if(worker==="riley"){
+   const {data:managerChat,error:managerError}=await db.from('agent_conversations')
+    .upsert({owner_id:owner,employee_id:'alex'},{onConflict:'owner_id,employee_id'})
+    .select('id').single();
+   if(managerError||!managerChat)return report+'\n\nRiley handoff to Alex is pending: report saved, but manager conversation is unavailable.';
+   const {error:handoffError}=await db.from('agent_messages').insert({
+    owner_id:owner,conversation_id:managerChat.id,sender:'employee',
+    body:('Riley submitted new research for Alex to review. This report contains search evidence but is NOT yet verified by Alex.\n\n'+report).slice(0,9800)
+   });
+   if(handoffError)return report+'\n\nRiley handoff to Alex is pending: report saved, but manager message could not be written.';
+  }
   return report;
  }catch(e){
   const info=e instanceof Error?(e.name==='TimeoutError'?'Web research timed out. Ask for a new report to retry.':e.message):'Web research failed.';
