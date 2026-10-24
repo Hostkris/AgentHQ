@@ -11,11 +11,17 @@ test('iPhone-style home layout supports page management, drag rearranging and wi
  assert.match(js,/data-home-edit/);
  assert.match(js,/data-home-add-page/);
  assert.match(js,/data-home-page/);
- assert.match(js,/data-home-shift/);
+ assert.doesNotMatch(js,/data-home-shift/);
+ assert.doesNotMatch(js,/home-edit-arrows/);
+ assert.match(js,/home-drag-ghost/);
+ assert.match(js,/reorderAt\(x,y\)/);
+ assert.match(js,/switchDragPage\(direction\)/);
  assert.match(js,/data-home-add-widget/);
  assert.match(js,/data-home-remove-widget/);
  assert.match(js,/addEventListener\('pointerdown'/);
- assert.match(js,/addEventListener\('drop'/);
+ assert.match(js,/addEventListener\('touchmove'/);
+ assert.match(js,/event\.preventDefault\(\)/);
+ assert.match(js,/commitGridOrder\(\)/);
  assert.match(js,/addEventListener\('touchend'/);
  assert.match(js,/Messages/);
  assert.match(js,/Approvals/);
@@ -99,8 +105,8 @@ test('Home Screen hides editing chrome and enters jiggle mode on long press',()=
  for(const id of ['Email','Accounts','Studio','Creative'])assert.ok(output.includes('<span class="tile-label">'+id+'</span>'),id+' caption');
  assert.ok(!output.includes('<span class="tile-label">Email Center</span>'));
  scope.connectHomeScreenTest(()=>{output=render()});
- const target={closest:sel=>sel.includes('[data-home-tile]')?{dataset:{homeTile:'office'}}:null};
- handlers.get('pointerdown')({target,clientX:10,clientY:20});
+ const target={closest:sel=>sel==='.home-pages'?{}:null};
+ handlers.get('pointerdown')({target,button:0,pointerType:'mouse',clientX:10,clientY:20});
  assert.ok(timer,'Holding an icon should schedule edit mode');
  timer();
  assert.ok(output.includes('>Done</button>'),'Only edit mode shows Done');
@@ -117,4 +123,17 @@ test('Home captions fit their grid cell with frosted background',()=>{
  assert.ok(css.includes('backdrop-filter:blur(16px)'));
  assert.ok(css.includes('font-weight:600!important'));
  assert.ok(css.includes('text-overflow:ellipsis'));
+});
+
+test('No arrow movement controls appear in any Home icon, even while editing',()=>{
+ const js=src('agent-home-layout.js');
+ const css=src('ios-ui.css');
+ assert.doesNotMatch(js,/data-home-shift|data-home-next-page|home-edit-arrows/);
+ assert.match(css,/home-drag-ghost/);
+ assert.match(css,/home-drag-placeholder/);
+ assert.match(css,/pointer-events:none!important/);
+ assert.match(js,/target\.after\(source\)/);
+ assert.match(js,/target\.before\(source\)/);
+ assert.match(js,/document\.elementFromPoint\(x,y\)/);
+ assert.match(js,/edgeTimer=setTimeout/);
 });
