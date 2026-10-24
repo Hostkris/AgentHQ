@@ -9,6 +9,13 @@ const APPS=[
  ["approvals","Approvals","🔐"],["research","Research","🔎"],
  ["browser","Browser","🌐"],["reminders","Reminders","📅"],["settings","Settings","⚙️"]
 ];
+// Compact icon captions only. Full names stay in accessibility labels and navigation.
+const HOME_LABELS=Object.freeze({
+ office:"Office",messages:"Messages",email:"Email",contacts:"Contacts",
+ accounts:"Accounts",studio:"Studio",assignments:"Assignments",operations:"Operations",
+ creative:"Creative",hq:"Company HQ",approvals:"Approvals",research:"Research",
+ browser:"Browser",reminders:"Reminders",settings:"Settings"
+});
 const valid=new Set(APPS.map(a=>a[0]));
 const kinds=["inbox","approvals","work","research"];
 const escapeHTML=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -45,7 +52,9 @@ function move(id,toPage,toIndex){
 function tile(id,renderButton){
  const def=APPS.find(a=>a[0]===id);if(!def)return "";
  const html=renderButton(def[1],def[0],def[2])
-  .replace('class="tile"','class="tile" data-home-tile="'+id+'" '+(editing?'draggable="true"':''));
+  .replace('class="tile"','class="tile" data-home-tile="'+id+'" '+(editing?'draggable="true"':''))
+  .replace(/(<span class="tile-label">)[\\s\\S]*?(<\\/span>)/,
+   (_full,open,close)=>open+escapeHTML(HOME_LABELS[id]||def[1])+close);
  return '<div class="home-tile-wrap">'+html+
   (editing?'<div class="home-edit-arrows">'+
    '<button type="button" data-home-shift="-1" data-home-id="'+id+'" aria-label="Move '+def[1]+' left">‹</button>'+
@@ -71,23 +80,22 @@ function widget(kind,values){
 export function renderHomeScreen(renderButton,values={}){
  const page=state.pages[state.current]||state.pages[0];
  const paging=state.pages.map((p,i)=>'<button type="button" data-home-page="'+i+'" class="home-page-dot'+(i===state.current?' active':'')+'" aria-label="Home page '+(i+1)+'" aria-current="'+(i===state.current?'page':'false')+'"></button>').join("");
- return '<section class="home-pages" aria-label="Editable Home Screen">'+
- '<div class="home-toolbar"><span>Page '+(state.current+1)+' of '+state.pages.length+'</span>'+
- '<button type="button" data-home-edit class="home-edit-toggle">'+(editing?'Done':'Edit Home Screen')+'</button></div>'+
- (editing?'<div class="home-editor-info">Hold and drag an app to move it, or use its arrows. Rearranging does not change app permissions.</div>':'')+
+ return '<section class="home-pages" aria-label="Home Screen">'+
+ (editing?'<div class="home-toolbar is-editing">'+
+  '<button type="button" data-home-widget-menu class="home-add-widget-circle" aria-label="Add a widget">+</button>'+
+  '<button type="button" data-home-edit class="home-edit-toggle">Done</button></div>':'')+
  '<div class="grid home-dashboard'+(editing?' home-is-editing':'')+'" role="navigation" aria-label="Home apps">'+
  page.apps.map(id=>tile(id,renderButton)).join("")+'</div>'+
  (page.widgets.length?'<div class="home-widgets">'+page.widgets.map(k=>widget(k,values)).join("")+'</div>':'')+
  (editing?'<div class="home-widget-picker">'+
-  '<button type="button" data-home-widget-menu>+ Add Widget</button>'+
   (menu?'<div class="home-widget-choices">'+kinds.map(k=>'<button type="button" data-home-add-widget="'+k+'">'+escapeHTML(k==="work"?"Assignments":k==="inbox"?"Messages":k==="research"?"Research":"Approvals")+'</button>').join("")+'</div>':'')+
   (state.pages.length<6?'<button type="button" data-home-add-page>+ Add Home Page</button>':'')+
   (state.pages.length>1?'<button type="button" data-home-remove-page>Remove Empty Page</button>':'')+
   '</div>':'')+
  '<div class="home-page-navigation">'+
- '<button type="button" data-home-nav="-1" '+(state.current===0?'disabled':'')+' aria-label="Previous home page">‹</button>'+
+ (state.pages.length>1?'<button type="button" data-home-nav="-1" '+(state.current===0?'disabled':'')+' aria-label="Previous home page">‹</button>':'')+
  '<div class="home-page-dots">'+paging+'</div>'+
- '<button type="button" data-home-nav="1" '+(state.current===state.pages.length-1?'disabled':'')+' aria-label="Next home page">›</button></div>'+
+ (state.pages.length>1?'<button type="button" data-home-nav="1" '+(state.current===state.pages.length-1?'disabled':'')+' aria-label="Next home page">›</button>':'')+'</div>'+
  '</section>';
 }
 function action(target,event){
@@ -141,8 +149,11 @@ function init(){
  },true);
  document.addEventListener('pointerdown',e=>{
   const tile=e.target.closest?.('.home-pages [data-home-tile]');
-  if(!tile||e.target.closest('button[data-home-shift],button[data-home-next-page]'))return;
-  dragId=tile.dataset.homeTile;origin={x:e.clientX,y:e.clientY};
+  const blank=e.target.closest?.('.home-pages .home-dashboard');
+  // Like iOS, a long press on an icon OR empty grid space enters jiggle mode.
+  // Never intercept widget controls, navigation, or accessibility buttons.
+  if((!tile&&!blank)||e.target.closest('[data-home-shift],[data-home-next-page],[data-home-page],[data-home-widget-nav]'))return;
+  dragId=tile?.dataset.homeTile||null;origin={x:e.clientX,y:e.clientY};
   if(!editing){
    longTimer=setTimeout(()=>{
     editing=true;menu=false;suppressClick=true;
@@ -168,8 +179,8 @@ function init(){
  });
  document.addEventListener('pointercancel',()=>{if(longTimer)clearTimeout(longTimer);longTimer=null;dragId=null;origin=null});
  document.addEventListener('contextmenu',e=>{
-  const tile=e.target.closest?.('.home-pages [data-home-tile]');
-  if(tile){e.preventDefault();editing=true;menu=false;update()}
+  const surface=e.target.closest?.('.home-pages .home-dashboard');
+  if(surface){e.preventDefault();editing=true;menu=false;suppressClick=true;update()}
  });
  document.addEventListener('dragstart',e=>{
   const tile=e.target.closest?.('.home-pages [data-home-tile]');
