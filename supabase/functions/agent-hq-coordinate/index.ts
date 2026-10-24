@@ -49,6 +49,19 @@ async function completion(ai:AI,system:string,user:unknown,maxTokens=1500){
   return parseObject(content);
  }finally{clearTimeout(timer)}
 }
+const workerLabelForChat=(id:string)=>id.charAt(0).toUpperCase()+id.slice(1);
+async function saveChatUpdate(admin:any,owner:string,worker:string,text:string){
+ // Status is stored under the authenticated owner's existing account.
+ // No execution permission or external service is granted by a chat update.
+ const {data:thread,error:threadError}=await admin.from("agent_conversations")
+  .upsert({owner_id:owner,employee_id:worker},{onConflict:"owner_id,employee_id"})
+  .select("id").single();
+ if(threadError||!thread)throw Error("Could not open the worker conversation");
+ const {error}=await admin.from("agent_messages").insert({
+  owner_id:owner,conversation_id:thread.id,sender:"employee",body:text.slice(0,9500)
+ });
+ if(error)throw Error("Could not store the manager's status message");
+}
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 Deno.serve(async(req:Request)=>{
@@ -197,6 +210,14 @@ Choose a maximum of 4 DIFFERENT workers. No markdown.`;
    if(commitError)throw Error("Could not save the manager's plan");
    await admin.from("agent_worker_runs").update({status:"completed",result_preview:summary.slice(0,4000),
      finished_at:new Date().toISOString()}).eq("id",runId).eq("owner_id",owner);
+   const planMessage="Alex · Proposed assignment plan for "+assignment.title+"\\n"+
+    summary+"\\n\\n"+routes.map((r,i)=>(i+1)+". "+r.worker.toUpperCase()+" — "+r.title+
+     "\\n"+r.instructions).join("\\n\\n")+
+    "\\n\\nReply GREEN LIGHT or APPROVED to authorize the written drafts. Reply RED LIGHT or STOP to reject. This does not authorize posting, spending, websites or external accounts.";
+   const recipients=[...new Set(["alex",...(
+    assignment.source_employee_id&&assignment.source_employee_id!=="hq"?
+     [assignment.source_employee_id]:[])])];
+   await Promise.allSettled(recipients.map(id=>saveChatUpdate(admin,owner,id,planMessage)));
    return reply(req,{state:"awaiting_approval",message:"Alex proposed "+total+" specialist steps. Review and approve or reject the plan before anyone starts.",
     summary,steps:routes.map(x=>({employee_id:x.worker,title:x.title}))});
   }
@@ -260,6 +281,13 @@ Prefer concrete deliverables over unnecessary questions. Stay under 3000 charact
    p_question:question,p_target_url:target,p_reason:reason
   });
   if(writeError)throw Error("Could not save worker handoff or question");
+  // Workers' individual chats already hold the original drafts and questions.
+  // Alex receives the same saved evidence, so the entire project is visible in Messages.
+  const resultNotice=outcome==="deliverable"?
+   workerLabelForChat(worker)+" finished: "+next.title+"\\n\\n"+body+"\\n\\nDraft only — not published.":
+   workerLabelForChat(worker)+" needs your response on "+assignment.title+"\\n"+
+   (outcome==="question"?question:"Website access requested; no connection is active.");
+  await Promise.allSettled([saveChatUpdate(admin,owner,"alex",resultNotice)]);
   await admin.from("agent_worker_runs").update({status:"completed",result_preview:body.slice(0,4000),
     finished_at:new Date().toISOString()}).eq("id",runId).eq("owner_id",owner);
   return reply(req,{state:result.state,worker_id:worker,step_number:next.step_number,
