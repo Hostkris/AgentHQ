@@ -45,7 +45,7 @@ export const SPECIALIST_JOBS: Readonly<Record<string,string>> = Object.freeze({
   casey: "Social Media Director & Digital Engagement Specialist: approved social campaign execution, platform drafts, community engagement proposals, publishing readiness and verified metrics",
   morgan: "E-Commerce Director & Shopify Operations Specialist: catalog accuracy, merchandising, stock-risk briefs, verified product economics, owner-approved store-change proposals and conversion analysis",
   avery: "Chief Business Intelligence & Financial Strategy Analyst: verified revenue, costs, margins, cash flow, budget variance, break-even, ROI, risk and forecasts without transaction authority",
-  jamie: "Scheduling: priorities, dependencies and timelines",
+  jamie: "Executive Scheduling Director & Workflow Management Specialist: owner-approved calendars and reminders, capacity and deadline plans, real dependency tracking, time zones and verified milestones; Alex retains dispatch",
   quinn: "Growth and partnerships: outreach plans and development"
 });
 export function isAlexSpecialist(value: unknown): value is string {
