@@ -7,6 +7,7 @@ import {CASEY_TEXT_DRAFT_POLICY} from "../_shared/casey-dna.ts";
 import {TAYLOR_TEXT_DRAFT_POLICY} from "../_shared/taylor-dna.ts";
 import {MORGAN_TEXT_DRAFT_POLICY} from "../_shared/morgan-dna.ts";
 import {AVERY_TEXT_DRAFT_POLICY} from "../_shared/avery-dna.ts";
+import {JAMIE_TEXT_DRAFT_POLICY} from "../_shared/jamie-dna.ts";
 import {relevantApprovedExamples,draftIssues} from "../_shared/agent-intelligence.js";
 
 const ALLOWED=["alex",...Object.keys(SPECIALIST_JOBS)];
@@ -260,7 +261,7 @@ Return ONLY valid JSON without code fences, one of:
 {"kind":"deliverable","text":"actionable draft for team, with clear handoff context"}
 {"kind":"question","text":"short status","question":"specific information needed from owner"}
 {"kind":"permission_request","text":"short status","url":"https://specific-site.example/","reason":"what limited access is being requested"}
-Prefer a complete, usable text draft and short handoff over questions. Never turn a routine unknown into a blocker. Do not claim accounts or publishing work when unconnected. Stay under 3000 characters. No fake citations.\n${worker==="riley"?RILEY_TEXT_DRAFT_POLICY:worker==="maya"?MAYA_TEXT_DRAFT_POLICY:worker==="jordan"?JORDAN_TEXT_DRAFT_POLICY:worker==="casey"?CASEY_TEXT_DRAFT_POLICY:worker==="taylor"?TAYLOR_TEXT_DRAFT_POLICY:worker==="morgan"?MORGAN_TEXT_DRAFT_POLICY:worker==="avery"?AVERY_TEXT_DRAFT_POLICY:""}`;
+Prefer a complete, usable text draft and short handoff over questions. Never turn a routine unknown into a blocker. Do not claim accounts or publishing work when unconnected. Stay under 3000 characters. No fake citations.\n${worker==="riley"?RILEY_TEXT_DRAFT_POLICY:worker==="maya"?MAYA_TEXT_DRAFT_POLICY:worker==="jordan"?JORDAN_TEXT_DRAFT_POLICY:worker==="casey"?CASEY_TEXT_DRAFT_POLICY:worker==="taylor"?TAYLOR_TEXT_DRAFT_POLICY:worker==="morgan"?MORGAN_TEXT_DRAFT_POLICY:worker==="avery"?AVERY_TEXT_DRAFT_POLICY:worker==="jamie"?JAMIE_TEXT_DRAFT_POLICY:""}`;
   const decision=await completion(ai,system,{
    assignment_title:assignment.title,owner_instructions:safeText(assignment.instructions,6500),
    info_needed:safeText(assignment.info_needed,2000),manager_summary:assignment.manager_summary,
