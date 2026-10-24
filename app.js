@@ -275,7 +275,7 @@ function renderWorkerPanel(a){
 function renderTeamThread(){
  const a=teamAssignments.get(teamActive);
  if(!a)return '<section class="card">Assignment not found. Return to Assignments.</section>';
- const steps=coordSteps.get(a.id)||[],notes=teamNotes.get(a.id)||[];
+ const steps=[...(coordSteps.get(a.id)||[])].sort((x,y)=>(x.step_number||0)-(y.step_number||0)),notes=teamNotes.get(a.id)||[];
  const completed=steps.filter(x=>x.status==="completed").length;
  const status=steps.length?completed+"/"+steps.length+" drafts saved":(teamStatusLabel[a.status]||a.status);
  const records=steps.map(step=>'<details class="archived-step"><summary>'+
@@ -315,58 +315,72 @@ function renderWorkerTeamLinks(employeeId){
 // Provider authorization choices in the actual worker conversation, not a fake login form.
 // A chat button can initiate supported OAuth; it never receives a password or OAuth token.
 function renderChatConnectorCard(items){
- const latest=[...items].reverse().find(m=>m.sender==="owner"&&m.type==="text");
- const request=String(latest?.text||"");
+ // Show connection guidance for the most recent request or worker blocker.
+ // These are app-curated links, not arbitrary model-generated OAuth URLs.
+ const recent=items.slice(-3);
+ const last=recent.at(-1);
+ if(!last)return "";
+ const owner=[...recent].reverse().find(m=>m.sender==="owner");
+ const request=String(last.text||"")+" "+String(owner?.text||"");
  const socialRead=active==="riley"&&/\b(facebook|messenger)\b/i.test(request);
- const email=!socialRead&&/\b(gmail|inbox|emails?|e-mail)\b/i.test(request)&&
-   /\b(check|review|scan|read|sort|prioriti[sz]e|rank|summari[sz]e|organize|organise|respond|reply|connect|access)\b/i.test(request);
- const icloud=/\b(icloud|apple mail)\b/i.test(request)&&
-   /\b(mail|emails?|inbox|connect|access|check|review|login|sign.?in)\b/i.test(request);
- const facebook=!(active==="riley"&&/\bfacebook\b/i.test(request))&&/\b(facebook|instagram)\b/i.test(request)&&
-   /\b(connect|authorize|authorization|permission|login|sign.?in|account access|grant access)\b/i.test(request);
- const metaAds=/\b(meta ads|facebook ads|advertising account|ad account|ad spend)\b/i.test(request);
- if(!email&&!icloud&&!facebook&&!metaAds)return "";
+ const blocked=/\b(connect|authorization|authorize|permission|sign.?in|log.?in|need access|access required|not connected|grant access|connection required|requires access|cannot access|can't access|publish|upload|post to|send to|not authorized)\b/i.test(request);
+ const email=!socialRead&&/\b(gmail|inbox|e-mails?|emails?)\b/i.test(request)&&/\b(check|review|read|scan|connect|access|summarize|summarise|reply|priorit|authorization)\b/i.test(request);
+ const icloud=/\b(icloud|apple mail)\b/i.test(request)&&blocked;
+ const facebook=!(active==="riley"&&/\bfacebook\b/i.test(request))&&/\b(facebook|instagram)\b/i.test(request)&&blocked;
+ const metaAds=/\b(meta ads|facebook ads|advertising account|ad account|ad spend)\b/i.test(request)&&blocked;
+ const chatgpt=/\b(chatgpt|chat gpt|openai)\b/i.test(request)&&(blocked||/\b(use|create|generate|render|make)\b/i.test(request));
+ const other=/\b(tiktok|youtube|shopify|pinterest|twitter)\b/i.test(request)&&blocked;
+ if(!email&&!icloud&&!facebook&&!metaAds&&!chatgpt&&!other)return "";
  const name=staff.find(row=>row[0]===active)?.[2]||"this worker";
- let result='<section class="ios-chat-connect" aria-label="Connect an account"><strong>🔐 Account access request</strong>'+
-  '<p>Choose a service to authorize. Signing in grants the app only the permissions shown by the provider; each worker still needs your separate approval.</p>';
+ const link=(id,label)=>'<a href="#" data-chat-connect="'+id+'" class="ios-auth-link">'+label+'</a>';
+ let result='<section class="ios-chat-connect" aria-label="Account connection needed"><strong>🔐 Account connection needed</strong>'+
+  '<p>Tap a link below. Where Agent HQ supports secure sign-in, the provider handles your login. Simply signing into a website does not authorize an agent.</p>';
  if(email){
   const connected=chatGmailStatus.connected===true;
   const grant=chatGmailGrants.find(g=>g.employee_id===active);
   const approved=connected&&grant&&grant.scope==="priority_summaries"&&!grant.revoked_at&&Date.parse(grant.expires_at)>Date.now();
   if(!connected){
    const needsSetup=Array.isArray(chatGmailStatus.missing)&&chatGmailStatus.missing.length>0;
-   if(needsSetup){
-    result+='<p><strong>🔧 Gmail needs one-time setup.</strong> Google sign-in cannot open until the app owner finishes Google OAuth setup. This is not a worker-permission problem.</p>'+
-     '<p>1. Make a Google OAuth Web client. 2. Save its credentials in Agent HQ’s secure server settings. 3. Come back and check setup.</p>'+
-     '<button type="button" data-chat-connect="gmail-setup">Finish Gmail setup →</button>'+
-     '<button type="button" data-chat-connect="gmail-refresh" class="secondary">↻ Check setup again</button>';
-   }else{
-    result+='<p><strong>Gmail:</strong> Not connected to this workspace. Google handles sign-in; Agent HQ never asks for your password.</p>'+
-     '<button type="button" data-chat-connect="gmail-connect">✉️ Connect Gmail with Google ↗</button>'+
-     '<button type="button" data-chat-connect="gmail-setup" class="secondary">Gmail setup / status</button>';
-   }
+   result+=needsSetup?'<p>Gmail needs its one-time Google OAuth setup before sign-in will work.</p>'+
+    link("gmail-setup","Finish Google setup →")+link("gmail-refresh","↻ Check connection again"):
+    '<p>Gmail is not yet connected to Agent HQ.</p>'+
+    link("gmail-connect","Sign in with Google to connect Gmail ↗");
   }else if(!approved){
-   result+='<p><strong>Gmail connected.</strong> '+escapeHTML(name)+' does not yet have access to your inbox.</p>'+
-    '<button type="button" data-chat-connect="gmail-grant">Allow '+escapeHTML(name)+' to read priority summaries · 24 hours</button>'+
-    '<button type="button" data-chat-connect="gmail-center" class="secondary">Open Email Center</button>';
+   result+='<p>Gmail connected. '+escapeHTML(name)+' needs your separate, limited worker approval.</p>'+
+    link("gmail-grant","Allow "+escapeHTML(name)+" to read priority summaries · 24 hours");
   }else{
-   result+='<p><strong>Gmail connected · '+escapeHTML(name)+' authorized.</strong> Priority summaries only, until '+
+   result+='<p>Gmail connected and '+escapeHTML(name)+' approved for priority summaries until '+
     escapeHTML(new Date(grant.expires_at).toLocaleString())+'. No sending permission.</p>'+
-    '<button type="button" data-chat-connect="gmail-check">🔄 Check Gmail inbox now</button>'+
-    '<button type="button" data-chat-connect="gmail-revoke" class="secondary">Revoke '+escapeHTML(name)+"'s access</button>";
+    link("gmail-check","Check Gmail now ↻")+link("gmail-revoke","Revoke worker access");
   }
  }
- if(icloud)result+='<p><strong>iCloud Mail:</strong> Not available for one-tap authorization. Apple currently requires a separate secure IMAP/SMTP setup using an app-specific password.</p>'+
-  '<button type="button" data-chat-connect="icloud-info" class="secondary">🍎 Apple iCloud Mail instructions ↗</button>';
- if(facebook)result+='<p><strong>Facebook / Instagram personal profiles:</strong> No direct account-login integration in Agent HQ yet. Saving a profile or approving a plan does not connect it.</p>'+
-  '<button type="button" data-chat-connect="social-info" class="secondary">Manage personal accounts</button>';
- if(metaAds)result+='<p><strong>Meta Ads:</strong> '+(metaState.connected?"Read-only account connection available. Choose an ad account and approve this worker in Operations.":"Read-only advertising OAuth is available when your Meta developer app is configured.")+'</p>'+
-  '<button type="button" data-chat-connect="'+(metaState.connected?"meta-center":"meta-connect")+'" class="secondary">'+
-  (metaState.connected?"Open Meta Ads permissions":"📊 Connect Meta Ads ↗")+'</button>';
+ if(metaAds){
+  result+=metaState.connected?'<p>Meta Ads reporting is connected (read only). Each worker needs separate read permission.</p>'+
+   link("meta-center","Review Meta Ads worker access →"):
+   '<p>Meta Ads reporting is not connected. This connection does not grant Facebook or Instagram publishing.</p>'+
+   link(metaState.configured?"meta-connect":"meta-center",metaState.configured?"Authorize Meta Ads reporting ↗":"Configure Meta Ads →");
+ }
+ if(chatgpt){
+  result+='<p><strong>ChatGPT: Awaiting OpenAI authorization (not connected).</strong> Agent HQ cannot automatically use your subscription until OpenAI approves a supported integration. A ChatGPT website login alone cannot grant that access.</p>'+
+   link("chatgpt-apply","Request official OpenAI authorization ↗")+
+   link("chatgpt-open","Open ChatGPT manually ↗");
+ }
+ if(facebook){
+  result+='<p>Facebook / Instagram direct publishing connections are not available yet. A saved profile or website login does not grant Agent HQ access.</p>'+
+   link("open-accounts","View account connection status →");
+ }
+ if(icloud){
+  result+='<p>iCloud does not have a supported one-tap Agent HQ sign-in integration. Do not give agents your Apple password.</p>'+
+   link("icloud-info","View Apple sign-in guidance ↗");
+ }
+ if(other){
+  result+='<p>This provider is not linked to Agent HQ for publishing. The integration must be developed first; a website login is not sufficient.</p>'+
+   link("open-accounts","View account connection status →");
+ }
  const returned=new URLSearchParams(location.search).get("gmail");
- if(email&&returned)result+='<p class="ios-connection-feedback">Google authorization: '+
-  escapeHTML(({connected:"Connected",cancelled:"Cancelled",setup:"Setup required",scope:"Required scopes were not granted",error:"Not completed",invalid:"Expired link",refresh:"Reconnect needed"})[returned]||returned)+
-  '. The connection and worker grant are separate steps.</p>';
+ if(email&&returned)result+='<p class="ios-connection-feedback">Google sign-in return: '+
+  escapeHTML(({connected:"Connected",cancelled:"Cancelled",setup:"Setup required",scope:"Scopes missing",error:"Not completed",invalid:"Expired link",refresh:"Reconnect needed"})[returned]||returned)+
+  '. Check the connection before continuing.</p>';
  return '<div class="ios-message-row incoming"><div class="ios-message-bubble theirs ios-connect-bubble">'+result+'</section></div></div>';
 }
 
@@ -374,6 +388,25 @@ function messageHTML(value){
  const text=String(value||'');let out='',last=0;const pattern=/https?:\/\/[^\s<>"'\]\)]+/gi;
  for(const match of text.matchAll(pattern)){const raw=match[0].replace(/[.,;]+$/,'');out+=escapeHTML(text.slice(last,match.index));try{const url=new URL(raw);out+='<a href="'+escapeHTML(url.href)+'" target="_blank" rel="noopener noreferrer">'+escapeHTML(raw)+'</a>'}catch{out+=escapeHTML(raw)}last=match.index+raw.length}
  return out+escapeHTML(text.slice(last));
+}
+// Editorial approval only. This is never permission to publish or contact accounts.
+const CREATIVE_REVIEW_PREFIX="CREATIVE_REVIEW_V1";
+function conversationDraftInfo(a){
+ const steps=coordSteps.get(a.id)||[],notes=teamNotes.get(a.id)||[];
+ const eligible=steps.length>0&&steps.every(x=>x.status==="completed")&&
+  steps.some(x=>typeof x.output==="string"&&x.output.trim())&&a.alex_plan_status==="approved";
+ const imported=[...notes].reverse().find(n=>n.sender_kind==="owner"&&n.sender_id==="owner"&&String(n.body||"").startsWith("CHATGPT_OWNER_IMPORT_V1\n"));
+ const content=steps.filter(x=>x.status==="completed"&&typeof x.output==="string"&&x.output.trim()).map(x=>x.id+"|"+x.output).join("\n\n")+"\nOWNER_IMPORT|"+String(imported?.body?.slice("CHATGPT_OWNER_IMPORT_V1\n".length)||"");
+ let hash=2166136261;for(let i=0;i<content.length;i++){hash^=content.charCodeAt(i);hash=Math.imul(hash,16777619)}
+ const version=(hash>>>0).toString(16).padStart(8,"0");
+ const approval=[...notes].reverse().find(n=>n.sender_kind==="owner"&&n.sender_id==="owner"&&String(n.body||"").startsWith(CREATIVE_REVIEW_PREFIX+"|APPROVED|"+version+"\n"));
+ return {eligible,approved:!!approval,version};
+}
+function finalDraftForChat(worker){
+ const related=[...teamAssignments.values()].filter(a=>
+  (worker==="alex"||worker==="hq"||a.source_employee_id===worker||(a.employee_ids||[]).includes(worker))&&conversationDraftInfo(a).eligible&&!conversationDraftInfo(a).approved);
+ if(related.length!==1)return null;
+ const a=related[0];return {a,...conversationDraftInfo(a)};
 }
 function renderConversationWork(worker){
  const relevant=[...teamAssignments.values()].filter(a=>
@@ -397,8 +430,9 @@ function renderConversationWork(worker){
     escapeHTML(step.status.replace(/_/g," "))+'</small><p>'+escapeHTML(step.instructions)+'</p>'+
     written+(step.question?'<p class="ios-work-question">Question: '+escapeHTML(step.question)+'</p>':'')+'</div>';
   }).join("");
+  const review=conversationDraftInfo(a);
   const prompt=a.owner_paused?'<p class="ios-work-prompt">🔴 Red light — specialists are stopped. Reply <b>green light</b> to resume only this previously approved internal drafting work.</p>':waiting?'<p class="ios-work-prompt">Text <b>green light</b> or <b>approved</b> to authorize these drafts. Text <b>red light</b> or <b>stop</b> to reject. This never authorizes publishing or outside account access.</p>':
-   finished?'<p class="ios-work-prompt">Written drafts saved for review. No external publishing occurred.</p>':'';
+   finished?'<p class="ios-work-prompt">'+(review.approved?'✅ Written draft approved. Nothing was published.':'Draft ready. Reply <b>approve draft</b> in Messages to approve the final text, or describe revisions. Nothing will be published.')+'</p>':'';
   return '<div class="ios-message-row incoming"><article class="ios-work-card">'+
    '<div class="ios-work-type">📎 Team work order · Alex</div><h3>'+escapeHTML(a.title)+'</h3>'+
    '<div class="ios-work-status">'+escapeHTML(label)+(steps.length?' · '+completed+'/'+steps.length:'')+'</div>'+
@@ -710,6 +744,23 @@ if(screen==="research"||screen==="browser"){
   if(screen==="chat"&&active===worker)render();
   try{
    if(!window.agentHQChatCloud?.converse)throw Error("Conversation service is loading. Please refresh Agent HQ.");
+   const isContentApproval=/^approve (?:the |this |final )?(?:draft|content|copy)(?: please)?[.!]?$/i.test(value);
+   const final=isContentApproval?finalDraftForChat(worker):null;
+   if(isContentApproval&&!final)throw Error("No single unapproved final draft was found in this conversation. Ask your worker to identify the draft.");
+   if(final){
+    await Promise.allSettled([window.agentHQTeamCloud?.refresh(),window.agentHQCoordCloud?.refresh()]);
+    const latest=conversationDraftInfo(teamAssignments.get(final.a.id)||final.a);
+    if(!latest.eligible||latest.approved||latest.version!==final.version)
+     throw Error("The draft changed. Review it again before approving.");
+    await window.agentHQChatCloud.send(worker,value);
+    await window.agentHQTeamCloud.post(final.a.id,CREATIVE_REVIEW_PREFIX+"|APPROVED|"+latest.version+
+     "\nOwner approved the written draft only. No publishing, sending, account access or spending approved.");
+    await Promise.allSettled([window.agentHQChatCloud.refresh(),window.agentHQTeamCloud.refresh()]);
+    drafts.set(worker,"");
+    messages.set(worker,(messages.get(worker)||[]).filter(msg=>msg.id!==optimisticId));
+    sendFeedback.set(worker,"Written draft approved. Nothing was published or sent.");
+    return;
+   }
    const result=await window.agentHQChatCloud.converse(worker,value);
    drafts.set(worker,"");
    messages.set(worker,(messages.get(worker)||[]).filter(msg=>msg.id!==optimisticId));
@@ -773,11 +824,13 @@ app.addEventListener("click",async e=>{
   if(chatConnectorBusy)return;
   const action=connectChoice.dataset.chatConnect;
   const worker=active;
-  chatConnectorBusy=true;connectChoice.disabled=true;
+  chatConnectorBusy=true;connectChoice.setAttribute("aria-disabled","true");
   try{
    const gmail=window.agentHQEmailCloud;
    if(action==="gmail-setup"||action==="gmail-center"){screen="email";render();return}
-   if(action==="social-info"){screen="accounts";render();return}
+   if(action==="social-info"||action==="open-accounts"){screen="settings";render();window.agentHQSettingsNavigate?.("integrations");return}
+   if(action==="chatgpt-apply"){window.open("https://openai.com/form/sign-in-with-chatgpt-interest/","_blank","noopener,noreferrer");return}
+   if(action==="chatgpt-open"){window.open("https://chatgpt.com/","_blank","noopener,noreferrer");return}
    if(action==="meta-center"){screen="operations";render();return}
    if(action==="icloud-info"){window.open("https://support.apple.com/en-us/102525","_blank","noopener,noreferrer");return}
    if(action==="meta-connect"){
@@ -978,4 +1031,3 @@ const check=e.target.closest("[data-worker-check]");if(check){
 
 window.agentHQSocialReadSync=()=>{if((screen==='chat'&&active==='riley')||screen==='accounts')renderWithoutInterruptingDraft()};
 window.agentHQSocialReadOpen=()=>{active='riley';screen='chat';render()};
-

@@ -5,7 +5,7 @@ import {agentCloud} from "./agent-cloud-auth.js";
 
 const escapeText=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const SERVICES=[
- {id:"chatgpt",name:"ChatGPT",mark:"✦",url:"https://chatgpt.com/",type:"chatgpt",detail:"Manual handoff to your own ChatGPT subscription is ready in Creative Desk. Automatic agent-to-ChatGPT requests still require approved OpenAI authorization. Agent HQ never asks for your ChatGPT password or session cookies."},
+ {id:"chatgpt",name:"ChatGPT",mark:"✦",url:"https://chatgpt.com/",type:"chatgpt",detail:"Awaiting authorization for direct ChatGPT use by Agent HQ workers. No approved OpenAI connection is installed or application approval confirmed. Use Messages to request creative work, or open ChatGPT manually. Agent HQ never collects your ChatGPT password."},
  {id:"gmail",name:"Gmail",mark:"✉️",type:"gmail",detail:"Official Google authorization connects Gmail to Agent HQ's existing Email Center. Sending still requires your review."},
  {id:"facebook",name:"Facebook",mark:"f",url:"https://www.facebook.com/",type:"external",detail:"Signing into the Facebook website is not a Meta publishing authorization. Social publishing requires the correct Meta app scopes and account selection."},
  {id:"instagram",name:"Instagram",mark:"◎",url:"https://www.instagram.com/",type:"external",detail:"Instagram publishing access is not connected. A supported Instagram professional-account integration and publishing permission would be required."},
@@ -31,7 +31,7 @@ function socialBadge(service){
   if(state.meta?.configured)return ["Not connected","pending"];
   return ["Setup needed","pending"];
  }
- return service.type==="chatgpt"?["Manual use ready · automatic not connected","pending"]:["Not linked to Agent HQ","pending"];
+ return service.type==="chatgpt"?["Awaiting OpenAI authorization","pending"]:["Not linked to Agent HQ","pending"];
 }
 function buttons(service){
  if(service.type==="gmail")return (state.gmail?.connected?

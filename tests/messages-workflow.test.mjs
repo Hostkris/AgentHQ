@@ -69,3 +69,38 @@ test('Plan and worker progress are bounded and require an owner decision',()=>{
  assert.match(chat,/manager_summary/);
  assert.match(chat,/No specialist drafts were authorized/);
 });
+
+
+test('Message thread presents real provider authorization links, not fake generic logins',()=>{
+ const app=source('app.js');
+ assert.match(app,/function renderChatConnectorCard\(items\)/);
+ assert.match(app,/data-chat-connect/);
+ assert.match(app,/Sign in with Google to connect Gmail/);
+ assert.match(app,/agentHQEmailCloud/);
+ assert.match(app,/agentHQMetaCloud/);
+ assert.match(app,/chatgpt-apply/);
+ assert.match(app,/https:\/\/openai\.com\/form\/sign-in-with-chatgpt-interest\//);
+ assert.match(app,/Awaiting OpenAI authorization/);
+ assert.match(app,/a website login is not|website login does not|website login alone/i);
+ assert.match(app,/open-accounts/);
+});
+test('Final text approval is a scoped owner Messages reply, never publication approval',()=>{
+ const app=source('app.js');
+ assert.match(app,/function conversationDraftInfo\(a\)/);
+ assert.match(app,/function finalDraftForChat\(worker\)/);
+ assert.match(app,/isContentApproval/);
+ assert.match(app,/No single unapproved final draft/);
+ assert.match(app,/CREATIVE_REVIEW_V1/);
+ assert.match(app,/Owner approved the written draft only\. No publishing/);
+ assert.match(app,/window\.agentHQChatCloud\.send\(worker,value\)/);
+ assert.match(app,/window\.agentHQTeamCloud\.post\(final\.a\.id/);
+});
+test('Creative Desk intake is removed and worker Messages owns requests',()=>{
+ const creative=source('agent-creative-desk.js');
+ assert.match(creative,/finished-work library/);
+ assert.doesNotMatch(creative,/<form id="creative-request-form"/);
+ assert.doesNotMatch(creative,/data-creative-plan-approve=/);
+ assert.doesNotMatch(creative,/data-creative-approve=/);
+ assert.match(creative,/data-nav="messages"/);
+ assert.match(creative,/isCreativeJob/);
+});
