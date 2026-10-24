@@ -12,7 +12,7 @@ const browser=await chromium.launch({headless:true,executablePath:process.env.AG
 const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true});
 const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
 page.on('dialog',dialog=>dialog.accept());
-const core=new Set(['app.js','agent-home-layout.js','agent-message-controls.js','agent-project-view.js','agent-projects-cloud.js','agent-activity-cloud.js','agent-activity-view.js','icons.js']);
+const core=new Set(['app.js','agent-home-layout.js','agent-message-controls.js','agent-project-view.js','agent-project-recovery.js','agent-projects-cloud.js','agent-activity-cloud.js','agent-activity-view.js','icons.js']);
 await page.route('**/*',async route=>{const u=new URL(route.request().url()),name=u.pathname.split('/').at(-1);
  if(u.origin!==base){await route.abort();return;}
  if(name==='agent-cloud-auth.js'){await route.fulfill({contentType:'text/javascript',body:'export const agentCloud=window.__cloud;'});return;}
@@ -38,6 +38,8 @@ await page.addInitScript(()=>{
     if(body.control==='pause'){s.assignment.owner_paused=true;s.active_run=null;}else{s.assignment.owner_paused=false;s.last_error='';}
    }else if(body.action==='project_answer'){s.phase='checking';s.waiting_worker=null;s.active_run='synthetic-run';s.active_worker='casey';s.lease_until=new Date(Date.now()+80000).toISOString();}
    else if(body.action==='next'){
+    if(mock.failTransport){mock.failTransport=false;s.active_run=null;return {error:{message:'Synthetic connection interrupted'}};}
+    if(mock.failNext){s.active_run=null;s.last_error=mock.failNext;mock.failNext=null;return {data:{state:'failed',message:s.last_error,workflow_version:2}};}
     s.active_run='synthetic-run';s.active_worker=s.next_worker;s.lease_until=new Date(Date.now()+80000).toISOString();
     if(mock.hold)await new Promise(r=>mock.release=r);
     s.active_run=null;s.phase='waiting_owner';s.waiting_worker=s.next_worker;s.pending_question='Synthetic model blocker';
@@ -76,6 +78,24 @@ try{
  await check('Pause invalidates the active typing indicator and resume targets the same project',async()=>{
   await page.locator('[data-project-control="pause"]').click();await page.waitForFunction(()=>document.querySelector('[data-project-control="resume"]'));
   assert.equal(await page.locator('.hq-team-typing').count(),0);await page.locator('[data-project-control="resume"]').click();assert.equal(await page.evaluate(()=>__projectMock.calls.filter(c=>c.action==='project_control').at(-1).assignment_id),await page.evaluate(()=>__projectMock.id));
+ });
+ await check('Rejected responses show a specific correction and retry the same saved project without clearing work',async()=>{
+  await page.evaluate(()=>{const s=__projectMock.projects[0];s.phase='discussion';s.next_worker='jordan';s.active_worker=null;s.active_run=null;s.last_error='Response correction [self_address/discussion/jordan/1]. The question must be addressed to another assigned teammate.';s.shared_draft='SAVED DRAFT BEFORE RETRY';__projectMock.failNext='Response correction [wrong_stage/discussion/jordan/1]. The worker returned a response for the wrong project stage.';});
+  await refresh();
+  const notice=page.locator('[data-project-recovery="self_address"]');await notice.waitFor();assert.match(await notice.innerText(),/Jordan to address Casey/);assert(!((await notice.innerText()).includes('Response correction [')));
+  await notice.getByRole('button',{name:'Correct recipient & retry'}).click();await page.locator('[data-project-recovery="wrong_stage"]').waitFor();
+  const saved=await page.evaluate(()=>({draft:__projectMock.projects[0].shared_draft,revision:__projectMock.projects[0].revision,notes:__projectMock.notes.length,call:__projectMock.calls.filter(c=>c.action==='project_control').at(-1)}));
+  assert.equal(saved.draft,'SAVED DRAFT BEFORE RETRY');assert.equal(saved.revision,1);assert.equal(saved.call.assignment_id,await page.evaluate(()=>__projectMock.id));assert.equal(saved.call.control,'retry');
+  const before=await page.evaluate(()=>__projectMock.calls.filter(c=>c.action==='next').length);await refresh();assert.equal(await page.evaluate(()=>__projectMock.calls.filter(c=>c.action==='next').length),before);
+  await page.screenshot({path:'/tmp/agenthq-team-browser/hq-response-recovery.png'});
+  await page.locator('[data-project-recovery="wrong_stage"]').getByRole('button',{name:'Correct response & retry'}).click();await page.waitForFunction(()=>__projectMock.projects[0].phase==='waiting_owner');assert.equal(await page.locator('[data-project-recovery]').count(),0);
+ });
+ await check('An unconfirmed connection failure offers retry, stops repeated requests and clears when saved progress arrives',async()=>{
+  await page.evaluate(()=>{const s=__projectMock.projects[0];s.phase='discussion';s.active_run=null;s.last_error='';s.next_run_at=new Date(0).toISOString();__projectMock.failTransport=true;});
+  await refresh();await page.evaluate(()=>agentHQProjects.control(__projectMock.id,'retry'));await page.locator('[data-project-recovery="connection"]').waitFor();
+  assert.match(await page.locator('[data-project-recovery="connection"]').innerText(),/connection interrupted/);
+  const calls=await page.evaluate(()=>__projectMock.calls.filter(c=>c.action==='next').length);await refresh();assert.equal(await page.evaluate(()=>__projectMock.calls.filter(c=>c.action==='next').length),calls);
+  await page.evaluate(()=>{const s=__projectMock.projects[0];s.phase='checking';s.next_run_at=new Date(Date.now()+3600000).toISOString();});await refresh();assert.equal(await page.locator('[data-project-recovery]').count(),0);assert.equal(await page.evaluate(()=>__projectMock.projects[0].shared_draft),'SAVED DRAFT BEFORE RETRY');
  });
  await check('Alex has a direct link to the exact finished project and only final versions show review controls',async()=>{
   await open('alex');assert.equal(await page.locator('.hq-manager-ready').count(),1);await page.locator('.hq-manager-ready [data-project-open]').click();

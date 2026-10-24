@@ -1,7 +1,9 @@
 import {agentCloud} from './agent-cloud-auth.js';
-import {projectRoomHTML,projectPrivateHTML,projectIsTyping} from './agent-project-view.js?v=20261024-live-activity-1';
+import {projectRoomHTML,projectPrivateHTML,projectIsTyping} from './agent-project-view.js?v=20261024-response-recovery-1';
 let rows=[],ownerId=null,generation=0,refreshing=null,timer=null,inFlight=null,selected=null,answerTarget=null;
 const wanted=new Set();
+const localFailures=new Map();
+function recordFailure(id,message){const s=rows.find(s=>s.assignment_id===id);localFailures.set(id,{message,phase:s?.phase,revision:s?.revision,turn_count:s?.turn_count});changed();}
 function changed(){window.agentHQProjectsChanged?.();document.dispatchEvent(new CustomEvent('agenthq-project-activity'));}
 async function owner(){const {data,error}=await agentCloud.auth.getUser();if(error||!data?.user)throw Error('Sign in to Agent HQ to work with the team.');return data.user;}
 function schedule(ms=12000){clearTimeout(timer);if(document.hidden)return;timer=setTimeout(tick,ms);}
@@ -11,7 +13,7 @@ async function refresh(){
  refreshing=(async()=>{
   try{
    const user=await owner();if(epoch!==generation)return;
-   if(ownerId&&ownerId!==user.id){rows=[];selected=null;answerTarget=null;wanted.clear();}
+   if(ownerId&&ownerId!==user.id){rows=[];selected=null;answerTarget=null;wanted.clear();localFailures.clear();}
    ownerId=user.id;
    const {data,error}=await agentCloud.from('agent_project_sessions')
     .select('*,assignment:agent_team_assignments!inner(title,owner_paused,status,source_employee_id,created_at)')
@@ -19,6 +21,9 @@ async function refresh(){
    if(epoch!==generation)return;
    if(error)throw Error(error.message);
    const next=data||[];
+   // A confirmed later turn (including progress from another device) supersedes a
+   // local transport failure. Never put an old retry notice over completed work.
+   for(const s of next){const f=localFailures.get(s.assignment_id);if(f&&((f.phase&&f.phase!==s.phase)||(f.revision!==undefined&&f.revision!==s.revision)||(f.turn_count!==undefined&&f.turn_count!==s.turn_count)))localFailures.delete(s.assignment_id);}
    if(JSON.stringify(next)!==JSON.stringify(rows)){rows=next;if(!selected||!rows.some(s=>s.assignment_id===selected))selected=rows[0]?.assignment_id||null;changed();}
   }catch(error){if(epoch===generation){if(!ownerId){rows=[];changed();}window.agentHQProjectsError?.(error.message);}}
   finally{refreshing=null;}
@@ -34,7 +39,7 @@ async function invoke(action,id,extra={}){
  return data;
 }
 async function sync(){await Promise.allSettled([refresh(),window.agentHQTeamCloud?.refresh(),window.agentHQCoordCloud?.refresh(),window.agentHQChatCloud?.refresh(),window.agentHQCloudApprovals?.refresh()]);}
-function runnable(s){return ['planning','discussion','drafting','checking','polishing'].includes(s.phase)&&!s.assignment?.owner_paused&&!s.last_error&&!projectIsTyping(s)&&Date.parse(s.next_run_at||0)<=Date.now();}
+function runnable(s){return ['planning','discussion','drafting','checking','polishing'].includes(s.phase)&&!s.assignment?.owner_paused&&!s.last_error&&!localFailures.has(s.assignment_id)&&!projectIsTyping(s)&&Date.parse(s.next_run_at||0)<=Date.now();}
 async function tick(){
  if(document.hidden)return;
  if(inFlight){
@@ -57,9 +62,12 @@ async function tick(){
   const result=await promise;
   if(epoch!==generation)return;
   wanted.delete(id);
-  if(result.state==='failed')window.agentHQProjectsError?.(result.message||'The team paused. Retry this turn in the project.');
+  if(result.state==='failed'){
+   recordFailure(id,result.message||'The team paused. Retry this turn in the project.');
+   window.agentHQProjectsError?.(result.message||'The team paused. Retry this turn in the project.');
+  }else localFailures.delete(id);
   await sync();
- }catch(error){if(epoch===generation){wanted.delete(id);window.agentHQProjectsError?.(error.message);}}
+ }catch(error){if(epoch===generation){wanted.delete(id);recordFailure(id,error.message);window.agentHQProjectsError?.(error.message);}}
  finally{if(epoch===generation){inFlight=null;schedule(2500);}}
 }
 async function start(id){
@@ -75,7 +83,7 @@ async function answer(id,decision,text){
  const result=await invoke('project_answer',id,{decision,text,revision:s.revision});
  await sync();if(result.state==='ready')schedule(0);return result;
 }
-async function control(id,control){const result=await invoke('project_control',id,{control});await sync();if(control!=='pause')schedule(0);return result;}
+async function control(id,control){const result=await invoke('project_control',id,{control});if(control!=='pause')localFailures.delete(id);await sync();if(control!=='pause')schedule(0);return result;}
 async function decidePermission(requestId,decision){
  await refresh();const s=rows.find(s=>s.phase==='waiting_permission'&&s.pending_request_id===requestId);
  if(!s)return false;
@@ -89,11 +97,11 @@ function select(id){if(rows.some(s=>s.assignment_id===id)){selected=id;answerTar
 function selectAnswer(id){const s=rows.find(s=>s.assignment_id===id);if(!s)return null;answerTarget=id;return s.waiting_worker;}
 window.agentHQProjects={refresh,start,review,answer,control,context,select,selectAnswer,decidePermission,
  all:()=>rows,isProject:id=>rows.some(s=>s.assignment_id===id),
- renderHQ:options=>projectRoomHTML({...options,projects:rows,selected}),
+ renderHQ:options=>projectRoomHTML({...options,projects:rows.map(s=>!s.last_error&&localFailures.has(s.assignment_id)?{...s,last_error:localFailures.get(s.assignment_id).message}:s),selected}),
  renderPrivate:(worker,options)=>projectPrivateHTML({...options,projects:rows,worker})};
 agentCloud.auth.onAuthStateChange((_event,session)=>{
  const next=session?.user?.id||null;
- if(next!==ownerId){generation++;rows=[];ownerId=next;selected=null;answerTarget=null;wanted.clear();refreshing=null;inFlight=null;clearTimeout(timer);changed();}
+  if(next!==ownerId){generation++;rows=[];ownerId=next;selected=null;answerTarget=null;wanted.clear();localFailures.clear();refreshing=null;inFlight=null;clearTimeout(timer);changed();}
  schedule(0);
 });
 window.addEventListener('focus',()=>schedule(0));

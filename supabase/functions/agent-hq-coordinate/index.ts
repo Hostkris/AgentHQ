@@ -11,6 +11,7 @@ import {JAMIE_TEXT_DRAFT_POLICY} from "../_shared/jamie-dna.ts";
 import {QUINN_TEXT_DRAFT_POLICY} from "../_shared/quinn-dna.ts";
 import {relevantApprovedExamples,draftIssues} from "../_shared/agent-intelligence.js";
 import {runProjectTurn} from "../_shared/project-engine.ts";
+import {ProjectResponseError} from "../../../agent-project-recovery.js";
 
 const ALLOWED=["alex",...Object.keys(SPECIALIST_JOBS)];
 const JOBS=SPECIALIST_JOBS;
@@ -34,9 +35,10 @@ function safeText(value:unknown,max=3000){return typeof value==="string"?value.t
 function parseObject(content:string):Record<string,unknown>{
  const text=content.trim().replace(/^\u0060\u0060\u0060(?:json)?\s*/i,"").replace(/\s*\u0060\u0060\u0060$/,"");
  const first=text.indexOf("{"),last=text.lastIndexOf("}");
- if(first<0||last<=first)throw Error("AI returned a draft instead of a structured task decision. Please retry.");
- const data=JSON.parse(text.slice(first,last+1));
- if(!data||typeof data!=="object"||Array.isArray(data))throw Error("AI returned an invalid decision");
+ if(first<0||last<=first)throw new ProjectResponseError('invalid_response',"AI returned a draft instead of a structured task decision.");
+ let data;
+ try{data=JSON.parse(text.slice(first,last+1));}catch{throw new ProjectResponseError('invalid_response',"AI returned malformed decision JSON.");}
+ if(!data||typeof data!=="object"||Array.isArray(data))throw new ProjectResponseError('invalid_response',"AI returned an invalid decision");
  return data as Record<string,unknown>;
 }
 async function completion(ai:AI,system:string,user:unknown,maxTokens=1500){
@@ -56,7 +58,7 @@ async function completion(ai:AI,system:string,user:unknown,maxTokens=1500){
   if(!response.ok)throw Error("AI provider HTTP "+response.status);
   const raw=await response.json();
   const content=raw?.choices?.[0]?.message?.content;
-  if(typeof content!=="string"||!content.trim())throw Error("AI provider returned an empty answer");
+  if(typeof content!=="string"||!content.trim())throw new ProjectResponseError('empty_response',"AI provider returned an empty answer");
   return parseObject(content);
  }finally{clearTimeout(timer)}
 }
