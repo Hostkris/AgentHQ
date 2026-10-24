@@ -5,7 +5,7 @@ const esc=(s)=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":
 let result=null,message="",busy=false,lastCheck=0,checking=false;
 // Protect the limited free-plan connection slots while Nango owner-tag diagnostics are resolved.
 const newNangoAuthorizationsPaused=true;
-let nangoLink="",nangoLinkExpiresAt="",nangoVerification=null;
+let nangoLink="",nangoLinkExpiresAt="",nangoVerification=null,cleanupReview=null;
 function render(){
  const root=document.getElementById("agenthq-automation-root");
  if(!root)return;
@@ -14,7 +14,7 @@ function render(){
  const verified=v?.state==="api_verified";
  const found=v?.authorizationFound===true;
  const nangoLabel=verified?"GitHub connected · API verified":found?"GitHub authorized · API unverified":v?.state==="permissions_needed"?"Verification needs key permission":v?.state==="credentials_invalid"?"Nango verification key rejected":v?.state==="not_found"?"No matching GitHub connection":v?.state==="owner_tag_mismatch"?"GitHub connection not linked to Agent HQ":v?.state==="environment_no_connection"?"No GitHub connection in this Nango environment":v?.state==="matching_details_mismatch"?"GitHub connection details need review":v?.state==="diagnostic_incomplete"?"Nango diagnosis incomplete":v?.state==="needs_reconnect"?"GitHub authorization needs attention":v?"Live verification incomplete":n?.configured?"Configured · not live verified":"Setup required";
- const signature=JSON.stringify([!!busy,!!checking,message,result,nangoVerification,nangoLink,nangoLinkExpiresAt]);
+ const signature=JSON.stringify([!!busy,!!checking,message,result,nangoVerification,cleanupReview,nangoLink,nangoLinkExpiresAt]);
  if(root.dataset.signature===signature)return;
  root.dataset.signature=signature;
  root.innerHTML='<section class="ah-automation-hub" aria-label="Automation and connected apps">'+
@@ -26,7 +26,16 @@ function render(){
   '<small>'+esc(n?.integrations?.length?'Allowed integrations: '+n.integrations.join(", "):"Provider authorizations require a Nango server configuration.")+'</small>'+
   (v?'<small class="ah-connect-feedback" role="status">'+esc(v.message||"Live connection test returned no detail.")+(v.githubLogin?' GitHub user: '+esc(v.githubLogin)+'.':'')+'</small>':'')+
   '<button type="button" data-ah-automation="connect" '+(busy||!n?.configured||newNangoAuthorizationsPaused?'disabled':'')+'>'+(newNangoAuthorizationsPaused?'New authorizations paused':'Authorize a new account')+'</button>'+
-  (newNangoAuthorizationsPaused?'<small>New Nango connections are temporarily paused to protect the remaining free-plan quota. Use Check both integrations to diagnose existing connections. No GitHub reauthorization is required right now.</small>':'')+
+  (newNangoAuthorizationsPaused?'<small>New Nango connections are paused to protect the remaining free-plan quota. Existing GitHub connections can be reviewed without creating more.</small>':'')+
+  '<button type="button" class="ah-review-button" data-ah-automation="inventory" '+(busy||checking||!verified?'disabled':'')+'>Review existing GitHub connections (read-only)</button>'+
+  (cleanupReview?'<div class="ah-connection-review" role="status">'+
+    '<strong>'+esc(cleanupReview.state==="ready"?"GitHub connection cleanup review":"Connection review needs attention")+'</strong>'+
+    '<p>'+esc(cleanupReview.message||"")+'</p>'+
+    (cleanupReview.state==="ready"&&cleanupReview.keep?'<p><strong>KEEP — '+esc(cleanupReview.keep.ref)+'</strong> (GitHub: '+esc(cleanupReview.keep.githubLogin)+')</p>'+
+       '<small>Connections linked to this Agent HQ account: '+esc(cleanupReview.linkedCount)+'. Verified same-account alternatives: '+esc(cleanupReview.verifiedDuplicateCount)+'. Require individual review: '+esc(cleanupReview.reviewRequiredCount)+'.</small>'+
+       (cleanupReview.duplicates?.length?'<ul>'+cleanupReview.duplicates.map(c=>'<li><strong>'+esc(c.ref)+'</strong> — '+esc(c.state==="same_github_user"?"Same GitHub user; possible duplicate":"Not verified; do not delete")+'</li>').join("")+'</ul>':'<p>No duplicates linked to this Agent HQ account.</p>')+
+       '<small>These are shortened connection ID references for matching to Nango Connections. No connections have been deleted. Keep the marked working connection. Delete other connections in Nango only after verifying nothing else needs them.</small>':'')+
+    '</div>':'')+
   (nangoLink?'<a class="ah-connect-link" href="'+esc(nangoLink)+'" target="_blank" rel="noopener noreferrer">Open secure Nango authorization ↗</a><small>This personal authorization link expires after 30 minutes. Approve GitHub access only if you agree with the permissions.</small>':'')+'</div></div>'+
   '<button type="button" class="ah-status-check" data-ah-automation="status" aria-label="Check Activepieces and Nango integration setup" aria-busy="'+(checking?'true':'false')+'" '+(busy||checking?'disabled':'')+'>'+(checking?'Checking connections…':'↻ Check both integrations')+'</button>'+
   '<p role="status" class="ah-status">'+esc(message||"Sign in to Agent HQ to check real connector readiness.")+'</p>'+
@@ -52,7 +61,7 @@ async function refresh(force=false){
   if(!data?.user){result=null;message="Sign in to Agent HQ to check and connect accounts.";return;}
   result=await invoke("status");
   if(force){
-    nangoVerification=null;
+    nangoVerification=null;cleanupReview=null;
     if(result?.nango?.configured){
       message="Integration settings recognized. Running a read-only GitHub connection test through Nango…";
       render();
@@ -91,6 +100,14 @@ document.addEventListener("click",async(e)=>{
   message="New Nango authorizations are paused to protect your free-plan quota. Use Check both integrations to diagnose the existing GitHub connection.";render();return;
  }
  if(action==="status"){await refresh(true);return}
+ if(action==="inventory"){
+  if(!nangoVerification||nangoVerification.state!=="api_verified"){message="Verify GitHub successfully before reviewing connections.";render();return;}
+  busy=true;cleanupReview=null;message="Reviewing your existing Nango GitHub connections with read-only requests…";render();
+  try{cleanupReview=await invoke("nango_cleanup_preview");message=cleanupReview?.message||"Nango did not return a cleanup review.";}
+  catch(err){cleanupReview={state:"unavailable",message:"Read-only connection review failed: "+String(err?.message||err)};message=cleanupReview.message;}
+  finally{busy=false;render();}
+  return;
+ }
  busy=true;message=action==="connect"?"Creating a secure Nango authorization link…":"Sending a harmless Activepieces test…";
  if(action==="connect"){nangoLink="";nangoLinkExpiresAt="";}
  render();
@@ -104,6 +121,6 @@ document.addEventListener("click",async(e)=>{
 });
 const observer=new MutationObserver(()=>{if(document.getElementById("agenthq-automation-root")){render();refresh().catch(()=>{});}});
 observer.observe(document.getElementById("app")||document.body,{childList:true,subtree:true});
-agentCloud.auth.onAuthStateChange(()=>{lastCheck=0;result=null;nangoVerification=null;nangoLink="";nangoLinkExpiresAt="";message="Sign-in changed; checking integrations…";render();setTimeout(()=>refresh(false),0)});
+agentCloud.auth.onAuthStateChange(()=>{lastCheck=0;result=null;nangoVerification=null;cleanupReview=null;nangoLink="";nangoLinkExpiresAt="";message="Sign-in changed; checking integrations…";render();setTimeout(()=>refresh(false),0)});
 window.addEventListener("focus",()=>{if(document.getElementById("agenthq-automation-root"))refresh(false).catch(()=>{})});
 render();
