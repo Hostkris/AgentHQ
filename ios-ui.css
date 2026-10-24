@@ -480,3 +480,20 @@ button:disabled{cursor:default}
 @media(prefers-reduced-motion:reduce){
  .home-slide-track,.home-page-dots .home-page-dot{transition-duration:.01ms!important}
 }
+
+
+/* Worker Messages: native-feeling select mode with accessible, destructive confirmations. */
+.ios-chat-edit-bar{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:7px;padding:4px 12px 8px;min-height:34px;background:transparent}
+.ios-chat-edit-bar button{border:0;background:transparent;color:var(--ui-blue,#007aff);font-size:12px;font-weight:650;min-height:30px;padding:3px 8px;border-radius:9px}
+.ios-chat-edit-bar button:disabled{opacity:.4}
+.ios-chat-edit-bar .ios-chat-danger{color:var(--ui-red,#ff3b30)}
+.ios-thread .ios-chat-list .ios-message-row[data-chat-kind]{position:relative;-webkit-touch-callout:none}
+.ios-thread .ios-chat-list .ios-message-row[data-chat-kind] .chat-delete-bar{display:none}
+.ios-thread .ios-chat-list .ios-message-row[data-chat-kind] .ios-message-bubble:has(.chat-delete-bar){padding-right:14px}
+.ios-thread-selecting .ios-chat-list .ios-message-row[data-chat-kind]{cursor:pointer;gap:9px;align-items:center}
+.ios-chat-select-button{display:grid;place-items:center;flex:0 0 27px;width:27px;height:27px;min-width:27px;min-height:27px;padding:0!important;border-radius:50%;border:1.5px solid #aab2bf!important;background:transparent!important;color:#fff;font-weight:750;font-size:16px}
+.ios-chat-select-button[aria-pressed=true]{background:#007aff!important;border-color:#007aff!important}
+.ios-thread-selecting .ios-chat-list .ios-message-row.outgoing{padding-left:10px}
+.ios-thread-selecting .ios-chat-list .ios-message-row.incoming{padding-left:10px}
+.ios-thread-selecting .ios-chat-list .ios-message-row .ios-photo-message{margin:0}
+@media(max-width:380px){.ios-chat-edit-bar{gap:2px}.ios-chat-edit-bar button{font-size:11px;padding:3px 5px}}
