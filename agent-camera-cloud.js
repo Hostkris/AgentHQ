@@ -39,6 +39,8 @@ function afterRender(){
 function syncNotice(){
  const el=document.querySelector('#agent-camera-status');
  if(el)el.textContent=capturing?'Saving photo…':error||notice||'';
+ const fallback=document.querySelector('.camera-native-fallback');
+ if(fallback)fallback.hidden=Boolean(navigator.mediaDevices?.getUserMedia)&&!error;
 }
 async function compress(input){
  if(!input||!String(input.type).startsWith('image/'))throw Error('Choose a photo.');
@@ -91,7 +93,7 @@ function renderCamera(){
  return '<section class="agent-camera-app" aria-label="Camera">'+
  '<header class="camera-top"><button type="button" data-camera-close aria-label="Close Camera">✕</button><span>PHOTO</span><span class="camera-top-space"></span></header>'+
  '<div class="camera-viewfinder"><video id="agent-camera-video" autoplay muted playsinline aria-label="Live camera preview"></video>'+
- (!navigator.mediaDevices?.getUserMedia||error?'<button type="button" class="camera-native-fallback" data-camera-native>Take Photo</button>':'')+'</div>'+
+ '<button type="button" class="camera-native-fallback" data-camera-native '+(navigator.mediaDevices?.getUserMedia&&!error?'hidden':'')+'>Take Photo</button></div>'+
  '<div class="camera-controls"><button type="button" class="camera-gallery-thumbnail" data-camera-gallery aria-label="Open Agent HQ Photos">'+
  (latest?'<img alt="Last saved photo" src="'+safe(latest)+'">':'<span aria-hidden="true">▦</span>')+'</button>'+
  '<button type="button" class="camera-shutter" data-camera-shutter aria-label="Take picture"'+(capturing?' disabled':'')+'><span></span></button>'+
