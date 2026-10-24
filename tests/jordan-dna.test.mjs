@@ -43,5 +43,5 @@ test("Jordan is a writer, not a publisher, browser, or self-authorizing agent",(
 test("Jordan's visual role and deployment cache identify the correct agent",()=>{
  const app=read("app.js"),html=read("index.html");
  assert.match(app,/\["jordan","🎬","Jordan","Creative Content Director"\]/);
- assert.match(html,/src="\.\/app\.js\?v=20261024-(?:jordan|casey)-dna-3"/);
+ assert.match(html,/src="\.\/app\.js\?v=20261024-(?:jordan|casey|taylor)-dna-3"/);
 });
