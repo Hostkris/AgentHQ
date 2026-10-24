@@ -161,7 +161,9 @@ export async function runResearch(db:any,owner:string,worker:string,jobId:string
    });
    if(handoffError)return report+'\n\nRiley handoff to Alex is pending: report saved, but manager message could not be written.';
   }
-  return report;
+  // Keep the complete, source-backed report in the research history and
+  // the in-thread expandable attachment. Text like a coworker, not a pasted PDF.
+  return 'I finished checking public sources for "'+String(job.query).slice(0,110)+'". I saved the full report with links and limitations below. Want me to walk you through the most useful finding?';
  }catch(e){
   const info=e instanceof Error?(e.name==='TimeoutError'?'Web research timed out. Ask for a new report to retry.':e.message):'Web research failed.';
   await db.from('agent_research_jobs').update({status:'failed',error:info.slice(0,300),finished_at:new Date().toISOString()}).eq('id',jobId).eq('owner_id',owner).eq('employee_id',worker).eq('status','running');
