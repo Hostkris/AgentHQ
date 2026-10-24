@@ -74,11 +74,20 @@ async function saveToCameraRoll(input){
   if(upload.error)throw Error('Could not save camera photo: '+upload.error.message);
   const inserted=await agentCloud.from('agent_camera_photos').insert({owner_id:u.id,storage_path:path,width:photo.width,height:photo.height}).select('id').single();
   if(inserted.error||!inserted.data){await agentCloud.storage.from(BUCKET).remove([path]);throw Error('Camera Roll save failed: '+(inserted.error?.message||'Try again'))}
-  notice='Saved to Agent HQ Photos';await refresh();return inserted.data;
+  // Update the last-photo thumbnail without re-signing the entire gallery after every shot.
+  const {data:link,error:signError}=await agentCloud.storage.from(BUCKET).createSignedUrl(path,600);
+  roll.unshift({id:inserted.data.id,storage_path:path,width:photo.width,height:photo.height,
+   created_at:new Date().toISOString(),url:signError?'':(link?.signedUrl||'')});
+  roll=roll.slice(0,300);
+  const thumb=document.querySelector('.camera-gallery-thumbnail');
+  if(thumb&&roll[0]?.url)thumb.innerHTML='<img src="'+safe(roll[0].url)+'" alt="Last saved photo">';
+  if(document.querySelector('#agent-camera-picker'))drawPicker();
+  notice='Saved to Agent HQ Photos';return inserted.data;
  }catch(e){error=e.message;throw e}
  finally{capturing=false;syncNotice()}
 }
 async function snapshot(){
+ if(capturing)return;
  if(!stream){document.querySelector('#agent-camera-native')?.click();return}
  const video=document.querySelector('#agent-camera-video');
  if(!video?.videoWidth)throw Error('Camera is starting.');
