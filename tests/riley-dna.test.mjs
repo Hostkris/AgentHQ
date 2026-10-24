@@ -23,6 +23,7 @@ test('Riley chat remains research-only, and cannot request outside account actio
  assert.match(chat,/role==="Research analyst"\?RILEY_CHAT_POLICY/);
  assert.match(chat,/worker==="riley"&&result\.intent==="action"/);
  assert.match(chat,/await proposeResearch\(composed\)/);
+ assert.match(chat,/worker!=="alex"&&worker!=="riley"&&isResearchInstruction/);
  assert.match(chat,/stage==="confirm_research"/);
  assert.match(chat,/runResearch\(db,owner,worker,job\.id,env\("GROQ_API_KEY"\)\)/);
 });
@@ -40,7 +41,13 @@ test('All specialist text channels explicitly label Riley research as unverified
 test('Real research uses separately approved public web tool with traceable sources',()=>{
  const research=read('supabase/functions/agent-hq-converse/research.ts');
  assert.match(research,/claim_agent_research/);
- assert.match(research,/tool_choice:'required'/);
+ assert.match(research,/tool_choice:choice/);
+ assert.match(research,/requestSearch\('required'\)/);
+ assert.match(research,/requestSearch\('auto'\)/);
+ assert.match(research,/reasoning_format:'parsed'/);
+ assert.match(research,/hasSearchResults/);
+ assert.match(research,/hasBrowserResults/);
+ assert.match(research,/No research report was completed/);
  assert.match(research,/researchEvidence\(message\)/);
  assert.match(research,/finish_agent_research/);
  assert.match(research,/Search retrieved:/);
