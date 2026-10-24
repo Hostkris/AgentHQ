@@ -44,7 +44,7 @@ export function researchEvidence(message:any):Source[]{
  if(!found.size)throw Error('Search returned no verifiable source links. Please try a more specific topic.');
  return [...found.values()].slice(0,12);
 }
-export function researchApproval(query:string){return 'May I research this topic on the public web?\n\n'+query+'\n\nI will send this topic to Groq’s web search, read public results and return a report with source links. This is one report, expires in 15 minutes, and does not grant account access. Provider usage limits or charges may apply. Reply Yes to start, or No to cancel.'}
+export function researchApproval(query:string){return 'I can check public sources for “'+query.slice(0,400)+'” and save a report with links. Groq web search may have usage limits or charges; this does not grant account access. Want me to go ahead? Reply yes or no within 15 minutes.'}
 export async function createResearchRequest(db:any,owner:string,worker:string,cid:string,query:string){
  query=validateResearchQuery(query);
  const {error:cancelError}=await db.from('agent_research_jobs').update({status:'denied',finished_at:new Date().toISOString()}).eq('owner_id',owner).eq('employee_id',worker).eq('status','pending');
