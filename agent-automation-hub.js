@@ -11,7 +11,7 @@ function render(){
  const v=nangoVerification;
  const verified=v?.state==="api_verified";
  const found=v?.authorizationFound===true;
- const nangoLabel=verified?"GitHub connected · API verified":found?"GitHub authorized · API unverified":v?.state==="permissions_needed"?"Verification needs key permission":v?.state==="credentials_invalid"?"Nango verification key rejected":v?.state==="not_found"?"No matching GitHub connection":v?.state==="needs_reconnect"?"GitHub reconnect required":v?"Live verification incomplete":n?.configured?"Configured · not live verified":"Setup required";
+ const nangoLabel=verified?"GitHub connected · API verified":found?"GitHub authorized · API unverified":v?.state==="permissions_needed"?"Verification needs key permission":v?.state==="credentials_invalid"?"Nango verification key rejected":v?.state==="not_found"?"No matching GitHub connection":v?.state==="owner_tag_mismatch"?"GitHub connection not linked to Agent HQ":v?.state==="environment_no_connection"?"No GitHub connection in this Nango environment":v?.state==="matching_details_mismatch"?"GitHub connection details need review":v?.state==="diagnostic_incomplete"?"Nango diagnosis incomplete":v?.state==="needs_reconnect"?"GitHub authorization needs attention":v?"Live verification incomplete":n?.configured?"Configured · not live verified":"Setup required";
  const signature=JSON.stringify([!!busy,!!checking,message,result,nangoVerification,nangoLink,nangoLinkExpiresAt]);
  if(root.dataset.signature===signature)return;
  root.dataset.signature=signature;
