@@ -212,10 +212,7 @@ Choose a maximum of 4 DIFFERENT workers. No markdown.`;
    if(commitError)throw Error("Could not save the manager's plan");
    await admin.from("agent_worker_runs").update({status:"completed",result_preview:summary.slice(0,4000),
      finished_at:new Date().toISOString()}).eq("id",runId).eq("owner_id",owner);
-   const planMessage="Alex · Proposed assignment plan for "+assignment.title+"\n"+
-    summary+"\n\n"+routes.map((r,i)=>(i+1)+". "+r.worker.toUpperCase()+" — "+r.title+
-     "\n"+r.instructions).join("\n\n")+
-    "\n\nThe owner's direct instruction authorizes INTERNAL TEXT drafting. Specialists will begin automatically while this session runs. Reply RED LIGHT or STOP to pause future steps. No publishing, spending, website or account permission is granted.";
+   const planMessage="I put together a team for "+assignment.title+". "+routes.map(x=>workerLabelForChat(x.worker)).join(", ")+" will handle the individual steps. I've attached the full plan right here in Messages so you can review it. Reply red light if you want the drafting to stop. Nothing will be published or sent externally.";
    const recipients=[...new Set(["alex",...(
     assignment.source_employee_id&&assignment.source_employee_id!=="hq"?
      [assignment.source_employee_id]:[])])];
@@ -286,7 +283,7 @@ Prefer a complete, usable text draft and short handoff over questions. Never tur
   // Workers' individual chats already hold the original drafts and questions.
   // Alex receives the same saved evidence, so the entire project is visible in Messages.
   const resultNotice=outcome==="deliverable"?
-   workerLabelForChat(worker)+" finished: "+next.title+"\n\n"+body+"\n\nDraft only — not published.":
+   workerLabelForChat(worker)+" finished the draft for "+next.title+". I've saved their work in the assignment attachment here so you can read it. Nothing was published.":
    workerLabelForChat(worker)+" needs your response on "+assignment.title+"\n"+
    (outcome==="question"?question:"Website access requested; no connection is active.");
   await Promise.allSettled([saveChatUpdate(admin,owner,"alex",resultNotice)]);
