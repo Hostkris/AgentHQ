@@ -343,6 +343,40 @@ Deno.serve(async(req:Request)=>{
   // "Yes" in confirm_task confirms task creation; it does not approve its later plan.
   const signal=planSignal(body);
   let planDecisionHandled=false;
+  const continuation=/^(continue|resume|keep going|next step|finish the task|finish it|run next steps)$/i.test(body.trim());
+  if(continuation&&stage==="idle"){
+   let query=db.from("agent_team_assignments").select("id,title,owner_paused,source_employee_id")
+    .eq("owner_id",owner).neq("status","completed").eq("owner_paused",false)
+    .order("updated_at",{ascending:false}).limit(25);
+   if(worker!=="alex"&&worker!=="hq")query=query.eq("source_employee_id",worker);
+   const {data:jobs,error:jobsError}=await query;
+   if(jobsError)throw Error("Could not verify ongoing assignments");
+   const ids=(jobs||[]).map(x=>x.id);
+   if(ids.length){
+    const [{data:decisions},{data:steps}]=await Promise.all([
+     db.from("agent_alex_plan_decisions").select("assignment_id,status").eq("owner_id",owner).in("assignment_id",ids),
+     db.from("agent_task_steps").select("assignment_id,status").eq("owner_id",owner).in("assignment_id",ids)
+    ]);
+    const valid=new Set((decisions||[]).filter(x=>x.status==="approved").map(x=>x.assignment_id));
+    const queued=new Set((steps||[]).filter(x=>x.status==="queued").map(x=>x.assignment_id));
+    const candidates=(jobs||[]).filter(x=>valid.has(x.id)&&queued.has(x.id));
+    const contextual=Boolean(related&&(jobs||[]).some(x=>x.id===related));
+    const target=candidates.find(x=>x.id===related)||(!contextual&&candidates.length===1?candidates[0]:null);
+    if(target){
+     resumeAssignment=target.id;
+     await state("idle","",target.id);
+     replyText="Continuing the remaining approved drafts for "+target.title+". No account, publishing or spending authorization was granted.";
+    }else{
+     replyText=candidates.length>1?"Several work orders have unfinished drafts. Name the one to continue; I won't choose another without confirmation.":
+      "I don't have a queued, approved specialist step in this conversation to continue.";
+    }
+   }else{
+    replyText="There is no approved queued work in this conversation yet.";
+   }
+   await append(replyText);
+   return reply(req,{success:true,owner_message_id:ownerMessage.id,reply:replyText,
+    start_assignment_id:null,resume_assignment_id:resumeAssignment,approved_assignment_id:null});
+  }
   if(signal&&stage==="idle"){
    let query=db.from("agent_team_assignments")
     .select("id,title,manager_summary,source_employee_id,coordination_status,status,owner_paused")
