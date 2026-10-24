@@ -3,10 +3,11 @@ import {createResearchRequest,isResearchInstruction,researchApproval,researchSta
 import {ALEX_DNA,isAlexForbiddenIntent} from "../_shared/alex-dna.ts";
 import {RILEY_CHAT_POLICY} from "../_shared/riley-dna.ts";
 import {MAYA_CHAT_POLICY} from "../_shared/maya-dna.ts";
+import {JORDAN_CHAT_POLICY} from "../_shared/jordan-dna.ts";
 import {alexBrief} from "./alex-brief.ts";
 const ORIGIN="https://hostkris.github.io";
 const EMPLOYEES={
- alex:"General Manager",maya:"Chief Marketing Strategist",jordan:"Scripts and content",
+ alex:"General Manager",maya:"Chief Marketing Strategist",jordan:"Creative Content Director & Scriptwriting Specialist",
  riley:"Research analyst",taylor:"Communications",
  casey:"Social media planner",morgan:"Store merchandising",
  avery:"Business analyst",jamie:"Scheduling",quinn:"Partnerships and growth",
@@ -61,7 +62,7 @@ For "action", return {"intent":"action","reply":"short conversational approval q
 For requests to research online, search the web, look something up, find current public information, or compare current public options, classify as "research". The server will ask approval before searching; do not claim to have searched. For requests requiring account data or actions, still use "action".
 For "task", state that the safe internal assignment is starting. Do not ask "Should I start?" or repeat a confirmation.
 Return ONLY valid JSON with {"intent":"answer|collect|task|action|research","reply":"short natural message","action":optional object as above} and no code fences.`;
- const system=role==="Chief Marketing Strategist"?baseSystem+"\n"+MAYA_CHAT_POLICY:baseSystem;
+ const system=role==="Chief Marketing Strategist"?baseSystem+"\n"+MAYA_CHAT_POLICY:role==="Creative Content Director & Scriptwriting Specialist"?baseSystem+"\n"+JORDAN_CHAT_POLICY:baseSystem;
  const abort=new AbortController(),timer=setTimeout(()=>abort.abort(),25000);
  try{
   const response=await fetch(ai.url,{method:"POST",signal:abort.signal,
