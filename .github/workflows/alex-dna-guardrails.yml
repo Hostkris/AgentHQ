@@ -18,6 +18,11 @@ on:
       - 'tests/messages-workflow.test.mjs'
       - 'tests/riley-dna.test.mjs'
       - 'tests/ios-home-messages.test.mjs'
+      - 'tests/camera-messages.test.mjs'
+      - 'agent-camera-cloud.js'
+      - 'agent-camera.css'
+      - 'supabase/functions/agent-hq-image-review/**'
+      - 'supabase/migrations/20261024050000_owner_private_camera_reference_photos.sql'
       - 'agent-home-layout.js'
       - 'ios-ui.css'
       - 'index.html'
@@ -54,6 +59,8 @@ jobs:
         run: node --test tests/riley-dna.test.mjs
       - name: Test iPhone Home Screen and natural Messages
         run: node --test tests/ios-home-messages.test.mjs
+      - name: Test camera, photo messages and private access
+        run: node --check agent-camera-cloud.js && node --test tests/camera-messages.test.mjs
       - name: Verify Home Screen JavaScript syntax
         run: node --check agent-home-layout.js && node --check app.js
       - name: Test Creative Desk owner approvals and draft escaping
