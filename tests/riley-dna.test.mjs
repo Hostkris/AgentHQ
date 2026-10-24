@@ -44,7 +44,12 @@ test('Real research uses separately approved public web tool with traceable sour
  assert.match(research,/tool_choice:choice/);
  assert.match(research,/requestSearch\('required'\)/);
  assert.match(research,/requestSearch\('auto'\)/);
- assert.match(research,/reasoning_format:'parsed'/);
+ const contract=research.split("const searchRequest=")[1]?.split("const requestSearch=")[0]||"";
+ assert.match(contract,/tools:\[\{type:'browser_search'\}\]/);
+ assert.match(contract,/tool_choice:choice/);
+ assert.doesNotMatch(contract,/(?:reasoning_format|reasoning_effort|citation_options|response_format|temperature)\s*:/);
+ assert.match(research,/safeParameter/);
+ assert.match(research,/No report was completed/);
  assert.match(research,/hasSearchResults/);
  assert.match(research,/hasBrowserResults/);
  assert.match(research,/No research report was completed/);
