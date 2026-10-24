@@ -6,6 +6,7 @@ An owner assignment authorizes its internal work. The team plans, uses ordinary 
 
 - Rejected responses retain the same project, stage, responsible specialist, draft, revision and saved discussion. Each correction is validated before saving.
 - Routine errors queue automatic retries with increasing delays. After repeated failures, Alex uses a separately counted run to diagnose the workflow and gives correction guidance back to the specialist. Alex does not write the specialist's deliverable.
+- Reaching the internal eighteen-turn checkpoint starts another managed work cycle on the same saved project. It does not ask the owner to restart or narrow a clear assignment; the shared hourly usage limit remains enforced.
 - A temporary client connection failure reconnects automatically. A late response cannot overwrite a paused, revised or superseded project.
 - Public research that cannot finish in the direct conversation becomes a saved team project, so the owner does not need to resend the task.
 - Answering an essential private question or deciding its exact sensitive request resumes the project without a second confirmation.

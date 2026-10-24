@@ -12,11 +12,13 @@ const escape=v=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').rep
 test('routine permission requests and nonessential owner questions are corrected internally',()=>{
  for(const raw of [{kind:'permission',text:'Can I start?',question:'May I draft this?',url:'https://example.com'}, {kind:'permission',text:'Search',question:'May I search normal public sources?',approval_category:'research',why_blocking:'I want permission to use public search.',url:'https://example.com'}])assert.throws(()=>normalizeProjectTurn(raw,session),e=>e.code==='unnecessary_approval');
  assert.throws(()=>normalizeProjectTurn({kind:'ask_owner',text:'Pick a style',question:'Should I use short paragraphs?'},session),e=>e.code==='nonessential_question');
+ assert.throws(()=>normalizeProjectTurn({kind:'ask_owner',text:'Clarify',question:'Please specify the project purpose, exact tone, primary content formats and key success metrics.',blocking_reason:'owner_only_fact',why_blocking:'I would prefer all of these choices before writing the requested project.'},session),e=>e.code==='nonessential_question');
  const prompt=projectTurnPrompt(session,{jordan:'Writing',casey:'Review'});assert.match(prompt,/standing authorization/);assert.match(prompt,/Do not ask the owner to click Retry/);assert.match(prompt,/final editorial approval/);
 });
 test('essential owner facts and specific sensitive authorizations remain private blockers',()=>{
  const fact={kind:'ask_owner',text:'A private number is essential',question:'What is the approved budget ceiling?',blocking_reason:'owner_only_fact',why_blocking:'The actual spending ceiling is private and is not in the saved brief or approved sources.'};
  assert.equal(normalizeProjectTurn(fact,session).kind,'ask_owner');
+ assert.equal(normalizeProjectTurn({...fact,question:'What were the actual success metrics recorded last month?'},session).kind,'ask_owner');
  for(const category of ['account_authorization','private_data','spending','budget_change','account_change','public_release','risky_site','irreversible_commitment']){
   const request={kind:'permission',text:'Sensitive action',question:'Authorize only this exact proposed action and scope?',approval_category:category,why_blocking:'This action requires the actual account owner to authorize the specific scope.',url:'https://example.com/account'};
   assert.equal(normalizeProjectTurn(request,session).approval_category,category);

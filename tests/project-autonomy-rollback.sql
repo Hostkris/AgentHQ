@@ -52,8 +52,14 @@ select public.control_agent_project(owner,assignment,'pause') from autonomy_ids;
 select pg_temp.assert_autonomy(not public.fail_agent_project_turn(owner,assignment,run,'late failure'),'late failure cannot resume an owner-paused project') from autonomy_ids;
 select pg_temp.assert_autonomy(jsonb_array_length(public.get_agent_project_runner_work(array[owner]))=0,'owner pause stops background work') from autonomy_ids;
 select public.control_agent_project(owner,assignment,'resume') from autonomy_ids;
+update public.agent_project_sessions set turn_count=18 where assignment_id=(select assignment from autonomy_ids);
+select pg_temp.assert_autonomy((public.claim_agent_project_turn(owner,assignment,'groq','synthetic-no-provider')->>'state')='recovering','internal work checkpoint continues automatically instead of asking the owner to narrow the task') from autonomy_ids;
+select pg_temp.assert_autonomy((select execution_cycle=2 and turn_count=0 and phase='discussion' and pending_question='' and shared_draft='SAVED SHARED DRAFT' from public.agent_project_sessions where assignment_id=(select assignment from autonomy_ids)),'checkpoint preserves phase, project and draft');
+select pg_temp.claim_autonomy();
+select public.complete_agent_project_diagnosis(owner,assignment,run,1,'Continue the saved discussion using the existing owner facts and complete the current specialist responsibility.') from autonomy_ids;
 insert into public.agent_worker_runs(owner_id,assignment_id,employee_id,status,provider,model,finished_at)
  select owner,assignment,'jordan','failed','groq','synthetic-no-provider',now() from autonomy_ids cross join generate_series(1,10);
+update public.agent_project_sessions set next_run_at=now() where assignment_id=(select assignment from autonomy_ids);
 select pg_temp.assert_autonomy((public.claim_agent_project_turn(owner,assignment,'groq','synthetic-no-provider')->>'state')='budget','all autonomous and repair calls obey the same free allowance') from autonomy_ids;
 
 select pg_temp.assert_autonomy(not public.verify_agent_project_runner(repeat('0',64)),'a forged scheduler credential is denied');
