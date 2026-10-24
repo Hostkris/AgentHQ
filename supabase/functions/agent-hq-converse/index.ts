@@ -340,7 +340,7 @@ Deno.serve(async(req:Request)=>{
   let planDecisionHandled=false;
   if(signal&&stage==="idle"){
    let query=db.from("agent_team_assignments")
-    .select("id,title,manager_summary,source_employee_id,coordination_status,status")
+    .select("id,title,manager_summary,source_employee_id,coordination_status,status,owner_paused")
     .eq("owner_id",owner).neq("status","completed")
     .order("updated_at",{ascending:false}).limit(25);
    if(worker!=="alex"&&worker!=="hq")query=query.eq("source_employee_id",worker);
@@ -389,9 +389,34 @@ Deno.serve(async(req:Request)=>{
       await state("idle","",target.id);
       replyText="Red light. I rejected the plan for "+target.title+". No specialist drafts were authorized. Tell me what to change and I will prepare a replacement.";
      }
-    }else if(related&&(assignments||[]).some(a=>a.id===related)){
-     planDecisionHandled=true;
-     replyText="There is no unapproved specialist plan for that assignment now. I have not changed any permissions or launched other work.";
+    }else{
+     // Red light may pause an already-approved plan. Green light may resume it.
+     // The paused flag is checked before EVERY future worker start server-side.
+     const active=(assignments||[]).filter(a=>decided.get(a.id)==="approved"&&
+      (grouped.get(a.id)||[]).some(x=>["queued","running","waiting_for_owner","waiting_for_permission"].includes(x))&&
+      (signal==="reject"?!a.owner_paused:a.owner_paused));
+     const current=active.find(a=>a.id===related)||(active.length===1?active[0]:null);
+     if(active.length>1&&!current){
+      planDecisionHandled=true;
+      replyText="I have more than one active assignment. Please specify which one to stop or resume. Nothing has changed.";
+     }else if(current){
+      planDecisionHandled=true;
+      const paused=signal==="reject";
+      const {error:pauseError}=await db.from("agent_team_assignments")
+       .update({owner_paused:paused,updated_at:new Date().toISOString()})
+       .eq("owner_id",owner).eq("id",current.id);
+      if(pauseError)throw Error("Could not record the owner's stop/go instruction");
+      await state("idle","",current.id);
+      if(paused){
+       replyText="Red light recorded for "+current.title+". No further specialist steps will start. A step that was already running might finish its text draft; no external actions are authorized.";
+      }else{
+       resumeAssignment=current.id;
+       replyText="Green light restored for "+current.title+". I'll continue the previously approved internal drafts. No outside actions are authorized.";
+      }
+     }else if(related&&(assignments||[]).some(a=>a.id===related)){
+      planDecisionHandled=true;
+      replyText="There is no pending plan matching this command. I did not start or approve any other work.";
+     }
     }
    }
   }
