@@ -18,6 +18,7 @@ on:
       - 'tests/messages-workflow.test.mjs'
       - 'tests/agent-intelligence.test.mjs'
       - 'tests/riley-dna.test.mjs'
+      - 'tests/maya-dna.test.mjs'
       - 'tests/ios-home-messages.test.mjs'
       - 'tests/camera-messages.test.mjs'
       - 'agent-camera-cloud.js'
@@ -41,6 +42,7 @@ on:
       - 'supabase/functions/**'
       - 'supabase/migrations/**'
       - 'tests/alex-dna.test.mjs'
+      - 'tests/maya-dna.test.mjs'
 
 permissions:
   contents: read
@@ -58,6 +60,8 @@ jobs:
         run: node --test tests/messages-workflow.test.mjs
       - name: Test Riley researcher-only DNA
         run: node --test tests/riley-dna.test.mjs
+      - name: Test Maya essential marketing-strategy DNA
+        run: node --test tests/maya-dna.test.mjs
       - name: Test iPhone Home Screen and natural Messages
         run: node --test tests/ios-home-messages.test.mjs
       - name: Test camera, photo messages and private access
