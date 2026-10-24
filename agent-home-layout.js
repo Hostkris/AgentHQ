@@ -53,7 +53,7 @@ function tile(id,renderButton){
  const def=APPS.find(a=>a[0]===id);if(!def)return "";
  const html=renderButton(def[1],def[0],def[2])
   .replace('class="tile"','class="tile" data-home-tile="'+id+'" '+(editing?'draggable="true"':''))
-  .replace(/(<span class="tile-label">)[\\s\\S]*?(<\\/span>)/,
+  .replace(/(<span class="tile-label">)[\s\S]*?(<\/span>)/,
    (_full,open,close)=>open+escapeHTML(HOME_LABELS[id]||def[1])+close);
  return '<div class="home-tile-wrap">'+html+
   (editing?'<div class="home-edit-arrows">'+
