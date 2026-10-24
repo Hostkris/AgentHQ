@@ -110,6 +110,26 @@ async function deleteMessage(messageId){
  await refresh();
  return true;
 }
+async function deleteMessages(ids){
+ await getUser();
+ const unique=[...new Set(ids.map(String))];
+ if(!unique.length)return 0;
+ let deleted=0;
+ // Each deletion is still owner-validated by the database RPC.
+ for(let index=0;index<unique.length;index+=6){
+  const batch=unique.slice(index,index+6);
+  const outcomes=await Promise.all(batch.map(p_message_id=>agentCloud.rpc('delete_agent_chat_message',{p_message_id})));
+  for(let n=0;n<outcomes.length;n++){
+   const result=outcomes[n];
+   if(result.error||result.data!==true){
+    await refresh().catch(()=>{});
+    throw Error('Deleted '+deleted+' of '+unique.length+' messages. '+(result.error?.message||'A message could not be deleted.'));
+   }
+   deleted++;
+  }
+ }
+ await refresh();return deleted;
+}
 async function clearConversation(employeeId){
  if(!employees.has(employeeId))throw Error('Unknown worker conversation');
  await getUser();
@@ -120,7 +140,7 @@ async function clearConversation(employeeId){
  await refresh();
  return Number(data||0);
 }
-window.agentHQChatCloud={refresh,send,converse,deleteMessage,markRead,refreshUnread,clearConversation};
+window.agentHQChatCloud={refresh,send,converse,deleteMessage,deleteMessages,markRead,refreshUnread,clearConversation};
 const load=()=>refresh().catch(error=>window.agentHQChatCloudNotice?.('Message sync failed: '+error.message));
 agentCloud.auth.onAuthStateChange(()=>{unreadGeneration++;window.agentHQUnreadSync?.({});setTimeout(load,0)});
 window.addEventListener('focus',load);
