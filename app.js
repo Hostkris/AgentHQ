@@ -321,7 +321,7 @@ function renderChatConnectorCard(items){
  const icloud=/\b(icloud|apple mail)\b/i.test(request)&&
    /\b(mail|emails?|inbox|connect|access|check|review|login|sign.?in)\b/i.test(request);
  const facebook=/\b(facebook|instagram)\b/i.test(request)&&
-   /\b(connect|access|login|sign.?in|post|publish|check|read|manage|account)\b/i.test(request);
+   /\b(connect|authorize|authorization|permission|login|sign.?in|account access|grant access)\b/i.test(request);
  const metaAds=/\b(meta ads|facebook ads|advertising account|ad account|ad spend)\b/i.test(request);
  if(!email&&!icloud&&!facebook&&!metaAds)return "";
  const name=staff.find(row=>row[0]===active)?.[2]||"this worker";
