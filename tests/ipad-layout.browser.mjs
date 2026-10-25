@@ -12,7 +12,7 @@ const browser=await chromium.launch({headless:true,executablePath:process.env.AG
 const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:1,hasTouch:true,isMobile:true});
 const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
 const core=new Set(['app.js','agent-home-layout.js','agent-message-controls.js','agent-research-status.js','icons.js']);
-await page.route('**/*',async route=>{const url=new URL(route.request().url()),name=url.pathname.split('/').at(-1);if(url.origin!==base){await route.abort();return;}if(name.endsWith('.js')&&!core.has(name)){await route.fulfill({contentType:'text/javascript',body:''});return;}await route.continue();});
+await page.route('**/*',async route=>{const url=new URL(route.request().url()),name=url.pathname.split('/').at(-1);if(url.hostname==='geocoding-api.open-meteo.com'){await route.fulfill({contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify({results:[{latitude:39.96,longitude:-83,name:'Columbus'}]})});return;}if(url.hostname==='api.open-meteo.com'){await route.fulfill({contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify({current:{temperature_2m:72,weather_code:0}})});return;}if(url.origin!==base){await route.abort();return;}if(name.endsWith('.js')&&!core.has(name)){await route.fulfill({contentType:'text/javascript',body:''});return;}await route.continue();});
 function approx(value,target){assert(Math.abs(value-target)<=1,`${value} instead of ${target}`)}
 async function home(width,height,columns,file){
  await page.setViewportSize({width,height});
@@ -32,6 +32,16 @@ try{
  await page.goto(base+'/index.html');await page.waitForSelector('.home-pages .home-dashboard');await mkdir('/tmp/agenthq-ipad-layout',{recursive:true});
  await home(390,844,4,'/tmp/agenthq-ipad-layout/iphone.png');
  await home(820,1180,6,'/tmp/agenthq-ipad-layout/ipad-portrait.png');
+ assert.equal(await page.locator('[data-home-slide="0"] .home-widget').count(),5);
+ const dots=await page.locator('.home-page-navigation').boundingBox();assert(dots.y>900,`Page dots too high: ${dots.y}`);
+ await page.locator('[data-home-slide="0"] [data-home-widget-open="notes"]').click();
+ await page.locator('#home-note').fill('Ask Riley about the campaign');await page.locator('[data-widget-note-form] button').click();
+ assert.match(await page.locator('.widget-note-list').innerText(),/Ask Riley about the campaign/);
+ await page.locator('.widget-sheet [data-widget-close]').click();
+ await page.locator('[data-home-slide="0"] [data-home-widget-open="clock"]').click();await page.locator('[data-widget-clock-toggle]').click();
+ assert.equal(await page.locator('[data-widget-clock-face] .widget-analog i').count(),2);await page.locator('.widget-sheet [data-widget-close]').click();
+ await page.locator('[data-home-slide="0"] [data-home-widget-open="calendar"]').click();assert.match(await page.locator('.widget-sheet').innerText(),/View assignments/);const month=await page.locator('.widget-month-head strong').innerText();await page.locator('[data-widget-month="1"]').click();assert.notEqual(await page.locator('.widget-month-head strong').innerText(),month);await page.locator('.widget-sheet [data-widget-close]').click();
+ await page.locator('[data-home-slide="0"] [data-home-widget-open="weather"]').click();await page.locator('#home-weather-city').fill('Columbus, Ohio');await page.locator('[data-widget-weather-form] button').click();await page.getByText('72° · Columbus').first().waitFor();await page.locator('.widget-sheet [data-widget-close]').click();
  await home(1180,820,8,'/tmp/agenthq-ipad-layout/ipad-landscape.png');
  await page.setViewportSize({width:820,height:1180});await page.evaluate(()=>window.agentHQCameraReturnToChat(null));
  await page.emulateMedia({colorScheme:'dark'});assert.match(await page.locator('.home-shell').evaluate(e=>getComputedStyle(e).backgroundImage),/linear-gradient/);

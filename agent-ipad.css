@@ -44,6 +44,34 @@
   .ios-composer{padding-inline:clamp(16px,3vw,44px)}
   .agent-thread-activity{padding-inline:clamp(20px,4vw,52px)}
 }
+
+/* Home content uses the full height; page controls sit by the bottom safe area. */
+.home-shell{display:flex;flex-direction:column}
+.home-shell .home-pages{flex:1;min-height:0;display:flex;flex-direction:column;padding-bottom:max(12px,env(safe-area-inset-bottom))}
+.home-shell .home-slide-viewport{flex:1}
+.home-shell .home-slide-track{height:100%}
+.home-shell .home-slide{height:100%;min-height:100%;align-self:stretch;display:flex;flex-direction:column;gap:clamp(16px,3vh,38px)}
+.home-shell .home-slide .home-dashboard{align-content:space-between;flex:1;min-height:0;row-gap:clamp(14px,2vh,32px)}
+.home-shell .home-page-navigation{margin-top:auto!important;padding-top:12px!important}
+.home-widget--notes{background:linear-gradient(160deg,rgba(255,246,188,.9),rgba(255,255,255,.75))}
+.home-widget--weather{background:linear-gradient(160deg,rgba(44,141,236,.88),rgba(145,205,253,.74))}
+.home-widget--weather .home-widget-open,.home-widget--weather .home-widget-open small{color:#fff}
+.home-widget--calendar{background:linear-gradient(160deg,rgba(255,255,255,.92),rgba(238,242,250,.78))}
+.home-widget--clock{background:linear-gradient(160deg,rgba(34,38,53,.88),rgba(93,105,132,.8))}
+.home-widget--clock .home-widget-open,.home-widget--clock .home-widget-open small{color:#fff}
+.home-widget--status{background:linear-gradient(160deg,rgba(218,249,234,.9),rgba(255,255,255,.8))}
+.home-widget-summary{font-size:clamp(17px,2vw,30px);line-height:1.1;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}
+.widget-sheet-backdrop{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.42);display:flex;align-items:flex-end;justify-content:center}
+.widget-sheet{width:min(100%,680px);max-height:87dvh;overflow:auto;border-radius:26px 26px 0 0;background:var(--ui-card,#fff);color:var(--ui-ink,#1d1d1f);padding:22px max(18px,env(safe-area-inset-left)) max(28px,env(safe-area-inset-bottom));box-shadow:0 -15px 45px rgba(0,0,0,.2)}
+.widget-sheet header{display:flex;justify-content:space-between;align-items:center;margin:0 0 18px!important}
+.widget-sheet h2{margin:0;font-size:25px}.widget-sheet button{border-radius:13px;background:#edf3fb;color:#0878df;padding:11px 15px;margin:5px 6px 5px 0;font-weight:650}
+.widget-sheet form{display:grid;gap:9px}.widget-sheet textarea,.widget-sheet input{width:100%;border:1px solid #c7cbd0;border-radius:13px;padding:12px;font:inherit;background:var(--ui-card,#fff);color:inherit}
+.widget-sheet textarea{min-height:110px;resize:vertical}.widget-note{position:relative;background:rgba(150,155,160,.12);border-radius:16px;padding:12px 48px 12px 14px;margin-top:10px;overflow-wrap:anywhere}
+.widget-analog{display:block;position:relative;width:72px;height:72px;border:2px solid currentColor;border-radius:50%;margin:auto;background:radial-gradient(circle at center,currentColor 0 3px,transparent 4px)}
+.widget-analog i{position:absolute;bottom:50%;left:50%;width:3px;background:currentColor;border-radius:3px;transform-origin:50% 100%}.widget-analog .widget-hour{height:22px}.widget-analog .widget-minute{height:29px;width:2px}
+.widget-month-head{display:flex;align-items:center;justify-content:space-between;margin:16px 0 10px}.widget-month-grid{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;gap:5px}.widget-month-grid span,.widget-month-grid small{padding:9px 0}.widget-month-grid .today{background:#0878df;color:#fff;border-radius:50%;font-weight:700}
+.widget-note p{margin:0 0 6px;white-space:pre-wrap}.widget-note small{opacity:.65}.widget-note button{position:absolute;right:4px;top:4px}.widget-clock-face{text-align:center;font-size:56px;margin:26px 0;font-variant-numeric:tabular-nums}
+@media(min-width:700px){.home-shell .home-slide{min-height:calc(100dvh - 145px)}.home-shell .home-slide .home-dashboard{row-gap:clamp(20px,3vh,52px)}.home-pages .home-widgets{grid-template-columns:repeat(5,minmax(0,1fr));margin-top:auto}.home-widget,.home-widget-open{min-height:145px}}
 @media (min-width:1000px), (min-width:700px) and (orientation:landscape){
   .home-pages .home-slide .home-dashboard{grid-template-columns:repeat(8,minmax(0,1fr))}
 }

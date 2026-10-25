@@ -10,25 +10,38 @@ const APPS=[
  ["browser","Browser","🌐"],["reminders","Reminders","📅"],["camera","Camera","📷"],["settings","Settings","⚙️"]
 ];
 const LABELS={office:"Office",messages:"Messages",email:"Email",contacts:"Contacts",accounts:"Accounts",studio:"Studio",assignments:"Assignments",operations:"Operations",creative:"Creative",hq:"Company HQ",approvals:"Approvals",research:"Research",browser:"Browser",reminders:"Reminders",camera:"Camera",settings:"Settings"};
-const valid=new Set(APPS.map(p=>p[0])),kinds=["inbox","approvals","work","research"];
+const valid=new Set(APPS.map(p=>p[0])),kinds=["inbox","approvals","work","research","notes","calendar","weather","clock","status"];
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const empty=()=>({apps:[],widgets:[]});
-const defaultLayout=()=>({pages:[{apps:APPS.slice(0,12).map(p=>p[0]),widgets:[]},{apps:APPS.slice(12).map(p=>p[0]),widgets:[]}],current:0});
+const defaultLayout=()=>({pages:[{apps:APPS.slice(0,12).map(p=>p[0]),widgets:["weather","calendar","notes","clock","status"]},{apps:APPS.slice(12).map(p=>p[0]),widgets:[]}],current:0});
 function load(){
  try{
   const data=JSON.parse(localStorage.getItem(KEY)||"null");
   if(!data||!Array.isArray(data.pages)||!data.pages.length)return defaultLayout();
   const seen=new Set(),pages=data.pages.slice(0,6).map(p=>({
    apps:(Array.isArray(p.apps)?p.apps:[]).filter(id=>{if(!valid.has(id)||seen.has(id))return false;seen.add(id);return true}).slice(0,24),
-   widgets:(Array.isArray(p.widgets)?p.widgets:[]).filter(k=>kinds.includes(k)).slice(0,4)
+   widgets:(Array.isArray(p.widgets)?p.widgets:[]).filter(k=>kinds.includes(k)).slice(0,9)
   }));
   for(const [id] of APPS)if(!seen.has(id))pages[0].apps.push(id);
   // One-screen legacy installations could not swipe; migrate overfilled layouts.
   if(pages.length===1&&pages[0].apps.length>12)pages.push({apps:pages[0].apps.splice(12),widgets:[]});
+  if(!localStorage.getItem('agenthq-home-widgets-seeded-v1')){
+   for(const kind of ['weather','calendar','notes','clock','status'])if(!pages[0].widgets.includes(kind))pages[0].widgets.push(kind);
+   localStorage.setItem('agenthq-home-widgets-seeded-v1','1');
+  }
   return {pages,current:Math.min(pages.length-1,Math.max(0,Number(data.current)||0))};
  }catch{return defaultLayout()}
 }
 let state=load(),editing=false,menu=false,change=()=>{};
+const widgetKey='agenthq-home-personal-widgets-v1';
+function personal(){try{return JSON.parse(localStorage.getItem(widgetKey)||'{}')||{}}catch{return {}}}
+function putPersonal(part){try{localStorage.setItem(widgetKey,JSON.stringify({...personal(),...part}))}catch{}}
+const dateLabel=()=>new Intl.DateTimeFormat(undefined,{weekday:'short',month:'short',day:'numeric'}).format(new Date());
+const timeLabel=()=>new Intl.DateTimeFormat(undefined,{hour:'numeric',minute:'2-digit'}).format(new Date());
+function clockFace(){const now=new Date(),hour=(now.getHours()%12+now.getMinutes()/60)*30,minute=now.getMinutes()*6;return `<span class="widget-analog" role="img" aria-label="${esc(timeLabel())}"><i class="widget-hour" style="transform:translateX(-50%) rotate(${hour}deg)"></i><i class="widget-minute" style="transform:translateX(-50%) rotate(${minute}deg)"></i><b></b></span>`}
+let activeWidget=null,weatherPending=false,calendarOffset=0;
+function monthView(){const today=new Date(),first=new Date(today.getFullYear(),today.getMonth()+calendarOffset,1),offset=first.getDay(),days=new Date(first.getFullYear(),first.getMonth()+1,0).getDate();return `<div class="widget-month-head"><button type="button" data-widget-month="-1" aria-label="Previous month">‹</button><strong>${esc(new Intl.DateTimeFormat(undefined,{month:'long',year:'numeric'}).format(first))}</strong><button type="button" data-widget-month="1" aria-label="Next month">›</button></div><div class="widget-month-grid">${['S','M','T','W','T','F','S'].map(d=>`<small>${d}</small>`).join('')}${Array.from({length:offset},()=>'<span></span>').join('')}${Array.from({length:days},(_,i)=>`<span class="${calendarOffset===0&&i+1===today.getDate()?'today':''}">${i+1}</span>`).join('')}</div>`}
+function weatherLabel(){const w=personal().weather;return w?.temperature!==undefined?`${Math.round(w.temperature)}° · ${w.city}`:'Choose a city';}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(state))}catch{}};
 const update=()=>{save();change()};
 function tile(id,renderButton){
@@ -39,6 +52,12 @@ function tile(id,renderButton){
  return '<div class="home-tile-wrap" data-home-item="'+id+'">'+html+'</div>';
 }
 function widget(kind,values){
+ const p=personal();
+ if(['notes','calendar','weather','clock','status'].includes(kind)){
+  const titles={notes:'Notes',calendar:'Calendar',weather:'Weather',clock:'Clock',status:'Status'};
+  const bodies={notes:p.notes?.length?esc(p.notes[0].text.slice(0,90)):'Tap to write a note',calendar:dateLabel(),weather:esc(weatherLabel()),clock:p.analog?clockFace():timeLabel(),status:`${Number(values.assignments||0)} assignments · ${Number(values.messages||0)} messages`};
+  return `<div class="home-widget home-widget--${kind}">${editing?`<button class="home-widget-remove" type="button" data-home-remove-widget="${kind}" aria-label="Remove ${titles[kind]} widget">×</button>`:''}<button type="button" class="home-widget-open" data-home-widget-open="${kind}"><span class="home-widget-name">${titles[kind]}</span><strong class="home-widget-summary" data-widget-summary="${kind}">${bodies[kind]}</strong><small>${kind==='weather'?'Weather: Open-Meteo':kind==='notes'?`${p.notes?.length||0} saved notes`:kind==='calendar'?'Tap for assignments':kind==='clock'?'Tap to change clock':'Tap for current work'}</small></button></div>`;
+ }
  const c={
   inbox:["Messages","💬",values.messages||0,"Unread messages and approvals","messages"],
   approvals:["Approvals","✅",values.approvals||0,"Requests waiting for your decision","approvals"],
@@ -61,10 +80,19 @@ export function renderHomeScreen(renderButton,values={}){
  (editing?'<div class="home-toolbar is-editing"><button type="button" data-home-widget-menu class="home-add-widget-circle" aria-label="Add a widget">+</button><button type="button" data-home-edit class="home-edit-toggle">Done</button></div>':"")+
  '<div class="home-slide-viewport"><div class="home-slide-track" style="transform:translate3d(-'+(state.current*100)+'%,0,0)">'+state.pages.map((_p,i)=>slide(i,renderButton,values)).join("")+'</div></div>'+
  (editing?'<div class="home-widget-picker">'+
- (menu?'<div class="home-widget-choices">'+kinds.map(k=>'<button type="button" data-home-add-widget="'+k+'">'+esc(k==="work"?"Assignments":k==="inbox"?"Messages":k==="research"?"Research":"Approvals")+'</button>').join("")+'</div>':"")+
+ (menu?'<div class="home-widget-choices">'+kinds.map(k=>'<button type="button" data-home-add-widget="'+k+'">'+esc(({work:'Assignments',inbox:'Messages',research:'Research',approvals:'Approvals',notes:'Notes',calendar:'Calendar',weather:'Weather',clock:'Clock',status:'Status'})[k])+'</button>').join("")+'</div>':"")+
  (state.pages.length<6?'<button type="button" data-home-add-page>+ Add Home Page</button>':"")+
  (state.pages.length>1?'<button type="button" data-home-remove-page>Remove Empty Page</button>':"")+'</div>':"")+
- '<div class="home-page-navigation"><div class="home-page-dots">'+paging+'</div></div></section>';
+ '<div class="home-page-navigation"><div class="home-page-dots">'+paging+'</div></div>'+widgetPanel()+'</section>';
+}
+function widgetPanel(){if(!activeWidget)return '';
+ const p=personal(),kind=activeWidget,heading=esc(kind[0].toUpperCase()+kind.slice(1));let body='';
+ if(kind==='notes')body=`<form data-widget-note-form><label for="home-note">New note</label><textarea id="home-note" maxlength="2000" required placeholder="Something to remember or ask later"></textarea><button type="submit">Save note</button></form><div class="widget-note-list">${(p.notes||[]).map((n,i)=>`<div class="widget-note"><p>${esc(n.text)}</p><small>${esc(n.date)}</small><button type="button" data-widget-delete-note="${i}" aria-label="Delete note">×</button></div>`).join('')}</div>`;
+ if(kind==='calendar')body=`<div class="widget-date">Today: ${esc(new Intl.DateTimeFormat(undefined,{weekday:'long',month:'long',day:'numeric'}).format(new Date()))}</div>${monthView()}<button type="button" data-home-widget-nav="assignments">View assignments (${Number(lastValues.assignments||0)})</button><button type="button" data-home-widget-nav="reminders">Open reminders</button>`;
+ if(kind==='weather')body=`<form data-widget-weather-form><label for="home-weather-city">City or ZIP code</label><input id="home-weather-city" name="city" autocomplete="address-level2" required value="${esc(p.city||'')}" placeholder="Columbus, Ohio"><button type="submit">Get weather</button></form><button type="button" data-widget-location>Use my location</button><p data-weather-result>${esc(weatherLabel())}</p><small>Forecast by Open-Meteo · updates when you ask.</small>`;
+ if(kind==='clock')body=`<div class="widget-clock-face" data-widget-clock-face>${p.analog?clockFace():timeLabel()}</div><button type="button" data-widget-clock-toggle>Switch to ${p.analog?'digital':'analog'}</button>`;
+ if(kind==='status')body=`<p>${Number(lastValues.assignments||0)} assignments need attention</p><p>${Number(lastValues.messages||0)} unread messages</p><p>${Number(lastValues.approvals||0)} approvals waiting</p><button type="button" data-home-widget-nav="operations">Open Operations</button>`;
+ return `<div class="widget-sheet-backdrop" data-widget-close><section class="widget-sheet" role="dialog" aria-modal="true" aria-label="${heading}"><header><h2>${heading}</h2><button type="button" data-widget-close aria-label="Close ${heading}">Done</button></header>${body}</section></div>`;
 }
 const root=()=>document.querySelector(".home-pages");
 const track=()=>root()?.querySelector(".home-slide-track");
@@ -104,13 +132,22 @@ function action(target){
  }
  if(target.closest('[data-home-widget-menu]')){menu=!menu;update();return true}
  const addWidget=target.closest('[data-home-add-widget]');
- if(addWidget){const kind=addWidget.dataset.homeAddWidget,p=state.pages[state.current];if(kinds.includes(kind)&&p.widgets.length<4&&!p.widgets.includes(kind))p.widgets.push(kind);menu=false;update();return true}
+ if(addWidget){const kind=addWidget.dataset.homeAddWidget,p=state.pages[state.current];if(kinds.includes(kind)&&p.widgets.length<9&&!p.widgets.includes(kind))p.widgets.push(kind);menu=false;update();return true}
  const removeWidget=target.closest('[data-home-remove-widget]');
  if(removeWidget){const p=state.pages[state.current];p.widgets=p.widgets.filter(k=>k!==removeWidget.dataset.homeRemoveWidget);update();return true}
+ const openWidget=target.closest('[data-home-widget-open]');
+ if(openWidget){if(!editing){activeWidget=openWidget.dataset.homeWidgetOpen;change()}return true}
+ if(target.matches('[data-widget-close]')){activeWidget=null;change();return true}
+ if(target.closest('[data-widget-delete-note]')){const p=personal(),i=Number(target.closest('[data-widget-delete-note]').dataset.widgetDeleteNote);p.notes=(p.notes||[]).filter((_,n)=>n!==i);putPersonal({notes:p.notes});change();return true}
+ if(target.closest('[data-widget-clock-toggle]')){putPersonal({analog:!personal().analog});change();return true}
+ if(target.closest('[data-widget-month]')){calendarOffset+=Number(target.closest('[data-widget-month]').dataset.widgetMonth);change();return true}
+ if(target.closest('[data-widget-location]')){navigator.geolocation?.getCurrentPosition(pos=>fetchWeather(pos.coords.latitude,pos.coords.longitude,'Current location'),()=>{const el=root()?.querySelector('[data-weather-result]');if(el)el.textContent='Location unavailable. Enter a city instead.'},{timeout:10000});return true}
  const widgetLink=target.closest('[data-home-widget-nav]');
- if(widgetLink){if(!editing){const button=document.createElement('button');button.dataset.nav=widgetLink.dataset.homeWidgetNav;document.querySelector('#app')?.append(button);button.click();button.remove()}return true}
+ if(widgetLink){if(!editing){activeWidget=null;const button=document.createElement('button');button.dataset.nav=widgetLink.dataset.homeWidgetNav;document.querySelector('#app')?.append(button);button.click();button.remove()}return true}
  return Boolean(editing&&target.closest('[data-home-tile]'));
 }
+async function fetchWeather(lat,lon,city){if(weatherPending)return;weatherPending=true;const result=root()?.querySelector('[data-weather-result]');if(result)result.textContent='Loading weather…';try{const response=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}&current=temperature_2m,weather_code&temperature_unit=fahrenheit`);if(!response.ok)throw Error('Weather unavailable');const data=await response.json();if(!Number.isFinite(data.current?.temperature_2m))throw Error('Weather unavailable');putPersonal({weather:{temperature:data.current.temperature_2m,code:data.current.weather_code,city}});change()}catch{const el=root()?.querySelector('[data-weather-result]');if(el)el.textContent='Could not load weather. Try again.'}finally{weatherPending=false}}
+async function findWeather(city){const result=root()?.querySelector('[data-weather-result]');if(result)result.textContent='Finding city…';try{const response=await fetch('https://geocoding-api.open-meteo.com/v1/search?count=1&name='+encodeURIComponent(city));if(!response.ok)throw Error();const place=(await response.json()).results?.[0];if(!place)throw Error();putPersonal({city});await fetchWeather(place.latitude,place.longitude,place.name)}catch{const el=root()?.querySelector('[data-weather-result]');if(el)el.textContent='City not found. Try a city and state.'}}
 function sourceTile(){return drag?.source||null}
 function animateReflow(grid,before){
  for(const el of grid.querySelectorAll(':scope > [data-home-item]')){
@@ -263,6 +300,11 @@ function finishSwipe(x,y){
 let connected=false;
 function init(){
  if(connected)return;connected=true;
+ document.addEventListener('submit',event=>{
+  if(event.target.matches('[data-widget-note-form]')){event.preventDefault();const text=event.target.querySelector('textarea')?.value.trim();if(!text)return;const notes=personal().notes||[];putPersonal({notes:[{text,date:dateLabel()},...notes].slice(0,100)});change()}
+  if(event.target.matches('[data-widget-weather-form]')){event.preventDefault();const city=event.target.querySelector('input')?.value.trim();if(city)findWeather(city)}
+ },true);
+ setInterval(()=>{if(!root())return;const p=personal();for(const el of root().querySelectorAll('[data-widget-summary="clock"], [data-widget-clock-face]')){if(p.analog)el.innerHTML=clockFace();else el.textContent=timeLabel()}for(const el of root().querySelectorAll('[data-widget-summary="calendar"]'))el.textContent=dateLabel()},30000);
  document.addEventListener('click',event=>{
   if(!event.target.closest?.('.home-pages'))return;
   if(clock()<ignoreClicksUntil&&!event.target.closest?.('[data-home-edit]')){event.preventDefault();event.stopImmediatePropagation();return}
@@ -272,7 +314,7 @@ function init(){
   if(!event.target.closest?.('.home-pages'))return;
   if(event.touches.length!==1){finishDrag();swipe=null;return}
   const t=event.touches[0],tile=event.target.closest?.('[data-home-tile]');
-  const interactive=event.target.closest?.('input,textarea,select,summary,[data-home-edit],[data-home-add-page],[data-home-page],[data-home-widget-menu],[data-home-widget-nav],[data-home-add-widget],[data-home-remove-widget],[data-home-remove-page]');
+  const interactive=event.target.closest?.('input,textarea,select,summary,.widget-sheet,[data-home-edit],[data-home-add-page],[data-home-page],[data-home-widget-menu],[data-home-widget-nav],[data-home-widget-open],[data-home-add-widget],[data-home-remove-widget],[data-home-remove-page]');
   if(interactive)return;
   startSwipe(t.clientX,t.clientY);
   if(tile)startHold(tile,t.clientX,t.clientY);
@@ -305,7 +347,7 @@ function init(){
  document.addEventListener('dragstart',event=>{if(event.target.closest?.('.home-pages [data-home-tile]'))event.preventDefault()});
  document.addEventListener('keydown',event=>{
   if(!root())return;
-  if(event.key==='Escape'){finishDrag();editing=false;menu=false;update();return}
+  if(event.key==='Escape'){if(activeWidget){activeWidget=null;change();return}finishDrag();editing=false;menu=false;update();return}
   const tile=event.target.closest?.('[data-home-tile]');
   if(!tile||!event.altKey||!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key))return;
   event.preventDefault();const grid=gridAt(state.current),element=tile.closest('[data-home-item]'),items=[...grid.children],from=items.indexOf(element);
