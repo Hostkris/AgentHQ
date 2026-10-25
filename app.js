@@ -1,5 +1,5 @@
 import {messageDeleteButton, messageIsDeleted} from './agent-message-controls.js?v=20261024-delete-1';
-import {renderHomeScreen,connectHomeScreen,homeDragInProgress} from './agent-home-layout.js?v=20261024-camera-messages-2';
+import {renderHomeScreen,connectHomeScreen,homeDragInProgress} from './agent-home-layout.js?v=20261025-ipad-layout-1';
 import {researchFailureInfo} from './agent-research-status.js?v=20261024-research-recovery-1';
 const staff=[["alex","👔","Alex","General Manager"],["maya","📣","Maya","Chief Marketing Strategist"],["jordan","🎬","Jordan","Creative Content Director"],["riley","🔎","Riley","Market Research Analyst"],["taylor","📧","Taylor","Communications Director"],["casey","📱","Casey","Social Media Director"],["morgan","🛍️","Morgan","E-Commerce Director"],["avery","📊","Avery","Financial Strategy Analyst"],["jamie","📅","Jamie","Scheduling Director"],["quinn","💡","Quinn","Chief Growth Officer"]];const app=document.querySelector("#app");const oauthReturnWorker=(()=>{
  try{

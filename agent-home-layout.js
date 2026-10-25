@@ -309,7 +309,8 @@ function init(){
   const tile=event.target.closest?.('[data-home-tile]');
   if(!tile||!event.altKey||!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key))return;
   event.preventDefault();const grid=gridAt(state.current),element=tile.closest('[data-home-item]'),items=[...grid.children],from=items.indexOf(element);
-  const step={ArrowLeft:-1,ArrowRight:1,ArrowUp:-4,ArrowDown:4}[event.key],to=Math.max(0,Math.min(items.length-1,from+step));
+  const columns=Math.max(1,getComputedStyle(grid).gridTemplateColumns.split(/\s+/).filter(Boolean).length);
+  const step={ArrowLeft:-1,ArrowRight:1,ArrowUp:-columns,ArrowDown:columns}[event.key],to=Math.max(0,Math.min(items.length-1,from+step));
   if(from<to)items[to].after(element);else if(from>to)items[to].before(element);
   commitGridOrders();save();tile.focus();
  });

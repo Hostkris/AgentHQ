@@ -74,6 +74,6 @@ test('iPhone styling and cache versions include message badges',()=>{
  const index=read('index.html');
  assert.match(css,/\.agent-unread-badge--tile/);
  assert.match(css,/\.agent-unread-badge--thread/);
- assert.ok(index.includes('app.js?v=20261024-'));
+ assert.ok(index.includes('app.js?v=20261025-ipad-layout-1'));
 });
 

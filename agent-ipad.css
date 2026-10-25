@@ -1,0 +1,49 @@
+/* iPad uses the full app viewport; iPhone keeps its compact four-column home. */
+@media (min-width:700px){
+  .shell,
+  .shell:not(.home-shell):not(.ios-chat-shell),
+  .ios-chat-shell{
+    width:100%;
+    max-width:none!important;
+    margin-inline:0;
+  }
+  .shell:not(.home-shell):not(.ios-chat-shell){
+    padding-left:max(28px,env(safe-area-inset-left));
+    padding-right:max(28px,env(safe-area-inset-right));
+  }
+  .home-shell{
+    padding-left:max(30px,env(safe-area-inset-left));
+    padding-right:max(30px,env(safe-area-inset-right));
+    min-height:100dvh;
+  }
+  .home-shell .main-navigation{margin-bottom:30px}
+  .home-pages .home-slide .home-dashboard{
+    grid-template-columns:repeat(6,minmax(0,1fr));
+    column-gap:clamp(12px,2vw,26px);
+    row-gap:clamp(18px,2.8vw,34px);
+  }
+  .home-pages .home-tile-wrap>.tile{min-height:112px;gap:10px}
+  .home-pages .home-dashboard .app-icon{
+    width:clamp(68px,8vw,82px);
+    height:auto;
+    aspect-ratio:1;
+    border-radius:21px;
+  }
+  .home-pages .home-dashboard .app-icon .hq-symbol{width:40px;height:40px}
+  .home-pages .home-tile-wrap .tile-label,
+  .home-shell .home-pages .home-dashboard .tile-label{
+    font-size:clamp(12px,1.5vw,14px)!important;
+    max-width:100%;
+  }
+  .home-pages .home-widgets{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .home-pages .home-page-navigation{margin-top:16px}
+  .ios-chat-shell{height:100dvh}
+  .ios-chat-header{padding-left:max(22px,env(safe-area-inset-left));padding-right:max(22px,env(safe-area-inset-right))}
+  .ios-chat-list{padding-inline:clamp(24px,4vw,56px)}
+  .ios-message-bubble{max-width:min(72%,720px)}
+  .ios-composer{padding-inline:clamp(16px,3vw,44px)}
+  .agent-thread-activity{padding-inline:clamp(20px,4vw,52px)}
+}
+@media (min-width:1000px), (min-width:700px) and (orientation:landscape){
+  .home-pages .home-slide .home-dashboard{grid-template-columns:repeat(8,minmax(0,1fr))}
+}
