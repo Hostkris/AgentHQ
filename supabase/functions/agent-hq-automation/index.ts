@@ -17,6 +17,13 @@ const flowUrl=()=>{try{const value=env("AGENT_HQ_ACTIVEPIECES_PILOT_WEBHOOK");co
  if(u.protocol!=="https:"||u.username||u.password||!u.hostname.includes(".")||/^(localhost|127\.0\.0\.1|0\.0\.0\.0)$/i.test(u.hostname))return "";
  return u.toString();}catch{return ""}};
 const activepiecesReady=()=>!!flowUrl()&&!!env("AGENT_HQ_ACTIVEPIECES_PILOT_SECRET");
+// A successful webhook HTTP response verifies delivery, not downstream workflow execution.
+// The fingerprint ties delivery evidence to this precise webhook configuration.
+const activepiecesFingerprint=async()=>{
+ const bytes=new TextEncoder().encode(flowUrl()+"\n"+env("AGENT_HQ_ACTIVEPIECES_PILOT_SECRET"));
+ const hash=await crypto.subtle.digest("SHA-256",bytes);
+ return [...new Uint8Array(hash)].map(b=>b.toString(16).padStart(2,"0")).join("");
+};
 Deno.serve(async(req:Request)=>{
  if(req.method==="OPTIONS")return new Response(null,{status:204,headers:headers(req)});
  if(!originAllowed(req.headers.get("origin")))return response(req,{error:"Origin not allowed"},403);
@@ -35,9 +42,25 @@ Deno.serve(async(req:Request)=>{
  let input:Record<string,unknown>;
  try{const parsed=await req.json();if(!parsed||typeof parsed!=="object"||Array.isArray(parsed))throw Error();input=parsed;}
  catch{return response(req,{error:"Invalid JSON object"},400)}
- if(input.action==="status")return response(req,{activepieces:{configured:activepiecesReady(),scope:"test webhook only",verified:false},
-   nango:{configured:nangoReady(),integrations:integrations(),verified:false},
-   note:"Configuration alone does not verify a live connection or grant agent execution permission."});
+ if(input.action==="status"){
+   let deliveryVerified=false,deliveryCheckedAt:string|null=null,deliveryStatusAvailable=true;
+   if(activepiecesReady()){
+     const {data:receipt,error:receiptError}=await db.from("agent_connector_delivery_checks")
+       .select("config_fingerprint,last_delivered_at").eq("owner_id",owner).eq("connector","activepieces").maybeSingle();
+     deliveryStatusAvailable=!receiptError;
+     if(!receiptError&&receipt&&receipt.config_fingerprint===await activepiecesFingerprint()){
+       const timestamp=Date.parse(String(receipt.last_delivered_at||""));
+       if(Number.isFinite(timestamp)&&timestamp<=Date.now()&&Date.now()-timestamp<7*86400000){
+         deliveryVerified=true;
+         deliveryCheckedAt=new Date(timestamp).toISOString();
+       }
+     }
+   }
+   return response(req,{activepieces:{configured:activepiecesReady(),scope:"test webhook only",
+     deliveryVerified,deliveryCheckedAt,deliveryStatusAvailable,executionVerified:false},
+     nango:{configured:nangoReady(),integrations:integrations(),verified:false},
+     note:"Webhook delivery is verified only by an accepted live test. Downstream execution must be checked in Activepieces Runs; no agent action permissions are granted."});
+ }
  if(input.action==="connect_session"){
    if(!nangoReady())return response(req,{error:"Nango is not configured. Set the server-side key and allowed integrations."},503);
    try{
@@ -237,7 +260,16 @@ Deno.serve(async(req:Request)=>{
        body:JSON.stringify({event:"agenthq.pilot.ping",requestId,createdAt:new Date().toISOString()}),
        signal:AbortSignal.timeout(12000)});
      if(!result.ok)return response(req,{delivered:false,error:"Activepieces pilot webhook returned HTTP "+result.status,requestId},502);
-     return response(req,{delivered:true,requestId,message:"Webhook accepted the test. Flow execution and downstream actions are not yet verified."});
+     const deliveryCheckedAt=new Date().toISOString();
+     const {error:saveError}=await db.from("agent_connector_delivery_checks").upsert({
+       owner_id:owner,connector:"activepieces",config_fingerprint:await activepiecesFingerprint(),
+       last_request_id:requestId,last_delivered_at:deliveryCheckedAt
+     },{onConflict:"owner_id,connector"});
+     return response(req,{delivered:true,deliveryVerified:!saveError,executionVerified:false,requestId,
+       deliveryCheckedAt:saveError?null:deliveryCheckedAt,
+       message:saveError
+         ?"Webhook accepted the test, but Agent HQ could not save the delivery status. You can retry; workflow execution remains unverified."
+         :"Webhook accepted the test. Delivery verified. Check Activepieces Runs to confirm Catch Webhook and Code execution."});
    }catch{return response(req,{delivered:false,error:"Activepieces webhook unreachable; no execution was confirmed.",requestId},504)}
  }
  return response(req,{error:"Unsupported connector operation"},400);
