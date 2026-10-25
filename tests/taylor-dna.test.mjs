@@ -22,6 +22,6 @@ test("Taylor is present in every established agent task path",()=>{
 });
 test("Taylor staff card and app version",()=>{
  assert.ok(read("app.js").includes('"Taylor","Communications Director"'));
- assert.match(read("index.html"),/app\.js\?v=20261025-home-widgets-1/);
+ assert.match(read("index.html"),/app\.js\?v=20261025-native-home-1/);
 });
 

@@ -45,7 +45,7 @@ await page.addInitScript(()=>{
  window.agentHQChatCloud={markRead:async()=>{},refresh:async()=>{}};
 });
 async function check(name,fn){if(process.env.AGENTHQ_BROWSER_TEST&&!name.includes(process.env.AGENTHQ_BROWSER_TEST))return;await fn();results.push(name);console.log('PASS:',name)}
-async function openCamera(){const index=await page.locator('[data-nav="camera"]').evaluate(el=>el.closest('[data-home-slide]')?.dataset.homeSlide);if(index!==undefined){await page.locator('[data-home-page="'+index+'"]').click();await page.waitForTimeout(480)}await page.locator('[data-nav="camera"]').click()}
+async function openCamera(){const index=await page.locator('.home-dashboard [data-nav="camera"]').evaluate(el=>el.closest('[data-home-slide]')?.dataset.homeSlide);if(index!==undefined){await page.locator('[data-home-page="'+index+'"]').click();await page.waitForTimeout(480)}await page.locator('.home-dashboard [data-nav="camera"]').click()}
 async function openThread(id){await page.evaluate(id=>window.agentHQCameraReturnToChat(id),id);await page.locator('#composer').waitFor()}
 async function addPhoto(){await page.locator('[data-camera-open-chat]').click();await page.locator('[data-photo-choice="library"]').click();const png=await page.evaluate(()=>__mock.image.split(',')[1]);await page.locator('#agent-camera-file').setInputFiles({name:'reference.png',mimeType:'image/png',buffer:Buffer.from(png,'base64')});await page.locator('.photo-draft-tray img').waitFor();}
 try{
