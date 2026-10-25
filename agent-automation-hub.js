@@ -9,6 +9,8 @@ function render(){
  const root=document.getElementById("agenthq-automation-root");
  if(!root)return;
  const a=result?.activepieces,n=result?.nango;
+ const apConnected=a?.configured===true&&a?.deliveryVerified===true;
+ const apLabel=!a?"Status unknown":!a.configured?"Setup required":apConnected?"Connected · webhook delivery verified":a.deliveryStatusAvailable===false?"Configured · status unavailable":"Configured · unverified";
  const v=nangoVerification;
  const verified=v?.state==="api_verified";
  const found=v?.authorizationFound===true;
@@ -19,8 +21,8 @@ function render(){
  root.innerHTML='<section class="ah-automation-hub" aria-label="Automation and connected apps">'+
   '<h3>Automations &amp; Connections</h3><p>Activepieces handles workflows. Nango authorizes additional accounts. Existing Gmail and Meta connections stay as they are.</p>'+
   '<div class="ah-automation-rows">'+
-  '<div class="ah-automation-row"><strong>Activepieces · Workflows</strong><span class="ah-badge '+(a?.configured?'ah-pending':'')+'">'+esc(!a?'Status unknown':a.configured?'Configured · unverified':'Setup required')+'</span>'+
-  '<small>Protected test webhook only. No unattended external actions enabled.</small><button type="button" data-ah-automation="pilot" '+(busy||!a?.configured?'disabled':'')+'>Test safe workflow delivery</button></div>'+
+  '<div class="ah-automation-row"><strong>Activepieces · Workflows</strong><span class="ah-badge '+(apConnected?'ah-verified':a?.configured?'ah-pending':'')+'">'+esc(apLabel)+'</span>'+
+  '<small>'+esc(apConnected?'Last webhook test accepted: '+new Date(a.deliveryCheckedAt).toLocaleString()+'. Check Activepieces Runs for downstream step results.':'Protected test webhook only. No unattended external actions enabled.')+'</small><button type="button" data-ah-automation="pilot" '+(busy||!a?.configured?'disabled':'')+'>Test safe workflow delivery</button></div>'+
   '<div class="ah-automation-row"><strong>Nango · New Accounts</strong><span class="ah-badge '+(verified?'ah-verified':n?.configured?'ah-pending':'')+'">'+esc(!n?'Status unknown':nangoLabel)+'</span>'+
   '<small>'+esc(n?.integrations?.length?'Allowed integrations: '+n.integrations.join(", "):"Provider authorizations require a Nango server configuration.")+'</small>'+
   (v?'<small class="ah-connect-feedback" role="status">'+esc(v.message||"Live connection test returned no detail.")+(v.githubLogin?' GitHub user: '+esc(v.githubLogin)+'.':'')+'</small>':'')+
@@ -69,7 +71,7 @@ async function refresh(force=false){
     }else nangoVerification={state:"not_configured",verified:false,message:"Configure Nango before attempting live GitHub verification."};
   }
   const clock=new Date().toLocaleTimeString([], {hour:"numeric",minute:"2-digit",second:"2-digit"});
-  const statusA=result?.activepieces?.configured?"configured (delivery not tested)":"setup needed";
+  const statusA=result?.activepieces?.deliveryVerified?"connected (webhook delivery verified; check Activepieces Runs for step execution)":result?.activepieces?.configured?"configured (delivery not verified)":"setup needed";
   const statusN=result?.nango?.configured?"configured":"setup needed";
   message="Checked at "+clock+". Activepieces: "+statusA+". Nango: "+statusN+". "+
     (nangoVerification?nangoVerification.message:"Tap Check both integrations for a live, read-only GitHub test.");
@@ -113,7 +115,14 @@ document.addEventListener("click",async(e)=>{
  render();
  try{
   if(action==="connect")await connect();
-  if(action==="pilot"){const data=await invoke("activepieces_pilot");message=data.message||"Delivery not confirmed.";}
+  if(action==="pilot"){
+    const data=await invoke("activepieces_pilot");
+    message=data.message||"Delivery not confirmed.";
+    if(data.delivered===true&&data.deliveryVerified===true){
+      result={...result,activepieces:{...result?.activepieces,configured:true,deliveryVerified:true,
+        deliveryCheckedAt:data.deliveryCheckedAt,executionVerified:false}};
+    }
+  }
  }catch(err){
   message="Connection action failed: "+String(err?.message||err)+". Your saved settings have not been changed; retry from this screen.";
  }
