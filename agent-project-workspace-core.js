@@ -55,7 +55,7 @@ export async function artifactBytes(format,value,title='Project result',pdfLibra
  let text=content,mime='text/plain',extension='txt',note='';
  if(format==='markdown'){mime='text/markdown';extension='md';}
  if(format==='json'){text=JSON.stringify(JSON.parse(content),null,2);mime='application/json';extension='json';}
- if(format==='csv'){text=csvRows(content).map(row=>row.map(v=>{const x=/^[=+@-]/.test(v)&&!/^[-+]?\d+(?:\.\d+)?$/.test(v)?"'"+v:v;return '"'+x.replace(/"/g,'""')+'"';}).join(',')).join('\r\n');mime='text/csv';extension='csv';}
+ if(format==='csv'){text=csvRows(content).map(row=>row.map(v=>{const x=/^[\s\u0000-\u001f]*[=+@-]/.test(v)&&!/^[-+]?\d+(?:\.\d+)?$/.test(v)?"'"+v:v;return '"'+x.replace(/"/g,'""')+'"';}).join(',')).join('\r\n');mime='text/csv';extension='csv';}
  if(format==='html'){text='<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'"><title>'+esc(title)+'</title><style>body{max-width:760px;margin:40px auto;padding:24px;font:17px/1.65 system-ui;color:#202020}pre{font:inherit;white-space:pre-wrap}</style><h1>'+esc(title)+'</h1><pre>'+esc(content)+'</pre></html>';mime='text/html';extension='html';}
  if(format==='ics'){
   const events=JSON.parse(content);if(!Array.isArray(events)||!events.length||events.length>50)throw Error('A calendar file needs a JSON array of up to 50 events.');

@@ -31,6 +31,7 @@ test('real output writers validate JSON and CSV, prevent formula injection, and 
  const json=await artifactBytes('json','{"title":"Reference project","count":3}');assert.equal(JSON.parse(new TextDecoder().decode(json.bytes)).count,3);
  await assert.rejects(()=>artifactBytes('json','not a valid JSON document'),SyntaxError);
  const csv=await artifactBytes('csv','Name,Value\nSafe,12\nUnsafe,=HYPERLINK("evil")');const text=new TextDecoder().decode(csv.bytes);assert.match(text,/'=HYPERLINK/);assert.equal(csvRows(text).length,3);
+ const spaced=await artifactBytes('csv','Name,Value\nUnsafe,\t=HYPERLINK("evil")\nNumber,-12');const cells=csvRows(new TextDecoder().decode(spaced.bytes));assert.equal(cells[1][1][0],"'");assert.equal(cells[2][1],'-12');
  await assert.rejects(()=>artifactBytes('csv','Name,Value\nOne column only\n'),/consistent/);
  const html=await artifactBytes('html','A complete document <script>alert(1)</script> with source notes.');const page=new TextDecoder().decode(html.bytes);assert.ok(!page.includes('<script>'));assert.match(page,/Content-Security-Policy/);
 });
