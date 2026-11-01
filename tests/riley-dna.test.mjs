@@ -12,7 +12,7 @@ test('Riley has one permanent researcher specialty and 20 exact instructions',()
  assert.equal((block.match(/^\s*"[^"]+",?$/gm)||[]).length,20);
  assert.match(dna,/maxCompetitors:3/);
  assert.match(dna,/maxOpportunities:3/);
- assert.match(dna,/mustRequestSearchApproval:true/);
+ assert.match(dna,/mustRequestSearchApproval:false/);
  assert.match(dna,/mayWriteFinalImagePrompts:false/);
  assert.match(dna,/noExternalActions:true/);
  assert.match(dna,/collect_private_customer_information/);
@@ -71,4 +71,5 @@ test('Riley cannot silently access websites, publish, buy, or give final creativ
   assert.ok(dna.includes(denied),denied+' must be denied');
  }
 });
+
 

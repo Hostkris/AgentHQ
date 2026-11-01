@@ -2,13 +2,13 @@
 import {projectResponseRecovery} from './agent-project-recovery.js?v=20261024-autonomy-1';
 import {autonomousRecoveryStatus} from './agent-project-autonomy.js?v=20261024-activity-verified-1';
 export const projectPhaseLabel=s=>s.assignment?.owner_paused?'Paused':autonomousRecoveryStatus(s)?.text|| (s.last_error?'Needs attention':s.pending_research_query&&s.active_run?'Researching public sources':
- ({planning:'Alex is assembling the team',discussion:'Team discussion',drafting:'Writing the shared draft',checking:'Peer review',polishing:'Applying the team’s feedback',waiting_owner:'Waiting for a private answer',waiting_permission:'Waiting for a private approval',review:'Ready for your review',approved:'Approved'})[s.phase]||'Team project');
+ ({planning:'Alex is assembling the team',discussion:'Completing worker handoffs',drafting:'Writing the shared draft',checking:'Peer review',polishing:'Applying the team’s feedback',waiting_owner:'Waiting for a private answer',waiting_permission:'Waiting for a private approval',review:'Ready for your review',approved:'Approved'})[s.phase]||'Team project');
 export function projectIsTyping(s,now=Date.now()){
  return !!s.active_run&&!!s.active_worker&&Date.parse(s.lease_until)>now&&!s.assignment?.owner_paused&&
   ['planning','discussion','drafting','checking','polishing'].includes(s.phase);
 }
 export function projectRoomHTML({projects,selected,notes,escape,format,remove,label,deleted,inlineTyping=true}){
- if(!projects.length)return '<div class="hq-project-empty"><span aria-hidden="true">✧</span><h2>A room for your team</h2><p>Assign a project in Alex’s conversation. The team will work together here, ask you questions privately, and bring back the finished result.</p><button type="button" data-chat="alex">Message Alex</button></div>';
+ if(!projects.length)return '<div class="hq-project-empty"><span aria-hidden="true">✧</span><h2>A room for your team</h2><p>Assign a project in Alex’s conversation. The team will work together here, ask you questions privately, and bring back the finished result.</p><button type="button" data-chat="alex">Message Alex</button><button type="button" data-workspace-new>New project</button><button type="button" data-workspace-books>Handbooks</button></div>';
  const s=projects.find(p=>p.assignment_id===selected)||projects[0],a=s.assignment||{};
  const chips=projects.map(p=>'<button type="button" data-project-open="'+escape(p.assignment_id)+'" class="hq-project-chip'+(p.assignment_id===s.assignment_id?' selected':'')+'" aria-pressed="'+(p.assignment_id===s.assignment_id)+'">'+
   (p.phase==='review'?'<span class="hq-ready-dot" aria-label="Ready for review"></span>':'')+'<span>'+escape(p.assignment?.title||'Team project')+'</span></button>').join('');
@@ -34,6 +34,7 @@ export function projectRoomHTML({projects,selected,notes,escape,format,remove,la
    '<div class="hq-review-actions"><button type="button" data-project-review="approve" data-project-id="'+escape(s.assignment_id)+'" data-project-version="'+escape(s.output_version)+'">Approve</button><button type="button" data-project-review="changes" data-project-id="'+escape(s.assignment_id)+'" data-project-version="'+escape(s.output_version)+'">Request changes</button></div><p class="hq-review-hint">You can also text your changes below, or reply “approved”. Approval covers this finished work only.</p>')+'</article>':'';
  return '<section class="hq-project-room" data-project-room="'+escape(s.assignment_id)+'"><nav class="hq-project-picker" aria-label="Team projects">'+chips+'</nav>'+
   '<div class="hq-project-heading"><div><h2>'+escape(a.title||'Team project')+'</h2><p>'+escape(projectPhaseLabel(s))+' · Version '+escape(s.revision)+'</p></div>'+controls+'</div>'+
+  '<div data-project-workspace="'+escape(s.assignment_id)+'"></div>'+
   '<div class="hq-project-people">'+escape((s.team_order?.length?s.team_order:['alex']).map(label).join(' · '))+'</div>'+
   '<div class="hq-team-timeline">'+(feed||(['review','approved'].includes(s.phase)?'':'<p class="hq-project-starting">The team is preparing the next contribution.</p>'))+typing+notice+(deleted('work',s.assignment_id)?'':final)+'</div></section>';
 }
@@ -45,3 +46,4 @@ export function projectPrivateHTML({projects,worker,escape,label,remove=()=>'',d
    '<button type="button" data-project-answer-select="'+escape(s.assignment_id)+'">Reply to this project</button>')+'</aside>').join('')+
   ready.map(s=>'<aside class="hq-private-project hq-manager-ready">'+remove('work',s.assignment_id)+'<small>Ready for your review · Version '+escape(s.revision)+'</small><strong>'+escape(s.assignment?.title||'Finished team project')+'</strong><button type="button" data-project-open="'+escape(s.assignment_id)+'">Review in Company HQ <span aria-hidden="true">›</span></button></aside>').join('');
 }
+

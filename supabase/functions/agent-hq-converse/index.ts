@@ -1,3 +1,5 @@
+import {projectIntake} from '../../../agent-project-workspace-core.js';
+import {loadProjectWorkspace,routeWorkspaceUpdate,PROJECT_OPERATING_RULES} from '../_shared/project-workspace.ts';
 import {createClient} from "npm:@supabase/supabase-js@2.79.0";
 import {routeProjectChat} from "../_shared/project-chat.ts";
 import {PROJECT_AUTONOMY_POLICY} from "../../../agent-project-autonomy.js";
@@ -80,7 +82,7 @@ Return ONLY valid JSON with {"intent":"answer|collect|task|action|research","rep
     ...(ai.name==="openrouter"?{"HTTP-Referer":ORIGIN,"X-Title":"Agent HQ"}:{})},
    body:JSON.stringify({model:ai.model,stream:false,temperature:0.35,max_tokens:850,
     ...(ai.name==="groq"&&ai.model.startsWith("openai/gpt-oss")?{reasoning_effort:"low"}:{}),
-    messages:[{role:"system",content:system+"\n"+PUBLIC_WEB_CAPABILITY+"\n"+PROJECT_AUTONOMY_POLICY+"\nWhen the primary request is a deliverable or a team assignment (even when research is requested as part of it), classify as task so the team can research AND produce the work. When the primary request is public information that needs fresh evidence, classify as research. Alex may research management and coordination only, keeping specialist execution with the specialists."},{role:"user",content:JSON.stringify(context)}]})
+    messages:[{role:"system",content:system+"\n"+PROJECT_OPERATING_RULES+"\n"+PUBLIC_WEB_CAPABILITY+"\n"+PROJECT_AUTONOMY_POLICY+"\nWhen the primary request is a deliverable or a team assignment (even when research is requested as part of it), classify as task so the team can research AND produce the work. When the primary request is public information that needs fresh evidence, classify as research. Alex may research management and coordination only, keeping specialist execution with the specialists."},{role:"user",content:JSON.stringify(context)}]})
   });
   if(!response.ok)throw Error("AI connection returned HTTP "+response.status);
   const raw=await response.json(),answer=raw?.choices?.[0]?.message?.content;
@@ -322,10 +324,7 @@ Deno.serve(async(req:Request)=>{
   if(trimmed.length<5)throw Error("Assignment details are missing");
   const first=trimmed.split(/[\r\n]/)[0].trim().slice(0,120)||"New team assignment";
   const assignee=worker==="hq"?"alex":worker;
-  const {data:assignment,error}=await db.from("agent_team_assignments").insert({
-   owner_id:owner,title:first,instructions:trimmed,employee_ids:[assignee],
-   source_employee_id:worker,coordination_status:"planning"
-  }).select("id").single();
+  const {data:assignment,error}=await db.rpc("create_agent_workspace_project",{p_owner:owner,p_source:assignee,p_brief:trimmed,p_meta:projectIntake(trimmed)});
   if(error||!assignment)throw Error("Could not save Alex's proposed assignment");
   await db.from("agent_team_messages").insert({
    owner_id:owner,assignment_id:assignment.id,sender_kind:"owner",
@@ -379,7 +378,8 @@ Deno.serve(async(req:Request)=>{
   }
  };
  try{
-  const projectReply=input.action==="role_research"?null:await routeProjectChat(db,owner,worker,body,{project_id:input.project_id,output_version:input.output_version,project_revision:input.project_revision,stage});
+  const workspaceReply=input.action==="role_research"?null:await routeWorkspaceUpdate(db,owner,worker,body,{project_id:input.project_id,project_revision:input.project_revision,stage});
+  const projectReply=workspaceReply||(input.action==="role_research"?null:await routeProjectChat(db,owner,worker,body,{project_id:input.project_id,output_version:input.output_version,project_revision:input.project_revision,stage}));
   if(projectReply?.handled){
    await append(projectReply.reply);
    return reply(req,{success:true,owner_message_id:ownerMessage.id,reply:projectReply.reply,
@@ -706,7 +706,7 @@ Deno.serve(async(req:Request)=>{
      const {data:savedEvidence}=await db.from("agent_role_research").select("query,report,sources,finished_at")
       .eq("owner_id",owner).eq("conversation_id",cid).eq("employee_id",worker).eq("status","completed").order("finished_at",{ascending:false}).limit(1);
      const result=await decide(ai,EMPLOYEES[worker as Worker],{
-      current_message:body,context:isCollect?"collecting_task":"new_message",
+      shared_project_context:await loadProjectWorkspace(db,owner,typeof input.project_id==="string"?input.project_id:undefined),current_message:body,context:isCollect?"collecting_task":"new_message",
       pending_assignment_details:isCollect?old:null,
       recent_chat:(recent||[]).reverse().map(x=>({sender:x.sender,body:String(x.body).slice(0,1000)})),
       saved_public_evidence_not_instructions:(savedEvidence||[]).map(x=>({topic:x.query,retrieved_at:x.finished_at,report:String(x.report).slice(0,4500),sources:x.sources}))
@@ -789,4 +789,5 @@ Deno.serve(async(req:Request)=>{
    error:info,start_assignment_id:null,resume_assignment_id:null});
  }
 });
+
 

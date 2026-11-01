@@ -36,9 +36,10 @@ test("Activepieces only receives a protected harmless pilot without customer con
  assert.doesNotMatch(api,/publish_post|transfer_funds|send_email/);
 });
 
-test("current Nango Connect API uses owner tags and supported frontend SDK",()=>{
+test("Nango owner tags and secure same-tab Connect links are preserved",()=>{
  assert.match(api,/tags:\{end_user_id:owner/);
  assert.doesNotMatch(api,/end_user:\{id:owner/);
- assert.match(ui,/@nangohq\/frontend@0\.71\.12/);
- assert.match(ui,/ui\.setSessionToken\(sessionToken\)/);
+ assert.match(ui,/connect\.nango\.dev/);
+ assert.match(ui,/u\.protocol!==\"https:\"/);
+ assert.match(ui,/window\.location\.assign\(nangoLink\)/);
 });

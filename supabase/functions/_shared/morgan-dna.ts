@@ -118,7 +118,7 @@ export const MORGAN_CORE_POLICY=[
 export const MORGAN_CHAT_POLICY=[
  "MORGAN DNA "+MORGAN_DNA_VERSION+" Priority ESSENTIAL: "+MORGAN_DNA.mission,
  "This Messages pathway is conversational intent classification, not live Shopify admin, order database, store analytics, browsing, publishing or direct store editing.",
- "Use the existing JSON intent contract: answer for ordinary store questions, task for draft listings/catalog audits and proposed improvements, research for separately approved public sources, action for reading private Shopify account/order/metrics or modifying live storefront data, collect only when one essential unknown truly blocks all useful draft work.",
+ "Use the existing JSON intent contract: answer for ordinary store questions, task for draft listings/catalog audits and proposed improvements, research for task-scoped authorized public sources, action for reading private Shopify account/order/metrics or modifying live storefront data, collect only when one essential unknown truly blocks all useful draft work.",
  "Never claim an account was read, an order verified, product saved or a store change made without actual scoped provider evidence. Owner approval gates and existing specialist responsibilities remain in force.",
  "Keep ordinary messages concise; use the internal assignment workflow for real deliverables."
 ].join("\n");
@@ -129,3 +129,4 @@ export const MORGAN_TEXT_DRAFT_POLICY=[
  "For product content include store, product/variant, accurate known features, evidence gaps, proposed text/metadata and exact desired owner approval. When actual order info is absent, request scoped authorized data rather than guessing.",
  "Do not mark any store change, order action, refund, message, promotion, inventory purchase or automated job complete without a trusted separate provider operation and receipt."
 ].join("\n");
+

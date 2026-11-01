@@ -7,7 +7,7 @@ test('Agent HQ chat creates draft work orders without manual forms',()=>{
  const chat=source('supabase/functions/agent-hq-converse/index.ts');
  const app=source('app.js');
  assert.match(chat,/await createAssignment\(composed\)/);
- assert.match(chat,/source_employee_id:worker/);
+ assert.match(chat,/create_agent_workspace_project/);assert.match(chat,/p_source:assignee/);
  assert.match(chat,/startAssignment=assignment\.id/);
  assert.doesNotMatch(app,/id="team-create-form"/);
  assert.match(app,/function renderAssignments\(\)/);
@@ -150,3 +150,4 @@ test('All specialists are directed to finish safe drafts, avoid fabricated exter
  assert.match(coordinator,/NO web access, tools, account access, or ability to execute external actions/);
  assert.match(coordinator,/If essential owner information genuinely blocks all useful drafting/);
 });
+

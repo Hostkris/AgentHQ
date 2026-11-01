@@ -1,5 +1,5 @@
 import {agentCloud} from './agent-cloud-auth.js';
-import {projectRoomHTML,projectPrivateHTML,projectIsTyping} from './agent-project-view.js?v=20261024-activity-verified-1';
+import {projectRoomHTML,projectPrivateHTML,projectIsTyping} from './agent-project-view.js?v=20261101-workspaces-1';
 import {connectionRetryDelay} from './agent-project-autonomy.js?v=20261024-activity-verified-1';
 let rows=[],ownerId=null,generation=0,refreshing=null,timer=null,inFlight=null,selected=null,answerTarget=null;
 const wanted=new Set();
@@ -109,3 +109,4 @@ window.addEventListener('focus',()=>schedule(0));
 window.addEventListener('online',()=>{for(const f of localFailures.values())f.retryAt=Date.now();schedule(0);});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)clearTimeout(timer);else schedule(0);});
 schedule(0);
+

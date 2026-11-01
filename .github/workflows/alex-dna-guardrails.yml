@@ -99,6 +99,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - name: Install pinned PDF test library
+        run: npm install --no-save --package-lock=false pdf-lib@1.17.1
+      - name: Test saved projects, real file outputs and workspace access
+        run: node --test tests/project-workspace*.test.mjs
       - name: Test Alex role and approval boundaries
         run: node --test tests/alex-dna.test.mjs
       - name: Test project response validation and recovery
@@ -155,9 +159,10 @@ jobs:
       - name: Verify iPhone activity and collaboration
         env:
           AGENTHQ_TEST_BROWSER: webkit
-        run: node tests/live-activity.browser.mjs && node tests/company-hq.browser.mjs
+        run: node tests/live-activity.browser.mjs && node tests/company-hq.browser.mjs && node tests/project-workspace.browser.mjs
       - name: Verify Mac activity and collaboration
         env:
           AGENTHQ_TEST_BROWSER: webkit
           AGENTHQ_TEST_DEVICE: mac
         run: node tests/live-activity.browser.mjs && node tests/company-hq.browser.mjs
+

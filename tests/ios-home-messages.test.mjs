@@ -87,7 +87,7 @@ test('Home starts with swipeable pages and editing chrome remains hidden until r
  const source=src('agent-home-layout.js');
  const renderButton=(label,id,emoji)=>'<button class="tile" aria-label="'+label+'"><span class="app-icon">'+emoji+'</span><span class="tile-label">'+label+'</span></button>';
  const scope={
-  localStorage:{getItem:()=>null,setItem:()=>{}},navigator:{},
+  innerWidth:390,localStorage:{getItem:()=>null,setItem:()=>{}},navigator:{},
   document:{addEventListener:()=>{}},window:{alert:()=>{}},
   setTimeout:()=>1,clearTimeout:()=>{}
  };
@@ -127,4 +127,5 @@ test('No arrow movement controls appear in any Home icon, even while editing',()
  assert.match(js,/document\.elementFromPoint\(x,y\)/);
  assert.match(js,/edgeTimer=setTimeout/);
 });
+
 

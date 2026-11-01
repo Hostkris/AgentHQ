@@ -1,0 +1,35 @@
+import {createRequire} from 'node:module';
+import {createServer} from 'node:http';
+import assert from 'node:assert/strict';
+import {workspaceFixture} from './project-workspace-fixture.mjs';
+const {webkit,chromium}=createRequire(import.meta.url)('playwright'),engine=process.env.AGENTHQ_TEST_BROWSER==='webkit'?webkit:chromium;
+const server=createServer((_req,res)=>{res.setHeader('Content-Type','text/html');res.end(workspaceFixture());});
+await new Promise(r=>server.listen(0,'127.0.0.1',r));
+const browser=await engine.launch({headless:true,...(engine===chromium?{executablePath:process.env.AGENTHQ_TEST_CHROME||'/tmp/chromium',args:['--no-sandbox']}:{} )});
+const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+try{
+ await page.goto('http://127.0.0.1:'+server.address().port);
+ await page.getByRole('button',{name:'New project',exact:true}).click();
+ await page.getByLabel('Describe the goal').fill('Create a personal study plan. Keep Saturdays free.');
+ await page.getByLabel('Output format').selectOption('pdf');await page.getByRole('button',{name:'Start project',exact:true}).click();
+ await page.getByText('New personal project saved',{exact:true}).waitFor();
+ console.log('PASS: personal project intake and requested output format');
+ await page.getByRole('button',{name:'Details & files',exact:true}).click();
+ await page.getByText('Worker handoffs',{exact:true}).waitFor();
+ assert.match(await page.locator('dialog').innerText(),/verified printable PDF/);
+ await page.getByText('riley · completed',{exact:true}).click();assert.match(await page.locator('dialog').innerText(),/supplied notes cover three chapters/);
+ await page.getByRole('button',{name:'Close',exact:true}).click();
+ console.log('PASS: actual upstream work and private project context are visible');
+ await page.getByRole('button',{name:'Update project',exact:true}).click();
+ await page.getByLabel('New information').fill('Use the revised outline and preserve the source findings.');
+ await page.getByLabel('Restart affected work').selectOption('jordan');
+ const bodyWidth=await page.locator('dialog').evaluate(d=>({width:d.getBoundingClientRect().width,viewport:innerWidth}));assert.ok(bodyWidth.width<=bodyWidth.viewport);
+ await page.getByRole('button',{name:'Save and continue',exact:true}).click();await page.getByText('Project updated to revision 4',{exact:true}).waitFor();
+ const calls=JSON.parse(await page.locator('#operations').innerText());assert.equal(calls.find(c=>c.action==='update').from_worker,'jordan');
+ console.log('PASS: partial restart uses the selected affected worker and fits an iPhone');
+ await page.getByRole('button',{name:'Handbooks',exact:true}).click();await page.getByRole('button',{name:'Create handbook',exact:true}).click();
+ await page.getByLabel('Title',{exact:true}).fill('Fixture business');await page.getByLabel('Approved facts, voice, policies and source dates').fill('Products: Verified sample. Prices: Owner supplied only. Customers: Adult learners. Voice: Clear and helpful.');
+ await page.getByLabel('Approve this handbook for worker reference').check();await page.getByRole('button',{name:'Save handbook',exact:true}).click();await page.getByText('Handbook saved',{exact:true}).waitFor();
+ console.log('PASS: business handbook saves approved facts without account grants');
+ assert.deepEqual(errors,[]);
+}finally{await browser.close();await new Promise(r=>server.close(r));}

@@ -54,5 +54,6 @@ async function completion(ai:AI,system:string,user:unknown,maxTokens=1500){
 const policies:Record<string,string>={riley:RILEY_TEXT_DRAFT_POLICY,maya:MAYA_TEXT_DRAFT_POLICY,jordan:JORDAN_TEXT_DRAFT_POLICY,casey:CASEY_TEXT_DRAFT_POLICY,taylor:TAYLOR_TEXT_DRAFT_POLICY,morgan:MORGAN_TEXT_DRAFT_POLICY,avery:AVERY_TEXT_DRAFT_POLICY,jamie:JAMIE_TEXT_DRAFT_POLICY,quinn:QUINN_TEXT_DRAFT_POLICY};
 export function projectRuntime(db:any,owner:string){
  const ai=provider();if(!ai)throw Error("No existing AI service configured");
- return {db,owner,ai,webKey:env("GROQ_API_KEY"),jobs:SPECIALIST_JOBS,policyFor:(worker:string)=>policies[worker]||"",issues:draftIssues,relevantExamples:relevantApprovedExamples,call:(system:string,context:unknown,tokens:number)=>completion(ai,system,context,tokens)};
+ return {db,owner,ai,workspaceEnabled:true,webKey:env("GROQ_API_KEY"),jobs:SPECIALIST_JOBS,policyFor:(worker:string)=>policies[worker]||"",issues:draftIssues,relevantExamples:relevantApprovedExamples,call:(system:string,context:unknown,tokens:number)=>completion(ai,system,context,tokens)};
 }
+

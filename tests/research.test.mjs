@@ -1,3 +1,5 @@
+import {projectIntake} from '../agent-project-workspace-core.js';
+import {routeWorkspaceUpdate,loadProjectWorkspace,PROJECT_OPERATING_RULES} from '../supabase/functions/_shared/project-workspace.ts';
 import {researchFailureInfo} from '../agent-research-status.js';
 import {PROJECT_AUTONOMY_POLICY} from '../agent-project-autonomy.js';
 import {PUBLIC_WEB_CAPABILITY,explicitPublicResearch,planRoleQuery,publicQueryPlanner,researchForRole} from '../supabase/functions/_shared/role-research.ts';
@@ -69,7 +71,7 @@ function chatHarness(){
  }};
  const fakeFetch=async(url,request)=>{const input=JSON.parse(request.body);if(input.tools){searchCalls++;return Response.json(evidence);}return Response.json({choices:[{message:{content:JSON.stringify({kind:'research',query:'small business website public options',purpose:'Compare public sources for the owner request'})}}]});};let handler;
  const code=stripTypeScriptTypes(fs.readFileSync(new URL('../supabase/functions/agent-hq-converse/index.ts',import.meta.url),'utf8').replace(/^import .*;\n/gm,''));
- vm.runInNewContext(code,{researchFailureInfo,createClient:()=>db,routeProjectChat,PROJECT_AUTONOMY_POLICY,PUBLIC_WEB_CAPABILITY,explicitPublicResearch,planRoleQuery,publicQueryPlanner:key=>publicQueryPlanner(key,fakeFetch),researchForRole:args=>researchForRole({...args,fetcher:fakeFetch}),createResearchRequest,isResearchInstruction,researchApproval,researchStatus:key=>researchStatus(key,fakeFetch),runResearch:(...args)=>runResearch(...args,fakeFetch),Deno:{env:{get:k=>({SUPABASE_URL:'https://test.supabase.co',SUPABASE_SERVICE_ROLE_KEY:'test',GROQ_API_KEY:'test',AGENT_HQ_ALLOWED_OWNER_IDS:owner})[k]},serve:fn=>handler=fn},URL,Request,Response,AbortController,AbortSignal,setTimeout,clearTimeout,console});
+ vm.runInNewContext(code,{researchFailureInfo,projectIntake,routeWorkspaceUpdate,loadProjectWorkspace,PROJECT_OPERATING_RULES,createClient:()=>db,routeProjectChat,PROJECT_AUTONOMY_POLICY,PUBLIC_WEB_CAPABILITY,explicitPublicResearch,planRoleQuery,publicQueryPlanner:key=>publicQueryPlanner(key,fakeFetch),researchForRole:args=>researchForRole({...args,fetcher:fakeFetch}),createResearchRequest,isResearchInstruction,researchApproval,researchStatus:key=>researchStatus(key,fakeFetch),runResearch:(...args)=>runResearch(...args,fakeFetch),Deno:{env:{get:k=>({SUPABASE_URL:'https://test.supabase.co',SUPABASE_SERVICE_ROLE_KEY:'test',GROQ_API_KEY:'test',AGENT_HQ_ALLOWED_OWNER_IDS:owner})[k]},serve:fn=>handler=fn},URL,Request,Response,AbortController,AbortSignal,setTimeout,clearTimeout,console});
  return {tables,get searchCalls(){return searchCalls},async send(text,action,token='valid'){const response=await handler(new Request('https://test.supabase.co/functions/v1/agent-hq-converse',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({employee_id:'riley',text,action})}));return {status:response.status,...await response.json()}}};
 }
 test('ordinary public research starts under standing authorization and saves one source-backed report',async()=>{
@@ -93,5 +95,6 @@ test('late research responses cannot repopulate history after sign-out',async()=
  resolveHistory({data:[{id:'private-owner-a-report'}],error:null});await pending;
  assert(published.length>0);assert(published.every(rows=>rows.length===0));
 });
+
 
 
