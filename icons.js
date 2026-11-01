@@ -9,6 +9,7 @@
   accounts:'<rect x="3" y="10" width="18" height="11" rx="3"/><path d="M7 10V7a5 5 0 0 1 10 0v3m-5 5v2"/>',
   studio:'<rect x="3" y="6" width="18" height="14" rx="5"/><path d="M12 3v3M8 12h.01M16 12h.01M8 16h8M1 11v4m22-4v4"/>',
   assignments:'<rect x="4" y="4" width="16" height="18" rx="3"/><rect x="8" y="2" width="8" height="4" rx="2"/><path d="m8 13 2 2 5-5m-7 8h8"/>',
+  projects:'<path d="M3 7V5a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/><rect x="7" y="10" width="10" height="8" rx="1"/><path d="m8 17 3-3 2 2 2-3 2 3"/>',
   operations:'<path d="M3 3v18h18M7 15l5-5 4 3 5-7M17 6h4v4"/>',
   hq:'<path d="m2 10 10-7 10 7M4 9v12h16V9M9 21v-8h6v8"/>',
   approvals:'<path d="m12 2 9 4v6c0 5-9 10-9 10S3 17 3 12V6l9-4Z"/><path d="m8 12 3 3 5-6"/>',
@@ -51,4 +52,5 @@
  }
  new MutationObserver(decorate).observe(app,{childList:true,subtree:true});decorate();
 })();
+
 

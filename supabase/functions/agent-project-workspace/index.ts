@@ -1,6 +1,8 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.79.0';
 import {loadProjectWorkspace,CAPABILITY_STATUS} from '../_shared/project-workspace.ts';
 import {validateReference,projectIntake} from '../../../agent-project-workspace-core.js';
+import {projectLibrary,projectFilePage,projectPhotoList,projectAsset,exportHandbook,exportProject} from '../_shared/project-library.ts';
+import {saveProjectPhoto} from '../_shared/project-photos.ts';
 const origin='https://hostkris.github.io';
 const cors={'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Headers':'authorization,apikey,content-type,x-client-info','Access-Control-Allow-Methods':'POST,OPTIONS','Content-Type':'application/json','Cache-Control':'no-store'};
 const reply=(body:any,status=200)=>new Response(JSON.stringify(body),{status,headers:cors});
@@ -13,8 +15,10 @@ Deno.serve(async(req:Request)=>{
  const {data:auth,error:authError}=await db.auth.getUser(token);if(authError||!auth.user)return reply({error:'Sign-in expired'},401);
  const owner=auth.user.id;if(!(Deno.env.get('AGENT_HQ_ALLOWED_OWNER_IDS')||'').split(',').some(s=>s.trim().toLowerCase()===owner.toLowerCase()))return reply({error:'Owner not authorized'},403);
  try{
-  if(Number(req.headers.get('content-length')||0)>600000)throw Error('Request is too large');
+  if(Number(req.headers.get('content-length')||0)>4500000)throw Error('Request is too large');
   const input=await req.json();const action=input.action;
+  if(action==='library')return reply(await projectLibrary(db,owner,input.cursor));
+  if(action==='export_handbook')return reply(await exportHandbook(db,owner,input));
   if(action==='handbooks'){
    const {data,error}=await db.from('agent_project_handbooks').select('id,handbook_key,title,scope,content,approved,version').eq('owner_id',owner).order('updated_at',{ascending:false});
    if(error)throw error;return reply({handbooks:data,capabilities:CAPABILITY_STATUS});
@@ -32,13 +36,15 @@ Deno.serve(async(req:Request)=>{
   const project=String(input.project_id||'');if(!/^[a-f0-9-]{36}$/i.test(project))throw Error('Choose a project');
   const {data:a,error:ae}=await db.from('agent_team_assignments').select('id,title').eq('id',project).eq('owner_id',owner).maybeSingle();if(ae||!a)return reply({error:'Project not found'},404);
   if(action==='details'){
-   const {data:session,error:sessionError}=await db.from('agent_project_sessions').select('revision').eq('owner_id',owner).eq('assignment_id',project).maybeSingle();if(sessionError)throw sessionError;
+   const {data:session,error:sessionError}=await db.from('agent_project_sessions').select('revision,phase,output_version,review_status,final_output,updated_at,team_order,next_worker,recovery_state,next_run_at').eq('owner_id',owner).eq('assignment_id',project).maybeSingle();if(sessionError)throw sessionError;
    const context=await loadProjectWorkspace(db,owner,project);
-   const {data:files,error}=await db.from('agent_project_artifacts').select('id,filename,note,revision,artifact_kind,object_path,sha256,size_bytes,employee_id').eq('owner_id',owner).eq('assignment_id',project).eq('status','ready').order('created_at',{ascending:false}).limit(60);
-   if(error)throw error;
-   const artifacts=[];for(const file of files||[]){const {data:signed,error:se}=await db.storage.from('agent-project-files').createSignedUrl(file.object_path,120);if(se)throw se;const {object_path,...safe}=file;artifacts.push({...safe,url:signed.signedUrl});}
-   return reply({context,artifacts,revision:session?.revision??1});
+   const files=await projectFilePage(db,owner,project),photos=await projectPhotoList(db,owner,project);
+   return reply({context,...files,photos,project:a,session:session||{revision:1,phase:'planning'},revision:session?.revision??1});
   }
+  if(action==='files')return reply(await projectFilePage(db,owner,project,input.cursor));
+  if(action==='asset'||action==='photo_asset')return reply(await projectAsset(db,owner,project,input.file_id,action==='photo_asset'));
+  if(action==='photo')return reply(await saveProjectPhoto(db,owner,project,input));
+  if(action==='export_project')return reply(await exportProject(db,owner,a,input));
   if(action==='update'){
    const {data,error}=await db.rpc('update_agent_project_context',{p_owner:owner,p_assignment:project,p_note:input.note,p_from_worker:input.from_worker||null,p_expected_revision:input.revision??null,p_business_key:input.business_key??null,p_output_format:input.output_format??null});
    if(error)throw error;return reply(data);
@@ -49,5 +55,5 @@ Deno.serve(async(req:Request)=>{
    if(error)throw error;return reply(data);
   }
   return reply({error:'Unsupported workspace action'},400);
- }catch(e){return reply({error:e instanceof Error?e.message:'Workspace operation failed'},400);}
+ }catch(e){return reply({error:typeof (e as any)?.message==='string'?(e as any).message.slice(0,300):'Workspace operation failed'},400);}
 });

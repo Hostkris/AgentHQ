@@ -4,7 +4,19 @@ Company HQ supports personal, household, creative, educational and business proj
 
 ## Start and update work
 
-Open Company HQ and choose **New project**, or assign the work in Alex's conversation. Save the goal, requirements, desired file format and optional **Finished means** criteria. Each project keeps its own references, decisions, research, worker outputs and revisions.
+Open **Projects** on the Home Screen and choose **New project**, use Company HQ, or assign the work in Alex's conversation. Save the goal, requirements, desired file format and optional **Finished means** criteria. Each project keeps its own references, decisions, research, worker outputs and revisions.
+
+## Visual review in Projects
+
+Projects is the visual workspace for saved worker work. Filter ready, ongoing and approved projects; open the current final deliverable or earlier versions; view actual PNG/JPEG/WebP files at full size; read every PDF page with page controls and zoom; and download original files. PDFs render with the pinned PDF.js 6.4.299 browser library. A native full-PDF link and download remain available as alternatives. Text and HTML files are shown as text rather than executed.
+
+Approve the exact final version or enter revision feedback directly in Projects. A reference photo, a worker handoff or an earlier revision cannot be approved as the current final deliverable. Feedback resumes the same project. **View progress in Messages** opens that project's Company HQ conversation. Thread progress and existing sensitive-action approvals continue to work.
+
+Add reference photos with the photo picker on iPhone/iPad or drag and drop on a computer. Add a note about the palette, typography, layout or branding to follow. Up to four photos can be added in one batch, with twelve per project. The existing photo preparation converts supported device formats to metadata-free JPEGs up to 1600 pixels and 3 MB. Uploads are private, checksum-verified, scoped to the owned project and idempotent. Adding a photo revises the project context while retaining older outputs.
+
+Reference images remain separate from finished assets. The background runner uses the existing Groq vision connection to save factual observations, which all assigned workers receive in their shared context. Each photo review uses one existing worker turn and respects owner pauses and the shared usage allowance. Reference analysis does not generate new artwork; producing new image assets still requires an image creator.
+
+Handbooks can be downloaded as PDF or original Markdown. Finished project text can also be exported as a PDF without changing the saved review version.
 
 Use **Add reference** for TXT, Markdown, CSV and JSON sources up to 512 KB. Large sources and handoffs are shown as labelled excerpts in model context and the details view; divide large material into focused sources for the work. PDF and office-file extraction are not installed. Existing photo-message controls remain separate.
 

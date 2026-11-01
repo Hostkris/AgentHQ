@@ -31,6 +31,7 @@ button:disabled{cursor:default}
 .app-icon--accounts{background:linear-gradient(150deg,#5eabed,#1779ca)}
 .app-icon--studio{background:linear-gradient(150deg,#b797ff,#7054df)}
 .app-icon--assignments{background:linear-gradient(150deg,#f8bc55,#ed8b25)}
+.app-icon--projects{background:linear-gradient(150deg,#52b9dc,#247aa6)}
 .app-icon--operations{background:linear-gradient(150deg,#787df2,#4f53c9)}
 .app-icon--hq{background:linear-gradient(150deg,#30c5ba,#1c949d)}
 .app-icon--approvals{background:linear-gradient(150deg,#4bd2b2,#169c85)}
@@ -513,3 +514,4 @@ button:disabled{cursor:default}
 /* Keep each message X available outside multi-select mode. */
 .ios-thread .ios-chat-list .ios-message-row[data-chat-kind] .chat-delete-bar{display:flex}
 .ios-thread .ios-chat-list .ios-message-row[data-chat-kind] .ios-message-bubble:has(.chat-delete-bar){padding-right:56px}
+

@@ -100,7 +100,7 @@ function card(job){
   (outputs?'<div class="creative-output-list">'+outputs+'</div>':'')+
   (imported?'<section class="creative-imported"><strong>Owner-imported text · origin not verified</strong><div class="creative-output">'+safe(imported.body)+'</div></section>':'')+
   (!outputs&&!imported?'<p class="creative-note">No completed drafts yet. Your worker will update the Messages conversation as progress is made.</p>':'')+
-  '<div class="creative-controls">'+(job.workflow_version===2?'<button type="button" data-project-open="'+safe(job.id)+'">Open in Company HQ →</button>':'<button type="button" data-chat="'+safe(worker)+'">Open '+safe(worker==="alex"?"Alex":specialists.find(x=>x[0]===worker)?.[1]||"worker")+' Messages →</button>')+'</div>'+
+  '<div class="creative-controls">'+(job.workflow_version===2?'<button type="button" data-workspace-project-id="'+safe(job.id)+'">Open files and review in Projects →</button>':'<button type="button" data-chat="'+safe(worker)+'">Open '+safe(worker==="alex"?"Alex":specialists.find(x=>x[0]===worker)?.[1]||"worker")+' Messages →</button>')+'</div>'+
   '<p class="creative-nopublish">Requests and approvals happen in Messages. No social publishing is active.</p></article>';
 }
 function isCreativeJob(job){
@@ -190,4 +190,5 @@ if(host)observer.observe(host,{subtree:true,childList:true});
 agentCloud.auth.onAuthStateChange(()=>setTimeout(()=>refresh({quiet:true}),0));
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&document.getElementById("agent-creative-root"))refresh({quiet:true});});
 window.addEventListener("focus",()=>{if(document.getElementById("agent-creative-root"))refresh({quiet:true});});
+
 

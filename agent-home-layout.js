@@ -5,11 +5,11 @@ const APPS=[
  ["office","Office","🏢"],["messages","Messages","💬"],["email","Email Center","✉️"],
  ["contacts","Contacts","👥"],["accounts","My Accounts","🔐"],["studio","Worker Studio","🧬"],
  ["assignments","Assignments","📋"],["operations","Operations","📈"],
- ["creative","Creative Desk","🎨"],["hq","Company HQ","🧑‍💼"],
+ ["projects","Projects","🗂️"],["creative","Creative Desk","🎨"],["hq","Company HQ","🧑‍💼"],
  ["approvals","Approvals","🔐"],["research","Research","🔎"],
  ["browser","Browser","🌐"],["reminders","Reminders","📅"],["camera","Camera","📷"],["settings","Settings","⚙️"]
 ];
-const LABELS={office:"Office",messages:"Messages",email:"Email",contacts:"Contacts",accounts:"Accounts",studio:"Studio",assignments:"Assignments",operations:"Operations",creative:"Creative",hq:"Company HQ",approvals:"Approvals",research:"Research",browser:"Browser",reminders:"Reminders",camera:"Camera",settings:"Settings"};
+const LABELS={office:"Office",messages:"Messages",email:"Email",contacts:"Contacts",accounts:"Accounts",studio:"Studio",assignments:"Assignments",projects:"Projects",operations:"Operations",creative:"Creative",hq:"Company HQ",approvals:"Approvals",research:"Research",browser:"Browser",reminders:"Reminders",camera:"Camera",settings:"Settings"};
 const valid=new Set(APPS.map(p=>p[0])),kinds=["inbox","approvals","work","research","notes","calendar","weather","clock","status"];
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const empty=()=>({apps:[],widgets:[],order:[]});
@@ -365,4 +365,5 @@ function init(){
  document.addEventListener('visibilitychange',()=>{if(document.hidden){finishDrag();swipe=null}});
 }
 export function connectHomeScreen(onChange){change=onChange;init()}
+
 

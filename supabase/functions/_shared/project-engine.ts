@@ -1,5 +1,6 @@
 import {loadProjectWorkspace,stageProjectArtifact,verifiedCalculations,resolveCalculationTokens,PROJECT_OPERATING_RULES} from './project-workspace.ts';
 import {validatePlanRoutes} from '../../../agent-project-workspace-core.js';
+import {analyzePendingProjectPhoto} from './project-photos.ts';
 // Each turn is one real model call by one accountable worker, using saved context.
 // The database enforces sequence, owner scope, leases, usage caps and final review.
 import {PUBLIC_WEB_CAPABILITY,researchForRole} from './role-research.ts';
@@ -150,6 +151,8 @@ export async function runProjectTurn(deps:any,assignment:any,input:any){
    if(error)throw Error('Could not save the internal workflow diagnosis');
    return data;
   }
+  const pendingPhoto=workspace?.reference_photos?.find((p:any)=>p.analysis_status==='pending');
+  if(pendingPhoto)return await analyzePendingProjectPhoto(deps,assignment,s,claim.run_id,pendingPhoto);
   const research=async(query:string,purpose:string)=>{
    const result=await researchForRole({db,owner,worker:s.active_worker,task:assignment.instructions+' '+(jobs[s.active_worker]||'project management'),query,purpose,key:deps.webKey||'',fetcher:deps.webFetch,
     context:{assignment_id:assignment.id,revision:s.revision,run_id:claim.run_id,request_key:'project:'+claim.run_id}});

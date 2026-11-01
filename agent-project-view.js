@@ -30,6 +30,7 @@ export function projectRoomHTML({projects,selected,notes,escape,format,remove,la
  const final=['review','approved'].includes(s.phase)&&s.final_output?'<article class="hq-finished-project" data-project-final="'+escape(s.assignment_id)+'">'+
   '<div class="hq-finished-heading">'+remove('work',s.assignment_id)+'<span class="hq-finished-check" aria-hidden="true">✓</span><div><small>FINISHED TEAM WORK · VERSION '+escape(s.revision)+'</small><h3>'+escape(a.title||'Completed project')+'</h3></div></div>'+
   '<div class="hq-finished-content">'+format(s.final_output)+'</div>'+
+  '<button type="button" data-workspace-project-id="'+escape(s.assignment_id)+'">Open files and review in Projects</button>'+
   (s.phase==='approved'?'<p class="hq-approved-label">✓ Approved · Saved for future reference</p>':
    '<div class="hq-review-actions"><button type="button" data-project-review="approve" data-project-id="'+escape(s.assignment_id)+'" data-project-version="'+escape(s.output_version)+'">Approve</button><button type="button" data-project-review="changes" data-project-id="'+escape(s.assignment_id)+'" data-project-version="'+escape(s.output_version)+'">Request changes</button></div><p class="hq-review-hint">You can also text your changes below, or reply “approved”. Approval covers this finished work only.</p>')+'</article>':'';
  return '<section class="hq-project-room" data-project-room="'+escape(s.assignment_id)+'"><nav class="hq-project-picker" aria-label="Team projects">'+chips+'</nav>'+

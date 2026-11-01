@@ -6,7 +6,7 @@ import vm from 'node:vm';
 import {stageProjectArtifact,loadProjectWorkspace,resolveCalculationTokens,verifiedCalculations,routeWorkspaceUpdate} from '../supabase/functions/_shared/project-workspace.ts';
 const owner='11111111-1111-4111-8111-111111111111',project='22222222-2222-4222-8222-222222222222';
 function database(){
- const tables={agent_project_workspaces:[{owner_id:owner,assignment_id:project,output_format:'markdown',business_key:'chosen'}],agent_project_artifacts:[],agent_project_handbooks:[],agent_project_references:[],agent_task_steps:[]};
+ const tables={agent_project_workspaces:[{owner_id:owner,assignment_id:project,output_format:'markdown',business_key:'chosen'}],agent_project_artifacts:[],agent_project_handbooks:[],agent_project_references:[],agent_task_steps:[],agent_project_photos:[]};
  const objects=new Map(),calls=[];
  const db={tables,objects,calls,corrupt:false,failUpload:false,from(table){let filters=[],any=[],inserted;
   const rows=()=>tables[table].filter(row=>filters.every(([k,v])=>row[k]===v)&&(!any.length||any.some(([k,v])=>row[k]===v)));
