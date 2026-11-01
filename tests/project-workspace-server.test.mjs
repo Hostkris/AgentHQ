@@ -8,9 +8,9 @@ const owner='11111111-1111-4111-8111-111111111111',project='22222222-2222-4222-8
 function database(){
  const tables={agent_project_workspaces:[{owner_id:owner,assignment_id:project,output_format:'markdown',business_key:'chosen'}],agent_project_artifacts:[],agent_project_handbooks:[],agent_project_references:[],agent_task_steps:[]};
  const objects=new Map(),calls=[];
- const db={tables,objects,calls,corrupt:false,failUpload:false,from(table){let filters=[],inserted;
-  const rows=()=>tables[table].filter(row=>filters.every(([k,v])=>row[k]===v));
-  const q={select(){return q},eq(k,v){filters.push([k,v]);return q},order(){return q},limit(){return q},insert(row){inserted={id:'artifact-'+tables[table].length,...row};return q},async maybeSingle(){return {data:rows()[0]||null}},async single(){tables[table].push(inserted);return {data:inserted}},then(fn){return Promise.resolve({data:rows()}).then(fn)}};return q;
+ const db={tables,objects,calls,corrupt:false,failUpload:false,from(table){let filters=[],any=[],inserted;
+  const rows=()=>tables[table].filter(row=>filters.every(([k,v])=>row[k]===v)&&(!any.length||any.some(([k,v])=>row[k]===v)));
+  const q={select(){return q},eq(k,v){filters.push([k,v]);return q},or(value){any=value.split(',').map(s=>{const [k,,v]=s.split('.');return [k,v]});return q},order(){return q},limit(){return q},insert(row){inserted={id:'artifact-'+tables[table].length,...row};return q},async maybeSingle(){return {data:rows()[0]||null}},async single(){tables[table].push(inserted);return {data:inserted}},then(fn){return Promise.resolve({data:rows()}).then(fn)}};return q;
  },storage:{from(bucket){assert.equal(bucket,'agent-project-files');return {
   async upload(path,bytes,options){calls.push({action:'upload',path});assert.equal(options.upsert,false);if(db.failUpload)return {error:{message:'fixture storage unavailable'}};if(objects.has(path))return {error:{message:'object exists'}};objects.set(path,bytes.slice());return {error:null};},
   async download(path){calls.push({action:'download',path});if(!objects.has(path))return {error:{message:'not found'}};return {data:new Blob([db.corrupt?new TextEncoder().encode('corrupt'):objects.get(path)])};},
@@ -58,6 +58,14 @@ test('approval, pause and pending confirmation messages cannot become project up
  const db={from(){throw Error('A scoped decision was intercepted as an update')}};
  for(const body of ['looks good','I like it','thumbs up','good to go','red light','hold on','resume the project'])assert.equal(await routeWorkspaceUpdate(db,owner,'hq',body,{project_id:project}),null);
  assert.equal(await routeWorkspaceUpdate(db,owner,'hq','Confirm this exact action',{project_id:project,stage:'confirm_permission'}),null);
+});
+test('large earlier sources cannot hide the last specialist or later references',async()=>{
+ const db=database();
+ db.tables.agent_task_steps=Array.from({length:9},(_,i)=>({owner_id:owner,assignment_id:project,employee_id:'worker-'+i,work_product:'Work '+i+': '+('verified findings '.repeat(1000))}));
+ db.tables.agent_project_references=Array.from({length:50},(_,i)=>({owner_id:owner,assignment_id:project,id:'ref-'+i,filename:'source-'+i+'.md',content:'Source '+i+': '+('reference facts '.repeat(1000))}));
+ const context=await loadProjectWorkspace(db,owner,project);
+ assert.equal(context.handoffs.length,9);assert.ok(context.handoffs.every(h=>h.work_product.length>0&&h.excerpt));assert.match(context.handoffs.at(-1).work_product,/Work 8/);
+ assert.equal(context.references.length,50);assert.match(context.references.at(-1).content,/Source 49/);assert.ok(context.references.reduce((n,r)=>n+r.content.length,0)<=16000);
 });
 function handler({user={id:owner},allowed=owner,assignment={id:project,title:'Test'},tokenError=null}={}){
  let serve;const calls=[];
