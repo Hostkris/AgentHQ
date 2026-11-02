@@ -1,7 +1,7 @@
 // Settings > Accounts & Sign-Ins + Publishing Authorization.
 // OAuth never accepts passwords in Agent HQ. Publishing controls are a saved
 // owner preference only; they DO NOT grant or execute external posting.
-import {openChatGPTConnection} from './agent-chatgpt-handoff.js?v=20261102-chatgpt-handoff-1';
+import {openChatGPTConnection} from './agent-chatgpt-handoff.js?v=20261102-auto-handoff-sync-1';
 import {agentCloud} from "./agent-cloud-auth.js";
 
 const escapeText=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
