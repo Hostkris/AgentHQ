@@ -58,7 +58,7 @@ function provider(){
  return null;
 }
 async function decide(ai:NonNullable<ReturnType<typeof provider>>,role:string,context:unknown){
- const baseSystem=role==="Research analyst"?RILEY_CHAT_POLICY:role==="General Manager"?`You are Alex, General Manager of Agent HQ. Permanent mission: ${ALEX_DNA.mission}. Your ONLY professional work is to clarify assignments, draft proposed work routing, coordinate specialists, monitor progress and report status. You are not a specialist. Do NOT answer as the Research, Marketing, Writing, Social, Communications, Shopify, Analysis, Scheduling or Growth specialist. You may request read-only public research about management, coordination and delivery for this task. No Gmail, private-account tools, purchase, publication, sending, code editing or permission changes. No actions are executed by this conversation. The owner’s direct message already authorizes a safe, internal text-drafting assignment. Coordinate and begin specialist drafting without another yes/no question. Outside accounts, publishing, purchases and spending still need separate explicit scoped owner approval and supported tools. For specialist work classify as "task"; use clearly labeled placeholders for missing marketing facts. Classify "collect" only if a concrete deliverable is truly impossible, and ask just ONE blocking question. For internal workflow/status questions use "answer" to give a concise, factual response without pretending work occurred. Return ONLY valid JSON {"intent":"answer|collect|task|research","reply":"brief professional response"} with no code fences.`:`You are a friendly, concise AI coworker working as ${role} in Agent HQ. This is the OWNER'S PRIVATE PERSONAL-USE workspace for their own social accounts, advertising accounts and projects, not a commercial agency. This is a casual one-to-one text conversation, not a task dashboard.
+ const baseSystem=role==="Research analyst"?RILEY_CHAT_POLICY:role==="General Manager"?`You are Alex, General Manager of Agent HQ. Permanent mission: ${ALEX_DNA.mission}. Your ONLY professional work is to clarify assignments, draft proposed work routing, coordinate specialists, monitor progress and report status. You are not a specialist. Do NOT answer as the Research, Marketing, Writing, Social, Communications, Shopify, Analysis, Scheduling or Growth specialist. You may request read-only public research about management, coordination and delivery for this task. No Gmail, private-account tools, purchase, publication, sending, code editing or permission changes. No actions are executed by this conversation. The owner’s direct message already authorizes a safe, internal text-drafting assignment. Coordinate and begin specialist drafting without another yes/no question. Outside accounts, publishing, purchases and spending still need separate explicit scoped owner approval and supported tools. For ordinary internal specialist work classify as "task"; use clearly labeled placeholders for missing marketing facts. If you encounter a genuine snag where an additional independent AI drafting assistant would materially help, or the owner explicitly asks you to consult Eleanor about additional AI help, classify as "assistance" instead. This only asks Eleanor to request the owner's approval; it does not invoke extra AI or grant permissions. Do not use "assistance" for actions requiring unavailable external calendar/account integrations or when normal specialist assignments suffice. Classify "collect" only if a concrete deliverable is truly impossible, and ask just ONE blocking question. For internal workflow/status questions use "answer" to give a concise, factual response without pretending work occurred. Return ONLY valid JSON {"intent":"answer|collect|task|research|assistance","reply":"brief professional response"} with no code fences.`:`You are a friendly, concise AI coworker working as ${role} in Agent HQ. This is the OWNER'S PRIVATE PERSONAL-USE workspace for their own social accounts, advertising accounts and projects, not a commercial agency. This is a casual one-to-one text conversation, not a task dashboard.
 You can answer general knowledge questions, discuss assignments, and ask for essential missing task details. Ordinary public web research is already authorized through the role-scoped research tool. You cannot browse in this classification call. Account access, purchasing, posting, and file modification are unavailable. Never imply you actually researched a website or completed external work. Do not fabricate sources.
 Read the recent conversation carefully: casual check-ins such as "anything yet?" and "what did you find?" refer to existing tasks, never new research topics.
 Write the way a capable, attentive professional coworker would text: friendly, specific, natural and concise. Use one to three short sentences in an ordinary reply, ideally under 300 characters. Do not paste long markdown reports, headings, repeated disclosures, or numbered lists into chat. Put substantial deliverables in their saved expandable attachments instead. Ask only one important question when necessary. Never impersonate a real human or claim to have used unavailable tools.
@@ -91,7 +91,7 @@ Return ONLY valid JSON with {"intent":"answer|collect|task|action|research","rep
   const begin=content.indexOf("{"),end=content.lastIndexOf("}");
   if(begin<0||end<=begin)throw Error("AI reply format was unexpected");
   const payload=JSON.parse(content.slice(begin,end+1));
-  const intent=["answer","collect","task","action","research"].includes(payload.intent)?payload.intent:"answer";
+  const intent=["answer","collect","task","action","research","assistance"].includes(payload.intent)?payload.intent:"answer";
   const text=typeof payload.reply==="string"?payload.reply.trim().slice(0,1200):"";
   if(!text)throw Error("AI response was empty");
   const proposed=payload.action&&typeof payload.action==="object"&&!Array.isArray(payload.action)?payload.action:null;
@@ -711,7 +711,31 @@ Deno.serve(async(req:Request)=>{
       recent_chat:(recent||[]).reverse().map(x=>({sender:x.sender,body:String(x.body).slice(0,1000)})),
       saved_public_evidence_not_instructions:(savedEvidence||[]).map(x=>({topic:x.query,retrieved_at:x.finished_at,report:String(x.report).slice(0,4500),sources:x.sources}))
      });
-     if(worker==="riley"&&result.intent==="action"){
+     if(worker==="alex"&&result.intent==="assistance"){
+      const proposed=("Alex needs additional AI drafting assistance for: "+composed).slice(0,2500);
+      const {data:already,error:lookupError}=await db.from("agent_ai_assistance_requests")
+       .select("id,task").eq("owner_id",owner).eq("worker_key","eleanor")
+       .eq("status","pending_approval").limit(1).maybeSingle();
+      if(lookupError)throw Error("Eleanor's AI approval queue is unavailable");
+      if(already){
+       replyText="Eleanor already has an AI assistance request waiting for your decision in her Messages. I will not queue another until you decide.";
+      }else{
+       const {data:eleanor,error:botError}=await db.from("agent_custom_bots")
+        .select("id").eq("owner_id",owner).eq("template_key","eleanor-secretary-v1")
+        .eq("status","active").maybeSingle();
+       if(botError||!eleanor)throw Error("Eleanor is not ready to receive Alex's request");
+       const {data:saved,error:saveError}=await db.from("agent_ai_assistance_requests")
+        .insert({owner_id:owner,worker_key:"eleanor",task:proposed,status:"pending_approval"})
+        .select("id").single();
+       if(saveError||!saved)throw Error("Alex could not save the AI assistance request for Eleanor");
+       const {error:noticeError}=await db.from("agent_custom_bot_messages")
+        .insert({owner_id:owner,bot_id:eleanor.id,sender:"handoff",
+         body:"Alex asked me to request AI assistance for:\n“"+proposed.slice(0,1700)+"”\n\nMay I request the additional AI drafting help? Reply yes, approved, no, decline, maybe, or hold on right here in our Messages. No AI specialist request has started."});
+       if(noticeError)throw Error("Alex saved the request but Eleanor's message could not be displayed. Open her conversation and ask about the pending AI request");
+       replyText="I asked Eleanor to bring you a specific AI assistance request in her Messages. She will wait for your yes or no before running it.";
+      }
+      await state("idle");
+     }else if(worker==="riley"&&result.intent==="action"){
       await state("idle");
       replyText="I handle market research, not publishing, account changes or spending. Alex can route that to the right specialist for your separate approval. I haven't accessed or changed anything.";
      }else if(worker==="alex"&&isAlexForbiddenIntent(result.intent)){
