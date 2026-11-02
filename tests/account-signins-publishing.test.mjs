@@ -11,12 +11,12 @@ function harness(){
  const app={addEventListener:(name,fn)=>{callbacks[name]=fn;}};
  const fakeAuth={getUser:async()=>({data:{user:null},error:null}),onAuthStateChange:()=>{}};
  const sandbox={
-  agentCloud:{auth:fakeAuth},
+  agentCloud:{auth:fakeAuth},openChatGPTConnection:()=>{},
   document:{getElementById:id=>id==="app"?app:null,addEventListener:()=>{}},
   window:{addEventListener:()=>{},open:()=>{}},
   setTimeout:()=>{},console
  };
- const js=source.replace(/^import\s+.+?;\s*/m,"");
+ const js=source.replace(/^import\s+.+?;\s*/gm,"");
  runInNewContext(js+"\nglobalThis.__unit={SERVICES,state,renderConnections,renderPublishing,renderPublishingCompact,socialBadge};",sandbox);
  return sandbox.__unit;
 }
@@ -26,8 +26,8 @@ test("All requested accounts are shown, with truthful connection status",()=>{
  for(const name of ["chatgpt","gmail","facebook","instagram","tiktok","youtube","icloud","meta"])
   assert.ok(ids.includes(name),name+" not in Settings");
  const html=u.renderConnections();
- assert.match(html,/Awaiting OpenAI authorization/);
- assert.match(html,/Request OpenAI access/);
+ assert.match(html,/Project handoff setup/);
+ assert.match(html,/Handoff setup/);
  assert.match(html,/Open ChatGPT/);
  assert.match(html,/Not linked to Agent HQ/);
  assert.match(html,/Connect with Google|Set up Gmail/);
@@ -68,3 +68,4 @@ test("No browser publishing endpoints, credential harvesting or token copying",(
  assert.doesNotMatch(source,/input\s+type=["']password/i);
  assert.match(source,/Publishing controls are a saved/);
 });
+

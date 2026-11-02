@@ -83,7 +83,7 @@ export const CAPABILITY_STATUS=Object.freeze([
  {id:'public_research',status:'available',scope:'Role-scoped public sources; existing provider limits apply.'},
  {id:'calculate',status:'available',scope:'Verified arithmetic, without executable code.'},
  {id:'reference_photo_analysis',status:'available',scope:'Owner-supplied project photos are reviewed through the existing vision connection and worker allowance.'},
- {id:'create_image',status:'connection_required',scope:'New finished artwork requires a connected image creator; saved reference photos are not generated artwork.'},
+ {id:'create_image',status:'connection_required',scope:'Use Projects to prepare an owner-started ChatGPT handoff for new artwork. The ChatGPT connector must be authorized and its image tools available. No unattended image API is connected; reference photos are not generated artwork.'},
  {id:'create_document',status:'available',scope:'Markdown, TXT, PDF, CSV, JSON, safe HTML and calendar import files.'},
  {id:'calendar_write',status:'connection_required',scope:'External calendar authorization and a supported provider adapter are required.'},
  {id:'send_email',status:'scoped_approval_required',scope:'Use the existing Email Center and its exact-message approval; project workers do not inherit send access.'},

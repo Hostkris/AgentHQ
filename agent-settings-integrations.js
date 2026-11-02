@@ -1,11 +1,12 @@
 // Settings > Accounts & Sign-Ins + Publishing Authorization.
 // OAuth never accepts passwords in Agent HQ. Publishing controls are a saved
 // owner preference only; they DO NOT grant or execute external posting.
+import {openChatGPTConnection} from './agent-chatgpt-handoff.js?v=20261102-chatgpt-handoff-1';
 import {agentCloud} from "./agent-cloud-auth.js";
 
 const escapeText=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const SERVICES=[
- {id:"chatgpt",name:"ChatGPT",mark:"✦",url:"https://chatgpt.com/",type:"chatgpt",detail:"Awaiting authorization for direct ChatGPT use by Agent HQ workers. No approved OpenAI connection is installed or application approval confirmed. Use Messages to request creative work, or open ChatGPT manually. Agent HQ never collects your ChatGPT password."},
+ {id:"chatgpt",name:"ChatGPT",mark:"✦",url:"https://chatgpt.com/",type:"chatgpt",detail:"Use the project handoff connector to let ChatGPT read explicitly handed-over projects and return actual files for review. You start the work in ChatGPT. Connection status is verified in Handoff setup; Agent HQ never collects your ChatGPT password."},
  {id:"gmail",name:"Gmail",mark:"✉️",type:"gmail",detail:"Official Google authorization connects Gmail to Agent HQ's existing Email Center. Sending still requires your review."},
  {id:"facebook",name:"Facebook",mark:"f",url:"https://www.facebook.com/",type:"external",detail:"Signing into the Facebook website is not a Meta publishing authorization. Social publishing requires the correct Meta app scopes and account selection."},
  {id:"instagram",name:"Instagram",mark:"◎",url:"https://www.instagram.com/",type:"external",detail:"Instagram publishing access is not connected. A supported Instagram professional-account integration and publishing permission would be required."},
@@ -31,7 +32,7 @@ function socialBadge(service){
   if(state.meta?.configured)return ["Not connected","pending"];
   return ["Setup needed","pending"];
  }
- return service.type==="chatgpt"?["Awaiting OpenAI authorization","pending"]:["Not linked to Agent HQ","pending"];
+ return service.type==="chatgpt"?["Project handoff setup","pending"]:["Not linked to Agent HQ","pending"];
 }
 function buttons(service){
  if(service.type==="gmail")return (state.gmail?.connected?
@@ -40,7 +41,7 @@ function buttons(service){
  if(service.type==="meta")return (state.meta?.connected?
   '<button type="button" data-ah-service="meta-manage">View Meta Ads</button><button type="button" data-ah-service="meta-disconnect">Disconnect</button>':
   state.meta?.configured?'<button type="button" data-ah-service="meta-connect">Authorize Meta Ads (read only)</button>':'<button type="button" data-ah-service="meta-manage">Meta Ads setup</button>');
- if(service.type==="chatgpt")return '<button type="button" data-ah-service="chatgpt-open">Open ChatGPT ↗</button><button type="button" data-ah-service="chatgpt-request">Request OpenAI access ↗</button><button type="button" data-ah-service="chatgpt-help">Integration requirements ↗</button>';
+ if(service.type==="chatgpt")return '<button type="button" data-ah-service="chatgpt-open">Open ChatGPT ↗</button><button type="button" data-ah-service="chatgpt-connect">Handoff setup</button><button type="button" data-ah-service="chatgpt-help">Integration requirements ↗</button>';
  return '<button type="button" data-ah-open="'+escapeText(service.id)+'">Open official website ↗</button>'+
  '<button type="button" data-nav="accounts">Save profile in Agent HQ</button>';
 }
@@ -58,7 +59,7 @@ function renderConnections(){
    '<div class="ah-service-copy"><div class="ah-service-title"><strong>'+escapeText(service.name)+'</strong><span class="ah-badge ah-'+style+'">'+escapeText(badge)+'</span></div>'+
    '<p>'+escapeText(service.detail)+'</p><div class="ah-service-actions">'+buttons(service)+'</div></div></article>';
  }).join("")+'</div>'+
- '<p class="ah-caution">Opening a provider website does not connect it to Agent HQ. Only the Google Gmail and read-only Meta Ads authorization buttons use a real integration today. Other accounts require their own approved OAuth setup.</p></div>';
+ '<p class="ah-caution">Opening a provider website does not connect it to Agent HQ. Gmail, read-only Meta Ads, and the project-scoped ChatGPT handoff have supported authorization flows. Other accounts require their own approved OAuth setup.</p></div>';
 }
 function renderPublishingCompact(){
  const enabled=state.prefLoaded&&state.publishing;
@@ -169,8 +170,9 @@ app?.addEventListener("click",async event=>{
  if(!action)return;
  if(action.hasAttribute("data-ah-show-account")){window.agentHQSettingsNavigate?.("account");return;}
  const value=action.dataset.ahService;
+ if(value==="chatgpt-connect"){void openChatGPTConnection();return;}
  if(["chatgpt-help","chatgpt-open","chatgpt-request"].includes(value)){
-  const url=value==="chatgpt-open"?"https://chatgpt.com/":value==="chatgpt-request"?"https://openai.com/form/sign-in-with-chatgpt-interest/":"https://developers.openai.com/siwc/website";
+  const url=value==="chatgpt-open"?"https://chatgpt.com/":value==="chatgpt-request"?"https://openai.com/form/sign-in-with-chatgpt-interest/":"https://developers.openai.com/api/docs/guides/custom-mcp-server";
   window.open(url,"_blank","noopener,noreferrer");return;
  }
  if(["gmail-manage","meta-manage"].includes(value)){
