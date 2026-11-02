@@ -3,15 +3,16 @@ export const uuid=(v:any)=>/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-
 const bounded=(v:any,n:number)=>typeof v==='string'?v.trim().slice(0,n):'';
 export async function ensureSecretary(db:any,owner:string,enabled=false){const {data,error}=await db.rpc('ensure_agent_secretary',{p_owner:owner,p_spec:ELEANOR_SPEC,p_enable_brief:enabled});if(error)throw Error('Could not prepare Eleanor’s private records');return data;}
 export async function secretaryState(db:any,owner:string){
- const [s,i,d,w,p,g]=await Promise.all([
+ const [s,i,d,w,p,g,a]=await Promise.all([
   db.from('agent_secretary_settings').select('*').eq('owner_id',owner).maybeSingle(),
   db.from('agent_secretary_items').select('*').eq('owner_id',owner).order('status').order('updated_at',{ascending:false}).limit(300),
   db.from('agent_secretary_deliveries').select('id,item_id,item_version,kind,scheduled_at,status,action_state,body,push_state,last_error,saved_at').eq('owner_id',owner).order('scheduled_at',{ascending:false}).limit(100),
   db.from('agent_secretary_workout_log').select('item_id,local_date,status,notes').eq('owner_id',owner).order('local_date',{ascending:false}).limit(100),
   db.from('agent_secretary_push_subscriptions').select('id,label,active,created_at,last_success_at,last_error').eq('owner_id',owner).order('created_at',{ascending:false}).limit(10),
-  db.from('agent_gmail_connections').select('status,scopes').eq('owner_id',owner).maybeSingle()
- ]);if([s,i,d,w,p,g].some(x=>x.error)||!s.data)throw Error('Could not load the secretary registers');
- const state={settings:s.data,items:i.data||[],deliveries:d.data||[],workout_log:w.data||[],devices:p.data||[],gmail_connected:g.data?.status==='active'&&(g.data.scopes||[]).some((x:string)=>['https://www.googleapis.com/auth/gmail.readonly','https://www.googleapis.com/auth/gmail.modify','https://mail.google.com/'].includes(x)),calendar_sync_connected:false};
+  db.from('agent_gmail_connections').select('status,scopes').eq('owner_id',owner).maybeSingle(),
+  db.from('agent_secretary_agent_alerts').select('id,event_key,alert_kind,actor,title,body,project_id,request_id,status,push_state,created_at').eq('owner_id',owner).in('status',['open','dismissed']).order('created_at',{ascending:false}).limit(80)
+ ]);if([s,i,d,w,p,g,a].some(x=>x.error)||!s.data)throw Error('Could not load the secretary registers');
+ const state={settings:s.data,items:i.data||[],deliveries:d.data||[],workout_log:w.data||[],devices:p.data||[],agent_alerts:a.data||[],gmail_connected:g.data?.status==='active'&&(g.data.scopes||[]).some((x:string)=>['https://www.googleapis.com/auth/gmail.readonly','https://www.googleapis.com/auth/gmail.modify','https://mail.google.com/'].includes(x)),calendar_sync_connected:false};
  return {...state,registries:stateSummary(state)};
 }
 function dateSource(source:string,localToday:string){if(/^\d{4}-\d{2}-\d{2}$/.test(source))return source;if(['today','tonight'].includes(source.toLowerCase()))return localToday;if(source.toLowerCase()==='tomorrow'){const d=new Date(localToday+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+1);return d.toISOString().slice(0,10);}return null;}
