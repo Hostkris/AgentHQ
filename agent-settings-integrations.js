@@ -19,9 +19,17 @@ const SERVICES=[
  {id:"pinterest",name:"Pinterest",mark:"📌",url:"https://www.pinterest.com/",type:"external",detail:"Pinterest publishing requires a separate approved app integration."}
 ];
 const SERVICE_BY_ID=new Map(SERVICES.map(s=>[s.id,s]));
-let state={signedIn:false,userId:null,gmail:null,meta:null,publishing:false,prefLoaded:false,loading:false,saving:false,message:"Sign in to Agent HQ to view saved connections.",settingsError:""};
+let state={signedIn:false,userId:null,gmail:null,meta:null,chatgpt:null,publishing:false,prefLoaded:false,loading:false,saving:false,message:"Sign in to Agent HQ to view saved connections.",settingsError:""};
 let serial=0;
 function socialBadge(service){
+ if(service.type==="chatgpt"){
+  // Match the handoff dialog: only an active, used OAuth connection is "Connected".
+  const active=Array.isArray(state.chatgpt?.connections)
+   ?state.chatgpt.connections.filter(c=>!c.revoked_at&&Date.parse(c.refresh_expires_at)>Date.now()):[];
+  if(active.some(c=>!!c.last_used_at))return ["Connected","connected"];
+  if(active.length)return ["Authorized","pending"];
+  return [state.chatgpt?.unavailable?"Status unavailable":"Project handoff setup","pending"];
+ }
  if(service.type==="gmail"){
   if(state.gmail?.connected)return ["Connected","connected"];
   if(state.gmail?.configured)return ["Not connected","pending"];
@@ -32,7 +40,7 @@ function socialBadge(service){
   if(state.meta?.configured)return ["Not connected","pending"];
   return ["Setup needed","pending"];
  }
- return service.type==="chatgpt"?["Project handoff setup","pending"]:["Not linked to Agent HQ","pending"];
+ return ["Not linked to Agent HQ","pending"];
 }
 function buttons(service){
  if(service.type==="gmail")return (state.gmail?.connected?
@@ -105,20 +113,22 @@ async function refresh(){
   if(error)throw Error(error.message);
   if(id!==serial)return;
   if(!data?.user){
-   state={...state,signedIn:false,userId:null,gmail:null,meta:null,publishing:false,prefLoaded:false,
+   state={...state,signedIn:false,userId:null,gmail:null,meta:null,chatgpt:null,publishing:false,prefLoaded:false,
     message:"Sign in under Settings → Account & Sign-In to enable connections and publishing preferences.",settingsError:""};
    return;
   }
   const owner=data.user.id;
   state.signedIn=true;state.userId=owner;state.message="Checking your active integrations and saved authorizations…";
   refreshVisible();
-  const [g,m,p]=await Promise.allSettled([
+  const [g,m,c,p]=await Promise.allSettled([
    queryService("agent-gmail"),queryService("agent-meta-ads"),
+   queryService("agent-chatgpt-bridge"),
    agentCloud.from("agent_publishing_controls").select("publish_requests_enabled").eq("owner_id",owner).maybeSingle()
   ]);
   if(id!==serial)return;
   state.gmail=g.status==="fulfilled"?g.value:{configured:false,connected:false,unavailable:true};
   state.meta=m.status==="fulfilled"?m.value:{configured:false,connected:false,unavailable:true};
+  state.chatgpt=c.status==="fulfilled"?c.value:{configured:false,connected:false,unavailable:true};
   if(p.status==="fulfilled"&&!p.value.error){
    state.publishing=p.value.data?.publish_requests_enabled===true;
    state.prefLoaded=true;state.settingsError="";
@@ -128,7 +138,7 @@ async function refresh(){
   }
   state.message="Connections verified. Account access is not shared with workers unless you explicitly approve it.";
  }catch(error){
-  state={...state,signedIn:false,userId:null,publishing:false,prefLoaded:false,
+  state={...state,signedIn:false,userId:null,chatgpt:null,publishing:false,prefLoaded:false,
    message:"Connection status unavailable: "+String(error.message||error),settingsError:"Sign-in must be verified."};
  }finally{if(id===serial){state.loading=false;refreshVisible();}}
 }
@@ -202,4 +212,5 @@ window.agentHQSettingsDidOpen=(view)=>{
 };
 agentCloud.auth.onAuthStateChange(()=>{++serial;setTimeout(()=>refresh(),0)});
 window.addEventListener("focus",()=>{if(document.getElementById("agenthq-settings-integrations-root")||document.getElementById("agenthq-settings-publishing-root"))refresh()});
+window.addEventListener("agenthq-chatgpt-connection-updated",()=>{if(document.getElementById("agenthq-settings-integrations-root"))refresh()});
 refresh();
