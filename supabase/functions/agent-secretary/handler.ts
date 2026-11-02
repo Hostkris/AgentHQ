@@ -41,7 +41,16 @@ export function secretaryHandler(db:any,owners:string[],deps:any){
     return response({dismissed:Boolean(data)});
    }
    if(input.action==='push_config'){const keys=await pushKeys(db,deps.webpush);return response({public_key:keys.public_key});}
-   if(input.action==='subscribe_push')return response(await savePushSubscription(db,owner,input));
+   if(input.action==='subscribe_push'){
+    const confirmed=await savePushSubscription(db,owner,input);
+    if(confirmed.registered){
+     const {data:setting}=await db.from('agent_secretary_settings').select('agent_alerts_enabled').eq('owner_id',owner).maybeSingle();
+     if(setting?.agent_alerts_enabled)await db.from('agent_secretary_agent_alerts')
+      .update({push_state:'pending',next_push_at:new Date().toISOString()})
+      .eq('owner_id',owner).eq('status','open').eq('push_state','not_enabled');
+    }
+    return response(confirmed);
+   }
    if(input.action==='device_status')return response(await devicePushStatus(db,owner,input));
    if(input.action==='unsubscribe_push'){
     if(!uuid(input.device_id))throw Error('Choose a notification device');const {error}=await db.from('agent_secretary_push_subscriptions').update({active:false}).eq('id',input.device_id).eq('owner_id',owner);if(error)throw Error('Could not disable this device');return response({disabled:true});
