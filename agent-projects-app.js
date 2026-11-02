@@ -85,7 +85,7 @@ async function showAsset(){
    target.querySelector('[data-pdf-prev]').onclick=()=>{if(pdfPage>1){pdfPage--;void renderPDF(target)}};target.querySelector('[data-pdf-next]').onclick=()=>{if(pdfPage<pdfDoc.numPages){pdfPage++;void renderPDF(target)}};target.querySelectorAll('[data-pdf-zoom]').forEach(b=>b.onclick=()=>{pdfZoom=Math.max(.75,Math.min(2,pdfZoom+Number(b.dataset.pdfZoom)*.25));void renderPDF(target)});await renderPDF(target);
   }else if(type==='text'){const text=await blob.text();if(request!==serial)return;target.innerHTML='<pre></pre>';target.querySelector('pre').textContent=text;}
   else target.innerHTML='<p>This saved file is available to download.</p>';
- }catch(e){if(request===serial&&target.isConnected)target.innerHTML='<p class="projects-error">'+esc(e.message)+'</p><p>Use Download or refresh this project to try again.</p>';}
+ }catch(e){pdfLibrary=null;if(request===serial&&target.isConnected)target.innerHTML='<p class="projects-error">'+esc(e.message)+'</p>'+(assetURL&&projectFileType(selectedFile)==='pdf'?'<p><a href="'+esc(assetURL)+'" target="_blank" rel="noopener">Open full PDF</a></p>':'')+'<p>Use Download or refresh this project to try again.</p>';}
 }
 async function renderPDF(target){
  const request=serial,doc=pdfDoc;if(!doc)return;pdfRender?.cancel?.();const pageNumber=pdfPage;
@@ -109,6 +109,7 @@ async function choosePhotos(files){
  const project=selected,revision=details.session.revision,generation=epoch;let prepared=[];
  try{status('Preparing reference photos…');for(const file of files){const p=await preparePhoto(file);if(generation!==epoch)return;prepared.push({...p,name:(file.name||'Reference photo').replace(/\.[^.]*$/,'')+'.jpg',url:URL.createObjectURL(p.blob)});}}
  catch(e){prepared.forEach(p=>URL.revokeObjectURL(p.url));status(e.message);return;}
+ if(generation!==epoch||selected!==project||!currentRoot()){prepared.forEach(p=>URL.revokeObjectURL(p.url));return;}
  const dialog=document.createElement('dialog');dialog.className='project-photo-dialog';dialog.innerHTML='<form><header><h2>Add reference photos</h2><button type="button" data-close aria-label="Close photo upload">×</button></header><div class="project-upload-previews">'+prepared.map(p=>'<img src="'+esc(p.url)+'" alt="Photo to add">').join('')+'</div><label>What should the team follow?<textarea name="caption" maxlength="3000" rows="4" placeholder="Use these colors, this layout, or this style of branding. Keep my product packaging unchanged."></textarea></label><p>The photos and your direction will be saved privately in this project. The team will review visible details within its existing worker allowance.</p><p role="status"></p><button type="submit" class="primary">Save reference photos</button></form>';
  document.body.append(dialog);dialog.querySelector('[data-close]').onclick=()=>dialog.close();dialog.addEventListener('close',()=>{prepared.forEach(p=>URL.revokeObjectURL(p.url));dialog.remove()},{once:true});
  dialog.querySelector('form').onsubmit=async event=>{
