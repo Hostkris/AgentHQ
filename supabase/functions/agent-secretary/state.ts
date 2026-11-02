@@ -51,13 +51,13 @@ export function validateSecretaryOps(ops:any,state:any,message?:string){
      if(/\b(?:until|through|starting|beginning|for \d+ days)\b/.test(body))throw Error('Confirm the reminder start and end boundaries before making it permanent');
      if(secretaryTime(source(raw.time_source))!==result.item.local_time)throw Error('The reminder time does not match the owner’s words');
      const everyday=/\b(daily|every day|each day|everyday)\b/.test(body),weekdays=/\bweekdays\b/.test(body),names=['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
-     const selected=everyday?[0,1,2,3,4,5,6]:weekdays?[1,2,3,4,5]:names.flatMap((n,index)=>new RegExp('\\\\bevery\\\\s+'+n+'\\\\b','i').test(body)?[index]:[]);
+     const selected=everyday?[0,1,2,3,4,5,6]:weekdays?[1,2,3,4,5]:names.flatMap((n,index)=>new RegExp('\\bevery\\s+'+n+'\\b','i').test(body)?[index]:[]);
      if(result.item.once_at){
       if(selected.length)throw Error('A one-time reminder must not repeat');
       const fromSource=raw.date_source==='implicit'?'implicit':source(raw.date_source);
       const targetDate=result.item.once_at.slice(0,10);
       if(fromSource==='implicit'){
-       if(/\\b(?:today|tonight|tomorrow)\\b/i.test(body))throw Error('Please use the date you requested');
+       if(/\b(?:today|tonight|tomorrow)\b/i.test(body))throw Error('Please use the date you requested');
        const p=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:result.item.timezone,hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date()).map(x=>[x.type,x.value]));
        const nowMin=Number(p.hour)*60+Number(p.minute),requestedMin=Number(t.slice(0,2))*60+Number(t.slice(3,5));
        const day=secretaryDate(new Date(),result.item.timezone);const d=new Date(day+'T12:00:00Z');if(requestedMin<=nowMin)d.setUTCDate(d.getUTCDate()+1);
