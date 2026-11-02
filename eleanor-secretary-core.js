@@ -10,7 +10,7 @@ OPERATIONS: Prioritize deadlines, overdue work and blockers; preserve Sabbath/re
 export const ELEANOR_SPEC={name:'Eleanor',role:'Personal Executive Secretary',mission:'Reduce the owner’s administrative load through persistent reminders, a punctual daily briefing, saved workout schedules and completion logs, prepared meeting briefs, and closed-loop task and project coordination.',tone:'Professional, discreet, warm, precise and calmly firm',instructions:ELEANOR_ETHICS,category:'personal',avatar_emoji:'👩🏽‍💼',skills:['Persistent intake reminders','Daily executive briefing','Workout schedule and completion log','Meeting preparation','Task follow-through','Internal project delegation'],anti_jobs:['Never invent medication, doses, health protocols or completion','No sending, publishing, purchases or account changes without separate authorization','No fabricated background activity, calendar sync, source evidence or notification delivery','No access to another owner’s data or unrelated email'],starting_message:'I’m Eleanor, your personal secretary. I keep your reminders, weekly workout plan, tasks and meeting preparation in the Reminders desk. Tell me your first reminder with its exact time and repeat days, or give me your approved workout plan. I will record outcomes when you report them, rather than assume they happened.'};
 export const SECRETARY_KINDS=['reminder','task','workout','meeting'];
 export function secretaryTime(value){
- const t=String(value||'').trim().toLowerCase();if(t==='noon')return '12:00';if(t==='midnight')return '00:00';
+ const t=String(value||'').trim().toLowerCase().replace(/\b([ap])\s*\.\s*m\.?/g,'$1m');if(t==='noon')return '12:00';if(t==='midnight')return '00:00';
  const m=t.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)$/);if(m){const h=Number(m[1]),min=Number(m[2]||0);if(h<1||h>12||min>59)return null;return String(h%12+(m[3]==='pm'?12:0)).padStart(2,'0')+':'+String(min).padStart(2,'0');}
  if(/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(t))return t;return null;
 }
@@ -31,13 +31,60 @@ export function dailyBrief(state,clock=new Date()){
  return ['Good morning — Eleanor’s briefing for '+local+' ('+zone+').','Today’s priorities\n'+list(tasks,i=>'• '+i.title+(i.due_at?' — due '+new Intl.DateTimeFormat('en-US',{timeZone:zone,dateStyle:'medium',timeStyle:'short'}).format(new Date(i.due_at)):' — deadline not supplied')+(i.data?.next_action?' — next: '+quote(i.data.next_action,160):''),'No open tasks are saved.'),'Workout\n'+list(workouts,i=>'• '+i.title+'\n'+quote(i.details,1400)+'\n'+workoutOutcome(i),'No saved workout or rest-day plan for today. Give me your approved weekly split; I will not invent exercises or targets.'),...(unlogged.length?['Workout check-in\nYesterday’s saved workout has no completion or skipped report: '+unlogged.map(i=>i.title).join('; ')+'. Tell me the outcome; I will not assume it happened.']:[]),'Daily intakes and routines\n'+list(reminders,i=>'• '+i.title+' — '+i.local_time.slice(0,5)+' ('+i.timezone+')'+(i.details?' — '+quote(i.details,250):''),'No active daily reminders are saved.'),'Upcoming meetings\n'+list(meetings,i=>'• '+i.title+' — '+new Intl.DateTimeFormat('en-US',{timeZone:zone,timeStyle:'short'}).format(new Date(i.scheduled_at)),'No upcoming meetings are saved here. Live calendar sync is not connected.'),'Reply with updates or open Reminders to mark today’s work complete.'].join('\n\n').slice(0,5900);
 }
 export function reminderText(item,scheduled,followup=false){const time=new Intl.DateTimeFormat('en-US',{timeZone:item.timezone,dateStyle:'medium',timeStyle:'short'}).format(new Date(scheduled))+' ('+item.timezone+').';if(item.kind==='task')return 'Eleanor — task due\n'+item.title+'\n'+quote(item.details,1200)+'\nDue: '+time+'\nThis task stays open until you mark it complete in Tasks. Reviewing this notice does not complete the task.';return (followup?'Eleanor — one follow-up for your unacknowledged reminder.':'Eleanor — scheduled reminder')+'\n'+item.title+'\n'+quote(item.details,1200)+'\nScheduled: '+time+'\nMark today done, snooze, pause, or stop the recurring reminder. This is a reminder, not confirmation that you completed it.'+(item.data?.intake_type==='medication'?' Follow your existing medication instructions; I will not change a dose or invent missed-dose guidance.':'');}
-export function parseSecretaryMessage(message,state){
- const text=String(message||'').trim(),simple=text.replace(/[.!]+$/,'');
- const daily=simple.match(/^(?:please\s+)?(?:remind me to|i need to)\s+(?:take\s+)?(.+?)\s+(?:daily|every day|each day)\s+(?:at)\s+(.+)$/i);
- if(daily){const time=secretaryTime(daily[2]);if(time)return [{op:'save_item',title_source:daily[1],time_source:daily[2],item:{kind:'reminder',title:daily[1].trim(),details:'',timezone:state.settings.timezone,local_time:time,weekdays:[0,1,2,3,4,5,6],data:{intake_type:'routine'}}}];}
- const matches=state.items.filter(i=>i.status!=='stopped'&&simple.toLowerCase().includes(i.title.toLowerCase()));if(matches.length!==1)return null;const target=matches[0];
+export function parseSecretaryMessage(message,state,clock=new Date()){
+ const text=String(message||'').trim().replace(/^(?:eleanor|hey eleanor)\s*[,!:.]?\s*/i,'');
+ const simple=text.replace(/[.!]+$/,'').trim(), zone=state.settings.timezone;
+ const known=state.items.filter(i=>i.status!=='stopped'&&simple.toLowerCase().includes(i.title.toLowerCase()));
  const control=simple.match(/^(?:please\s+)?(stop|cancel|pause|resume|restart|don['’]t remind|do not remind)\b/i);
- if(control)return [{op:'control_item',id:target.id,item_source:target.title,status:/^(?:resume|restart)$/i.test(control[1])?'active':/^pause$/i.test(control[1])?'paused':'stopped'}];
- if(target.kind==='reminder'&&/^(?:i\s+)?(?:took|have taken|finished|completed|done with)\b/i.test(simple))return [{op:'ack_item_today',id:target.id,item_source:target.title,choice:'done'}];
- return null;
+ if(control&&known.length===1){
+  const target=known[0];
+  return [{op:'control_item',id:target.id,item_source:target.title,status:/^(?:resume|restart)$/i.test(control[1])?'active':/^pause$/i.test(control[1])?'paused':'stopped'}];
+ }
+ if(known.length===1&&known[0].kind==='reminder'&&/^(?:i\s+)?(?:took|have taken|finished|completed|done with)\b/i.test(simple))
+  return [{op:'ack_item_today',id:known[0].id,item_source:known[0].title,choice:'done'}];
+ const reminderIntent=/\bremind me\b/i.test(simple)||/^(?:please\s+)?i need to\b.+\b(?:daily|every day|each day)\b/i.test(simple);
+ if(!reminderIntent)return null;
+ const tm=simple.match(/\bat\s+((?:[01]?\d|2[0-3])(?::[0-5]\d)?\s*(?:(?:a|p)\.?\s*m\.?)?)(?=\s|[,.!?]|$)/i);
+ if(!tm)return {question:'What time should I remind you? Please include AM or PM.'};
+ let timeText=tm[1].trim(), time=secretaryTime(timeText);
+ const tonight=/\btonight\b/i.test(simple), tomorrow=/\btomorrow\b/i.test(simple),today=/\btoday\b/i.test(simple);
+ if(!time&&tonight&&/^\d{1,2}(?::[0-5]\d)?$/.test(timeText)){
+  const h=Number(timeText.split(':')[0]);if(h>=1&&h<=12)time=secretaryTime(timeText+' pm');
+ }
+ if(!time)return {question:'Is that AM or PM?'};
+ let label='';
+ const afterTo=simple.match(/\bremind me\s+to\s+([\s\S]+)/i)||simple.match(/\bremind me\b[\s\S]*?\bto\s+([\s\S]+)/i);
+ const dailyTo=simple.match(/^(?:please\s+)?i need to\s+([\s\S]+)/i);
+ if(afterTo)label=afterTo[1];else if(dailyTo)label=dailyTo[1];
+ if(!label)return {question:'What should I remind you to do?'};
+ label=label.replace(/\bat\s+(?:[01]?\d|2[0-3])(?::[0-5]\d)?\s*(?:(?:a|p)\.?\s*m\.?)?/ig,' ')
+ .replace(/\b(?:tonight|today|tomorrow|each day|every day|daily|everyday|weekdays)\b/ig,' ')
+ .replace(/\bevery\s+(?:sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/ig,' ')
+ .replace(/\s+/g,' ').replace(/^[,\s]+|[,\s.!]+$/g,'').trim();
+ const duration=label.match(/\bfor\s+(\d{1,3})\s+(minutes?|hours?)\b/i);
+ const details=duration?duration[0]:'';
+ if(duration)label=label.replace(duration[0],'').replace(/\s+/g,' ').replace(/^[,\s]+|[,\s.!]+$/g,'').trim();
+ if(!label)return {question:'What should I remind you to do?'};
+ if(label.length>180)return {question:'Could you shorten the reminder name?'};
+ const everyday=/\b(?:daily|every day|each day|everyday)\b/i.test(simple), weekdays=/\bweekdays\b/i.test(simple);
+ const dayNames=['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+ const named=dayNames.flatMap((day,index)=>new RegExp('\\bevery\\s+'+day+'\\b','i').test(simple)?[index]:[]);
+ const recurring=everyday||weekdays||named.length>0;
+ if(recurring&&(today||tonight||tomorrow))return {question:'Should this reminder repeat, or happen just once?'};
+ const days=everyday?[0,1,2,3,4,5,6]:weekdays?[1,2,3,4,5]:named;
+ const op={op:'save_item',title_source:label,time_source:timeText,
+  item:{kind:'reminder',title:label,details,timezone:zone,local_time:time,
+   weekdays:recurring?days:[0,1,2,3,4,5,6],data:{intake_type:'routine'}}};
+ if(recurring)return [op];
+ const nowParts=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:zone,hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(clock).map(x=>[x.type,x.value]));
+ const nowMinutes=Number(nowParts.hour)*60+Number(nowParts.minute),timeMinutes=Number(time.slice(0,2))*60+Number(time.slice(3,5));
+ const localToday=secretaryDate(clock,zone);
+ const tomorrowDate=()=>{const d=new Date(localToday+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+1);return d.toISOString().slice(0,10);};
+ const explicit=today||tonight||tomorrow;
+ const date=tomorrow?tomorrowDate():explicit?localToday:timeMinutes>nowMinutes?localToday:tomorrowDate();
+ if((today||tonight)&&date===localToday&&timeMinutes<=nowMinutes)return {question:'That time has already passed tonight. What new time should I use?'};
+ const onceAt=date+'T'+time;
+ op.date_source=tomorrow?'tomorrow':tonight?'tonight':today?'today':'implicit';
+ op.item.once_at=onceAt;op.item.data={...op.item.data,repeat:'none',once_at:onceAt,...(duration?{duration_minutes:Number(duration[1])*(duration[2].toLowerCase().startsWith('hour')?60:1)}:{})};
+ return [op];
 }
