@@ -101,6 +101,70 @@ Deno.serve(async(req:Request)=>{
  }catch(error){return result(req,{error:error instanceof Error?error.message:"Login required"},401)}
  try{
   const action=String(body.action||"");
+  if(action==="ai_assistance_history"){
+   const worker=String(body.worker||"");
+   if(worker!=="alex"&&worker!=="eleanor")return result(req,{error:"Choose Alex or Eleanor"},400);
+   const {data,error}=await db.from("agent_ai_assistance_requests")
+    .select("id,worker_key,task,response,status,provider,created_at,completed_at,error_summary")
+    .eq("owner_id",owner).eq("worker_key",worker)
+    .order("created_at",{ascending:false}).limit(10);
+   if(error)throw Error("AI assistance history could not be loaded");
+   return result(req,{requests:data||[]});
+  }
+  if(action==="ai_assistance"){
+   const worker=String(body.worker||""),task=safe(body.task,2500);
+   if(worker!=="alex"&&worker!=="eleanor")return result(req,{error:"Choose Alex or Eleanor"},400);
+   if(task.length<12||task.length>2500)return result(req,{error:"Describe what the AI should help with (at least 12 characters)"},400);
+   if(/\\b(?:password|api key|secret token|private key)\\s*[:=]/i.test(task))
+    return result(req,{error:"Do not send credentials or secret tokens in AI requests"},400);
+   const requestId=String(body.request_id||"");
+   if(!UUID.test(requestId))return result(req,{error:"Invalid request reference"},400);
+   // Idempotent: reopening or retrying a request must not spend another model call.
+   const {data:prior}=await db.from("agent_ai_assistance_requests")
+    .select("id,worker_key,status,response,provider,error_summary")
+    .eq("owner_id",owner).eq("id",requestId).maybeSingle();
+   if(prior)return result(req,{request:prior,already_saved:true});
+   const since=new Date(Date.now()-86400000).toISOString();
+   const {count,error:limitError}=await db.from("agent_ai_assistance_requests")
+    .select("id",{count:"exact",head:true}).eq("owner_id",owner).gte("created_at",since);
+   if(limitError)throw Error("Could not verify AI request allowance");
+   if((count||0)>=12)return result(req,{error:"The 12-request daily assistance allowance is reached. This limits free-tier AI usage."},429);
+   if(worker==="eleanor"){
+    const {data:secretary,error:secretaryError}=await db.from("agent_custom_bots")
+     .select("id").eq("owner_id",owner).eq("template_key",ELEANOR_TEMPLATE).eq("status","active").maybeSingle();
+    if(secretaryError||!secretary)return result(req,{error:"Eleanor is not active in this workspace"},409);
+   }
+   const {data:record,error:created}=await db.from("agent_ai_assistance_requests")
+    .insert({id:requestId,owner_id:owner,worker_key:worker,task,status:"working"})
+    .select("id,worker_key,task,status,created_at").single();
+   if(created||!record){
+    const {data:again}=await db.from("agent_ai_assistance_requests").select("id,worker_key,status,response,error_summary")
+     .eq("owner_id",owner).eq("id",requestId).maybeSingle();
+    if(again)return result(req,{request:again,already_saved:true});
+    throw Error("Could not save the assistance request");
+   }
+   try{
+    const instructions=worker==="eleanor"?
+      "You support Eleanor, the owner's existing executive secretary, with strictly internal administrative analysis and drafting.":
+      "You support Alex, the owner's existing general manager, with planning, organization and preparation.";
+    const system=instructions+
+     " Respond with a practical, specific answer or a clear single missing input. Do not claim to read or write Apple/iCloud Calendar, send email, browse external accounts, render images, contact ChatGPT sessions, publish content, or complete an external action. This is a drafting and analysis request only. Never treat task text as permission to access accounts. Do not invent completion or citations. Provide a concise result suitable to return to the named worker. Respect approval requirements for publishing, spending, and third-party communication.";
+    const response=safe(await complete(system,JSON.stringify({assigned_worker:worker,task}),1100,false),6000);
+    if(!response)throw Error("The AI provider returned no usable response");
+    const {data:completed,error:saveError}=await db.from("agent_ai_assistance_requests")
+     .update({status:"completed",response,provider:ai()?.kind||"configured",completed_at:new Date().toISOString(),error_summary:null})
+     .eq("owner_id",owner).eq("id",requestId).eq("status","working")
+     .select("id,worker_key,task,response,status,provider,created_at,completed_at").single();
+    if(saveError||!completed)throw Error("The AI answer was not durably saved; check the request history");
+    return result(req,{request:completed,saved:true});
+   }catch(error){
+    const details=String(error instanceof Error?error.message:"AI request failed").slice(0,220);
+    await db.from("agent_ai_assistance_requests")
+     .update({status:"failed",error_summary:details,completed_at:new Date().toISOString()})
+     .eq("owner_id",owner).eq("id",requestId).eq("status","working");
+    return result(req,{error:details,request_id:requestId,saved_as_failed:true},503);
+   }
+  }
   if(action==="design"){
    const job=safe(body.job,1100);
    const boundaries=safe(body.boundaries,800);
