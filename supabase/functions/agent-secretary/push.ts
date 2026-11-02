@@ -11,10 +11,20 @@ export async function pushKeys(db:any,webpush?:any){
  const lib=webpush||await library(),keys=lib.generateVAPIDKeys();await db.from('agent_secretary_push_keys').insert({singleton:true,public_key:keys.publicKey,private_key:keys.privateKey});
  const saved=await db.from('agent_secretary_push_keys').select('public_key,private_key').eq('singleton',true).maybeSingle();if(saved.error||!saved.data)throw Error('Push keys could not be initialized');return saved.data;
 }
+export async function devicePushStatus(db:any,owner:string,input:any){
+ const sub=validatePushSubscription(input.subscription);
+ const {data,error}=await db.from('agent_secretary_push_subscriptions')
+  .select('id,active,label,last_success_at,last_error').eq('owner_id',owner)
+  .eq('endpoint',sub.endpoint).maybeSingle();
+ if(error)throw Error('Unable to verify this device connection');
+ return {registered:Boolean(data?.active),device_id:data?.active?data.id:null,
+  label:data?.label||null,last_success_at:data?.last_success_at||null,
+  last_error:data?.last_error||null};
+}
 export async function savePushSubscription(db:any,owner:string,input:any){
  const valid=validatePushSubscription(input.subscription),{data:existing,error}=await db.from('agent_secretary_push_subscriptions').select('id,owner_id').eq('endpoint',valid.endpoint).maybeSingle();if(error)throw Error('Could not check this device');if(existing&&existing.owner_id!==owner)throw Error('This subscription belongs to a different sign-in. Turn off notifications on this device, then enable them again.');
  const {count,error:ce}=await db.from('agent_secretary_push_subscriptions').select('id',{head:true,count:'exact'}).eq('owner_id',owner).eq('active',true);if(ce||!existing&&(count||0)>=5)throw Error('Use at most five notification devices');
- const {error:save}=await db.from('agent_secretary_push_subscriptions').upsert({...valid,owner_id:owner,active:true,label:String(input.label||'My device').slice(0,100)},{onConflict:'endpoint'});if(save)throw Error('The notification device could not be saved');return {registered:true,delivery_verified:false};
+ const {data:saved,error:save}=await db.from('agent_secretary_push_subscriptions').upsert({...valid,owner_id:owner,active:true,label:String(input.label||'My device').slice(0,100)},{onConflict:'endpoint'}).select('id').single();if(save||!saved?.id)throw Error('The notification device could not be saved');return {registered:true,device_id:saved.id,delivery_verified:false};
 }
 export async function sendSecretaryPush(db:any,owners:string[],fetcher:typeof fetch=fetch,webpush?:any){
  const {data:deliveries,error}=await db.from('agent_secretary_deliveries').select('id,owner_id,item_id,item_version,kind,scheduled_at,push_attempts').in('owner_id',owners).eq('status','saved').eq('action_state','open').eq('push_state','pending').lte('next_push_at',new Date().toISOString()).order('scheduled_at').limit(8);if(error||!deliveries?.length)return;
