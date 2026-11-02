@@ -20,6 +20,11 @@ function image(id){
  const eleanor=key==="eleanor"||/^eleanor(?:-|$)/i.test(key);
  const index=eleanor?3:known>=0?known:hash%people.length,p=people[index];
  const [hair,skin,shirt,background,style,detail]=eleanor?["#35201e","#edb48a","#29395f","#e9dfd3","updo","glasses"]:p;
+ if(eleanor)return '<svg class="rpg-portrait-svg rpg-eleanor-selected" data-portrait-id="eleanor" style="--rpg-delay:-1.25s" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" shape-rendering="crispEdges" role="img" aria-label="Eleanor selected pixel portrait">'+
+ '<image href="./eleanor-selected-portrait.svg" x="0" y="0" width="64" height="64" preserveAspectRatio="none"/>'+
+ '<g class="rpg-eyelids"><rect x="23" y="29" width="7" height="2" fill="#d69c78"/><rect x="35" y="29" width="7" height="2" fill="#d69c78"/></g>'+
+ '<g class="rpg-speaking-mouth"><rect x="30" y="38" width="5" height="2" fill="#8f4941"/><rect x="31" y="40" width="3" height="1" fill="#ecb8a8"/></g></svg>';
+
  const r=(x,y,w,h,color)=>'<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" fill="'+color+'"/>';
  let pixels=r(0,0,24,24,background)+r(1,1,22,22,"#ffffff16")+
  r(4,20,16,4,shirt)+r(6,18,12,3,shirt)+r(9,16,6,4,skin)+
