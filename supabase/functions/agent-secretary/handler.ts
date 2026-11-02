@@ -23,6 +23,23 @@ export function secretaryHandler(db:any,owners:string[],deps:any){
    if(input.action==='act_delivery'){
     if(!uuid(input.delivery_id)||!uuid(input.request_id))throw Error('Choose a saved notice');const {data,error}=await db.rpc('act_agent_secretary_delivery',{p_owner:owner,p_delivery:input.delivery_id,p_action:input.choice,p_request:input.request_id});if(error)throw Error(error.message);return response(data);
    }
+   if(input.action==='set_agent_alerts'){
+    if(typeof input.enabled!=='boolean')throw Error('Choose whether agent alerts are enabled');
+    const {data,error}=await db.from('agent_secretary_settings')
+     .update({agent_alerts_enabled:input.enabled,updated_at:new Date().toISOString()})
+     .eq('owner_id',owner).select('agent_alerts_enabled').single();
+    if(error||!data)throw Error('Could not save agent alert preference');
+    return response({enabled:data.agent_alerts_enabled,saved:true});
+   }
+   if(input.action==='dismiss_agent_alert'){
+    if(!uuid(input.alert_id))throw Error('Select an agent alert');
+    const {data,error}=await db.from('agent_secretary_agent_alerts')
+     .update({status:'dismissed',updated_at:new Date().toISOString()})
+     .eq('owner_id',owner).eq('id',input.alert_id).eq('status','open')
+     .select('id').maybeSingle();
+    if(error)throw Error('Could not dismiss alert');
+    return response({dismissed:Boolean(data)});
+   }
    if(input.action==='push_config'){const keys=await pushKeys(db,deps.webpush);return response({public_key:keys.public_key});}
    if(input.action==='subscribe_push')return response(await savePushSubscription(db,owner,input));
    if(input.action==='device_status')return response(await devicePushStatus(db,owner,input));
