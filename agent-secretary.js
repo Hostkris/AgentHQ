@@ -2,7 +2,7 @@ import {agentCloud} from './agent-cloud-auth.js';
 import {ELEANOR_ETHICS,secretaryDate} from './eleanor-secretary-core.js?v=20261102-eleanor-1';
 const E=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const DAYS=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-let owner,epoch=0,state=null,root=null,tab='today',notice='',busy=false,loading=false,loadingEpoch=null,publicKey=null,registration=null,pendingOpen=new URL(location.href).searchParams.has('secretary');
+let owner,epoch=0,state=null,root=null,tab='today',notice='',busy=false,loading=false,loadingEpoch=null,publicKey=null,registration=null,pushState={code:'checking',deviceId:null},pushBusy=false,pushCheckInFlight=false,pendingOpen=new URL(location.href).searchParams.has('secretary');
 const host=()=>document.getElementById('agent-secretary-root');
 const localDate=()=>secretaryDate(new Date(),state.settings.timezone);
 const dateText=value=>value?new Intl.DateTimeFormat('en-US',{timeZone:state.settings.timezone,dateStyle:'medium',timeStyle:'short'}).format(new Date(value)):'Not set';
@@ -10,11 +10,61 @@ async function api(action,extra={}){
  const generation=epoch,{data,error:authError}=await agentCloud.auth.getUser();if(authError||!data.user)throw Error('Sign in under Settings → Account to open Eleanor’s desk.');
  if(generation!==epoch)throw Error('The signed-in account changed.');const {data:result,error}=await agentCloud.functions.invoke('agent-secretary',{body:{action,...extra}});if(generation!==epoch)throw Error('The signed-in account changed.');let reason=result?.error;if(error?.context?.clone&&!reason)try{reason=(await error.context.clone().json())?.error}catch{}if(error||reason)throw Error(reason||error.message||'The secretary request failed.');return result;
 }
-async function load(){const generation=epoch;if(loading&&loadingEpoch===generation)return;loading=true;loadingEpoch=generation;try{const next=await api('state');if(generation===epoch){state=next;notice='';}}catch(e){if(generation===epoch)notice=e.message;}finally{if(loadingEpoch===generation){loading=false;loadingEpoch=null;}if(generation===epoch)render();}}
+async function load(){const generation=epoch;if(loading&&loadingEpoch===generation)return;loading=true;loadingEpoch=generation;try{const next=await api('state');if(generation===epoch){state=next;notice='';}}catch(e){if(generation===epoch)notice=e.message;}finally{if(loadingEpoch===generation){loading=false;loadingEpoch=null;}if(generation===epoch){render();if(tab==='settings'&&!pushBusy)void refreshDeviceStatus();}}}
 async function apply(operations,requestId=crypto.randomUUID()){
  const r=await api('apply',{operations,request_id:requestId,version:state.settings.version});await load();await window.agentHQBotStudioCloud?.refresh?.();return r;
 }
 function message(value){notice=value;root?.querySelector('[data-secretary-notice]')?.replaceChildren(document.createTextNode(value));}
+const isIOS=()=>/iPad|iPhone|iPod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const isInstalled=()=>window.matchMedia?.('(display-mode: standalone)')?.matches||navigator.standalone===true;
+function pushStatusLabel(){
+ const map={checking:'Checking this device…',connected:'Connected ✓',disabled:'Not connected',permission:'Permission not granted',blocked:'Notifications blocked',unsupported:'Device alerts unsupported',install:'Home Screen installation required',error:'Connection could not be verified'};
+ return map[pushState.code]||map.error;
+}
+function pushStatusText(){
+ if(pushState.code==='connected')return 'Notification permission granted, and this device is registered in your Agent HQ account. Delivery still depends on iOS settings and network availability.';
+ if(pushState.code==='install')return 'On iPhone or iPad, open Agent HQ in Safari, choose Share → Add to Home Screen, then launch the Home Screen icon before allowing notifications.';
+ if(pushState.code==='blocked')return 'Notifications are blocked on this device. Allow Agent HQ notifications in iPhone Settings, then return to recheck.';
+ if(pushState.code==='permission')return 'Tap Enable alerts to request device permission. No permission has been granted yet.';
+ if(pushState.code==='disabled')return 'No active registration for this device. Tap Enable alerts to connect it.';
+ if(pushState.code==='unsupported')return 'Push notifications are not available in this browser. Reminders are still saved in Eleanor’s Messages.';
+ if(pushState.code==='error')return 'The connection could not be confirmed. Recheck after restoring the app connection.';
+ return 'Looking up your device notification permission and saved registration.';
+}
+async function refreshDeviceStatus(){
+ if(pushBusy||pushCheckInFlight||!owner||!state||tab!=='settings')return;
+ const ticket=epoch;
+ pushCheckInFlight=true;pushState={code:'checking',deviceId:null};render();
+ try{
+  let next;
+  if(isIOS()&&!isInstalled())next={code:'install',deviceId:null};
+  else if(!('serviceWorker' in navigator)||!('PushManager' in window)||typeof Notification==='undefined')next={code:'unsupported',deviceId:null};
+  else if(Notification.permission==='denied')next={code:'blocked',deviceId:null};
+  else if(Notification.permission!=='granted')next={code:'permission',deviceId:null};
+  else{
+   const reg=await navigator.serviceWorker.getRegistration('./');
+   const sub=await reg?.pushManager?.getSubscription();
+   if(!sub)next={code:'disabled',deviceId:null};
+   else{
+    const saved=await api('device_status',{subscription:sub.toJSON()});
+    next=saved.registered?{code:'connected',deviceId:saved.device_id,lastAccepted:saved.last_success_at,lastError:saved.last_error}:{code:'disabled',deviceId:null};
+   }
+  }
+  if(ticket===epoch){pushState=next;render();}
+ }catch(error){if(ticket===epoch){pushState={code:'error',deviceId:null};message('Could not verify alerts: '+String(error?.message||error));render();}}
+ finally{pushCheckInFlight=false;}
+}
+function pushUI(){
+ const connected=pushState.code==='connected';
+ const label=pushStatusLabel();
+ const b=pushBusy?'Working…':connected?'Connected ✓':'Enable alerts on this device';
+ return '<div class="secretary-push-state" role="status" aria-live="polite"><strong>'+E(label)+'</strong><p>'+E(pushStatusText())+'</p></div>'+
+ '<div class="secretary-actions">'+
+ '<button type="button" data-secretary-enable-push '+(connected?'aria-pressed="true" disabled':'')+(pushBusy?' disabled':'')+'>'+E(b)+'</button>'+
+ '<button type="button" data-secretary-recheck-push '+(pushBusy?'disabled':'')+'>Recheck connection</button>'+
+ (connected?'<button type="button" data-secretary-disable-current '+(pushBusy?'disabled':'')+'>Disable alerts on this device</button><button type="button" data-secretary-test-push '+(pushBusy?'disabled':'')+'>Test device notification</button>':'')+
+ '</div>';
+}
 const controls=item=>'<div class="secretary-actions"><button type="button" data-secretary-edit="'+E(item.id)+'">Edit</button>'+(item.status==='active'?'<button type="button" data-secretary-control="'+E(item.id)+'" data-choice="paused">Pause</button><button type="button" data-secretary-control="'+E(item.id)+'" data-choice="stopped">Stop</button>':'<button type="button" data-secretary-control="'+E(item.id)+'" data-choice="active">Resume</button>')+(['task','meeting'].includes(item.kind)&&item.status!=='completed'?'<button type="button" data-secretary-control="'+E(item.id)+'" data-choice="completed">Mark complete</button>':'')+'</div>';
 function itemCard(item){return '<article class="secretary-card"><div class="secretary-item-heading"><h3>'+E(item.title)+'</h3><small>'+E(item.status)+'</small></div><p class="secretary-subtle">'+E(item.kind==='meeting'?dateText(item.scheduled_at):item.kind==='task'?item.due_at?'Due '+dateText(item.due_at):'Deadline not supplied':(item.data?.repeat==='none'?'One-time · '+(item.next_due_at?dateText(item.next_due_at):String(item.data?.once_at||'Scheduled time passed').replace('T',' '))+' · '+item.timezone:item.weekdays.map(d=>DAYS[d].slice(0,3)).join(', ')+(item.local_time?' · '+item.local_time.slice(0,5):'')+' · '+item.timezone))+'</p><pre>'+E(item.details||'No additional instructions.')+'</pre>'+(item.kind==='workout'?'<button type="button" data-secretary-workout="'+E(item.id)+'">Log today’s workout</button><button type="button" data-secretary-workout="'+E(item.id)+'" data-workout-choice="skipped">Skip today’s workout</button>':'')+(item.data?.project_id?'<button type="button" data-secretary-project="'+E(item.data.project_id)+'">Open delegated project</button>':'')+(item.kind==='reminder'&&item.status==='active'?'<button type="button" data-secretary-today="'+E(item.id)+'">Mark today done</button>':'')+controls(item)+'</article>';}
 function render(){
@@ -24,7 +74,7 @@ function render(){
  let body='';
  if(tab==='today')body='<div class="secretary-metrics"><span><strong>'+active.filter(i=>i.kind==='reminder').length+'</strong> active reminders</span><span><strong>'+active.filter(i=>i.kind==='task').length+'</strong> open tasks</span><span><strong>'+pending.length+'</strong> notices to review</span></div><h3>Priority notices</h3>'+(pending.length?pending.slice(0,20).map(d=>'<article class="secretary-card"><small>'+E(dateText(d.scheduled_at))+' · '+E(d.kind)+' · '+E(d.push_state==='accepted'?'Push request accepted':d.push_state==='not_enabled'?'Saved in Messages; device alerts not enabled':d.push_state==='unknown'?'Push delivery unconfirmed':'Saved in Messages')+'</small><pre>'+E(d.body)+'</pre><div class="secretary-actions"><button type="button" data-secretary-ack="'+E(d.id)+'" data-choice="done">'+E(['reminder','followup'].includes(d.kind)?'Done today':'Reviewed')+'</button>'+(['reminder','followup'].includes(d.kind)?'<button type="button" data-secretary-ack="'+E(d.id)+'" data-choice="snooze">Snooze 15 minutes</button><button type="button" data-secretary-ack="'+E(d.id)+'" data-choice="skipped">Skip this occurrence</button>':'')+'</div></article>').join(''):'<p>No new scheduled notices are waiting. Your next scheduled notice will also be saved in Eleanor’s Messages conversation.</p>')+'<details><summary>Recent notice history</summary>'+state.deliveries.slice(0,30).map(d=>'<p>'+E(dateText(d.scheduled_at))+' · '+E(d.kind)+' · '+E(d.status)+' · '+E(d.action_state)+'</p>').join('')+'</details>';
  else if(['reminders','workouts','tasks','meetings'].includes(tab))body='<div class="secretary-section-heading"><h3>'+E({reminders:'Daily reminders',workouts:'Weekly workout plan',tasks:'Active tasks',meetings:'Meeting preparation'}[tab])+'</h3><button type="button" data-secretary-add="'+E({reminders:'reminder',workouts:'workout',tasks:'task',meetings:'meeting'}[tab])+'">Add '+E({reminders:'reminder',workouts:'workout or rest day',tasks:'task',meetings:'meeting'}[tab])+'</button></div>'+(tab==='reminders'?'<p>Marking today done keeps tomorrow’s reminder. Pause and Stop affect the recurring schedule.</p>':tab==='workouts'?'<p>Save your actual exercises, sets, repetitions and targets. A rest day can be saved as a plan entry. Eleanor will use this plan in your daily briefing.</p>':tab==='meetings'?'<p>Briefs are scheduled 30 minutes before meetings saved here. Live calendar sync is not connected. Attach the purpose, preparation notes and intended outcomes; Gmail excerpts require the separate permission in Settings.</p>':'<p>One-time tasks stay open until you mark them complete or stop them.</p>')+(list.length?'<div class="secretary-grid">'+list.map(itemCard).join('')+'</div>':'<p>No entries yet. Add the first one or tell Eleanor in Messages.</p>')+(tab==='workouts'?'<details><summary>Fitness log</summary>'+state.workout_log.map(w=>'<p>'+E(w.local_date)+' · '+E(state.items.find(i=>i.id===w.item_id)?.title||'Saved workout')+' · '+E(w.status)+(w.notes?' — '+E(w.notes):'')+'</p>').join('')+'</details>':'');
- else if(tab==='settings')body='<form data-secretary-settings class="secretary-card"><h3>Daily briefing</h3><label>Briefing time<input type="time" name="brief_time" value="'+E(s.brief_time.slice(0,5))+'" required></label><label>Briefing timezone<input name="timezone" value="'+E(s.timezone)+'" required></label><label class="secretary-check"><input type="checkbox" name="brief_enabled" '+(s.brief_enabled?'checked':'')+'> Send the briefing every day</label><p>Existing reminders keep the timezone saved on each item. Change those individually when needed.</p><label class="secretary-check"><input type="checkbox" name="email_for_meetings" '+(s.email_for_meetings?'checked':'')+(!state.gmail_connected?' disabled':'')+'> Allow Eleanor to read relevant connected Gmail for meeting briefs</label><p>'+E(state.gmail_connected?'Email access is limited to recent messages matching the attendee email addresses supplied with a meeting. No messages are sent.':'Connect Gmail through Email Center before enabling this permission.')+'</p><button type="submit">Save secretary settings</button></form><section class="secretary-card"><h3>Device notifications</h3><p>Notices are always saved in Eleanor’s conversation. Device alerts require permission. On iPhone or iPad, open Agent HQ from its Home Screen icon first.</p><p>Lock-screen alerts contain a generic notice, without medication names or other private details.</p><button type="button" data-secretary-enable-push>Enable alerts on this device</button>'+state.devices.map(d=>'<div class="secretary-device"><strong>'+E(d.label)+'</strong><span>'+E(d.active?'Registered; delivery depends on the device':'Disabled')+'</span><small>'+E(d.last_success_at?'Last push request accepted: '+dateText(d.last_success_at):'No accepted push request recorded yet.')+'</small>'+(d.last_error?'<p>'+E(d.last_error)+'</p>':'')+(d.active?'<button type="button" data-secretary-disable-push="'+E(d.id)+'">Disable this device</button>':'')+'</div>').join('')+'</section><section class="secretary-card"><h3>Scheduling status</h3><p>'+E(s.last_scheduler_at?'Last automatic scheduler check: '+dateText(s.last_scheduler_at):'The first automatic scheduler check has not yet been recorded.')+'</p><button type="button" data-secretary-check-due>Check due notices now</button></section>';
+ else if(tab==='settings')body='<form data-secretary-settings class="secretary-card"><h3>Daily briefing</h3><label>Briefing time<input type="time" name="brief_time" value="'+E(s.brief_time.slice(0,5))+'" required></label><label>Briefing timezone<input name="timezone" value="'+E(s.timezone)+'" required></label><label class="secretary-check"><input type="checkbox" name="brief_enabled" '+(s.brief_enabled?'checked':'')+'> Send the briefing every day</label><p>Existing reminders keep the timezone saved on each item. Change those individually when needed.</p><label class="secretary-check"><input type="checkbox" name="email_for_meetings" '+(s.email_for_meetings?'checked':'')+(!state.gmail_connected?' disabled':'')+'> Allow Eleanor to read relevant connected Gmail for meeting briefs</label><p>'+E(state.gmail_connected?'Email access is limited to recent messages matching the attendee email addresses supplied with a meeting. No messages are sent.':'Connect Gmail through Email Center before enabling this permission.')+'</p><button type="submit">Save secretary settings</button></form><section class="secretary-card"><h3>Device notifications</h3><p>Notices are always saved in Eleanor’s conversation. Device alerts require permission. On iPhone or iPad, open Agent HQ from its Home Screen icon first.</p><p>Lock-screen alerts contain a generic notice, without medication names or other private details.</p>'+pushUI()+state.devices.map(d=>'<div class="secretary-device"><strong>'+E(d.label)+'</strong><span>'+E(d.active?'Registered; delivery depends on the device':'Disabled')+'</span><small>'+E(d.last_success_at?'Last push request accepted: '+dateText(d.last_success_at):'No accepted push request recorded yet.')+'</small>'+(d.last_error?'<p>'+E(d.last_error)+'</p>':'')+(d.active?'<button type="button" data-secretary-disable-push="'+E(d.id)+'">Disable this registration</button>':'')+'</div>').join('')+'</section><section class="secretary-card"><h3>Scheduling status</h3><p>'+E(s.last_scheduler_at?'Last automatic scheduler check: '+dateText(s.last_scheduler_at):'The first automatic scheduler check has not yet been recorded.')+'</p><button type="button" data-secretary-check-due>Check due notices now</button></section>';
  else body='<article class="secretary-card"><h3>Eleanor’s work ethic and instructions</h3><pre>'+E(ELEANOR_ETHICS)+'</pre></article>';
  root.innerHTML='<section class="secretary-desk"><header class="secretary-heading"><div><h2>Eleanor</h2><p>Personal Executive Secretary · '+E(s.brief_enabled?s.brief_time.slice(0,5)+' daily briefing · '+s.timezone:'Daily briefing paused')+'</p></div><div class="secretary-actions"><button type="button" data-secretary-chat>Message Eleanor</button><button type="button" data-secretary-refresh>Refresh</button></div></header><nav class="secretary-tabs" aria-label="Secretary sections">'+[['today','Today'],['reminders','Daily reminders'],['workouts','Workout plan'],['tasks','Tasks'],['meetings','Meetings'],['settings','Settings'],['ethics','Work ethics']].map(([id,label])=>'<button type="button" data-secretary-tab="'+id+'" aria-pressed="'+(tab===id)+'">'+label+'</button>').join('')+'</nav><p data-secretary-notice role="status">'+E(notice)+'</p>'+body+'</section>';bind();
 }
@@ -39,12 +89,61 @@ function showForm(kind,item){
 }
 function toLocalInput(value,zone){const parts=new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(value)),p=Object.fromEntries(parts.map(x=>[x.type,x.value]));return p.year+'-'+p.month+'-'+p.day+'T'+p.hour+':'+p.minute;}
 async function enablePush(){
- if(!('serviceWorker' in navigator)||!('PushManager' in window)||typeof Notification==='undefined'){message('This browser does not expose device alerts. On iPhone or iPad, add Agent HQ to the Home Screen, open that icon, and enable alerts here.');return;}
- const permission=Notification.permission==='granted'?'granted':await Notification.requestPermission();if(permission!=='granted'){message('Device alerts are not enabled. Your notices remain saved in Eleanor’s conversation.');return;}
- try{const config=publicKey?{public_key:publicKey}:await api('push_config');publicKey=config.public_key;registration??=navigator.serviceWorker.register('./agent-secretary-sw.js',{scope:'./'});const r=await registration;await navigator.serviceWorker.ready;let sub=await r.pushManager.getSubscription();if(!sub){const raw=atob(publicKey.replace(/-/g,'+').replace(/_/g,'/'));sub=await r.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:Uint8Array.from(raw,c=>c.charCodeAt(0))});}await api('subscribe_push',{subscription:sub.toJSON(),label:'My Agent HQ device'});await load();message('This device is registered. The next due notice will test delivery; registration alone does not confirm a received notification.');}catch(e){message(e.message);}
+ if(pushBusy)return;
+ if(isIOS()&&!isInstalled()){pushState={code:'install',deviceId:null};message('Install Agent HQ to your iPhone Home Screen and open its icon to enable notifications.');render();return;}
+ if(!('serviceWorker' in navigator)||!('PushManager' in window)||typeof Notification==='undefined'){pushState={code:'unsupported',deviceId:null};render();return;}
+ if(Notification.permission==='denied'){pushState={code:'blocked',deviceId:null};message('Device notifications are blocked. Change this in iPhone Settings first.');render();return;}
+ // The browser permission prompt must be requested directly from this user tap.
+ let permission;
+ try{permission=Notification.permission==='granted'?'granted':await Notification.requestPermission();}
+ catch(error){message('Device permission could not be requested: '+String(error?.message||error));return;}
+ if(permission!=='granted'){pushState={code:permission==='denied'?'blocked':'permission',deviceId:null};message('Notifications were not enabled. No device registration was saved.');render();return;}
+ pushBusy=true;render();
+ try{
+  const config=publicKey?{public_key:publicKey}:await api('push_config');publicKey=config.public_key;
+  let reg=await navigator.serviceWorker.getRegistration('./');
+  if(!reg)reg=await navigator.serviceWorker.register('./agent-secretary-sw.js',{scope:'./'});
+  if(!reg?.pushManager)throw Error('The device push manager is unavailable');
+  const ready=await navigator.serviceWorker.ready;
+  let sub=await ready.pushManager.getSubscription();
+  if(!sub){
+   const raw=atob(publicKey.replace(/-/g,'+').replace(/_/g,'/'));
+   sub=await ready.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:Uint8Array.from(raw,c=>c.charCodeAt(0))});
+  }
+  const saved=await api('subscribe_push',{subscription:sub.toJSON(),label:'My Agent HQ device'});
+  if(!saved.registered||!saved.device_id)throw Error('Your account did not confirm this device registration');
+  pushState={code:'connected',deviceId:saved.device_id};await load();
+  message('Connected ✓ — this device is registered for Eleanor’s private alerts. A test notification can verify the on-device display.');
+ }catch(error){pushState={code:'error',deviceId:null};message('Could not enable alerts: '+String(error?.message||error));}
+ finally{pushBusy=false;render();}
+}
+async function disableCurrent(){
+ if(pushBusy||pushState.code!=='connected'||!pushState.deviceId)return;
+ pushBusy=true;render();
+ try{
+  const id=pushState.deviceId;
+  await api('unsubscribe_push',{device_id:id});
+  const reg=await navigator.serviceWorker.getRegistration('./');
+  const sub=await reg?.pushManager?.getSubscription();
+  if(sub)await sub.unsubscribe();
+  pushState={code:'disabled',deviceId:null};
+  await load();
+  message('Alerts disabled for this device. Your saved reminders are unchanged.');
+ }catch(error){message('Could not fully disable this device: '+String(error?.message||error));}
+ finally{pushBusy=false;render();}
+}
+async function testCurrentNotification(){
+ if(pushState.code!=='connected')return message('Enable this device first.');
+ try{
+  if(Notification.permission!=='granted')throw Error('Notification permission is no longer granted');
+  const reg=await navigator.serviceWorker.getRegistration('./');
+  if(!reg)throw Error('The notification service worker is unavailable');
+  await reg.showNotification('Eleanor · Test alert',{body:'This is an on-device test from Agent HQ.',tag:'eleanor-local-test',icon:'./icon.svg'});
+  message('Test notification requested on this device. This does not prove background push delivery.');
+ }catch(error){message('Test notification failed: '+String(error?.message||error));}
 }
 function bind(){
- root.querySelectorAll('[data-secretary-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.secretaryTab;notice='';render();});root.querySelector('[data-secretary-refresh]')?.addEventListener('click',load);
+ root.querySelectorAll('[data-secretary-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.secretaryTab;notice='';render();if(tab==='settings')void refreshDeviceStatus();});root.querySelector('[data-secretary-refresh]')?.addEventListener('click',load);
  root.querySelector('[data-secretary-chat]')?.addEventListener('click',()=>window.agentHQOpenBotMessage?.(state.settings.bot_id));
  root.querySelectorAll('[data-secretary-add]').forEach(b=>b.onclick=()=>showForm(b.dataset.secretaryAdd));root.querySelectorAll('[data-secretary-edit]').forEach(b=>b.onclick=()=>{const i=state.items.find(i=>i.id===b.dataset.secretaryEdit);if(i)showForm(i.kind,i);});
  root.querySelectorAll('[data-secretary-control]').forEach(b=>b.onclick=async()=>{b.disabled=true;try{await apply([{op:'control_item',id:b.dataset.secretaryControl,status:b.dataset.choice}]);message('Saved: '+b.dataset.choice+'.');}catch(e){message(e.message);b.disabled=false;}});
@@ -54,11 +153,14 @@ function bind(){
  root.querySelectorAll('[data-secretary-project]').forEach(b=>b.onclick=()=>window.agentHQOpenProjects?.(b.dataset.secretaryProject));
  root.querySelector('[data-secretary-settings]')?.addEventListener('submit',async event=>{event.preventDefault();const f=new FormData(event.currentTarget);try{await apply([{op:'settings',brief_time:f.get('brief_time'),timezone:f.get('timezone'),brief_enabled:f.has('brief_enabled'),email_for_meetings:f.has('email_for_meetings')}]);message('Secretary settings saved.');}catch(e){message(e.message);}});
  root.querySelector('[data-secretary-enable-push]')?.addEventListener('click',enablePush);
- root.querySelectorAll('[data-secretary-disable-push]').forEach(b=>b.onclick=async()=>{b.disabled=true;try{await api('unsubscribe_push',{device_id:b.dataset.secretaryDisablePush});await load();message('That device is disabled.');}catch(e){message(e.message);b.disabled=false;}});
+ root.querySelector('[data-secretary-recheck-push]')?.addEventListener('click',()=>void refreshDeviceStatus());
+ root.querySelector('[data-secretary-disable-current]')?.addEventListener('click',()=>void disableCurrent());
+ root.querySelector('[data-secretary-test-push]')?.addEventListener('click',()=>void testCurrentNotification());
+ root.querySelectorAll('[data-secretary-disable-push]').forEach(b=>b.onclick=async()=>{b.disabled=true;try{const deviceId=b.dataset.secretaryDisablePush;if(deviceId===pushState.deviceId){b.disabled=false;await disableCurrent();return;}await api('unsubscribe_push',{device_id:deviceId});await load();message('That device registration is disabled.');}catch(e){message(e.message);b.disabled=false;}});
  root.querySelector('[data-secretary-check-due]')?.addEventListener('click',async()=>{try{await api('check_due');await load();await window.agentHQBotStudioCloud?.refresh?.();message('Due notices checked.');}catch(e){message(e.message);}});
 }
 function mount(){if(pendingOpen&&window.agentHQOpenSecretary){pendingOpen=false;window.agentHQOpenSecretary();}const next=host();if(next===root)return;root=next;if(root){render();if(owner)void load();}}
 new MutationObserver(mount).observe(document.getElementById('app')||document.body,{childList:true,subtree:true});
-agentCloud.auth.onAuthStateChange((_event,session)=>{const next=session?.user?.id||null;if(next!==owner){owner=next;epoch++;state=null;publicKey=null;notice=next?'Loading your private registers…':'Sign in under Settings → Account to open Eleanor’s desk.';document.querySelectorAll('dialog.secretary-dialog').forEach(d=>d.close());render();if(!next&&typeof Notification!=='undefined'&&Notification.permission==='granted'&&'PushManager' in window&&navigator.serviceWorker?.getRegistration)void navigator.serviceWorker.getRegistration('./').then(r=>r?.pushManager?.getSubscription()).then(s=>s?.unsubscribe()).catch(()=>{});if(next&&root)void load();}if(next&&'serviceWorker' in navigator){registration??=navigator.serviceWorker.register('./agent-secretary-sw.js',{scope:'./'}).catch(()=>null);void api('push_config').then(r=>publicKey=r.public_key).catch(()=>{});}});
+agentCloud.auth.onAuthStateChange((_event,session)=>{const next=session?.user?.id||null;if(next!==owner){owner=next;epoch++;state=null;publicKey=null;pushState={code:'checking',deviceId:null};notice=next?'Loading your private registers…':'Sign in under Settings → Account to open Eleanor’s desk.';document.querySelectorAll('dialog.secretary-dialog').forEach(d=>d.close());render();if(!next&&typeof Notification!=='undefined'&&Notification.permission==='granted'&&'PushManager' in window&&navigator.serviceWorker?.getRegistration)void navigator.serviceWorker.getRegistration('./').then(r=>r?.pushManager?.getSubscription()).then(s=>s?.unsubscribe()).catch(()=>{});if(next&&root)void load();}if(next&&'serviceWorker' in navigator){registration??=navigator.serviceWorker.register('./agent-secretary-sw.js',{scope:'./'}).catch(()=>null);void api('push_config').then(r=>publicKey=r.public_key).catch(()=>{});}});
 window.addEventListener('focus',()=>{if(owner&&root)void load();});setInterval(()=>{if(document.hidden||!owner)return;if(root&&!document.activeElement?.closest('input,textarea,select,dialog'))void load();const id=state?.settings?.bot_id||window.agentHQBotStudioSnapshot?.rows?.find(b=>b.template_key==='eleanor-secretary-v1')?.id;if(id&&document.querySelector('#studio-message-form')?.dataset.studioThread===id)void window.agentHQBotStudioUI?.refreshChat?.(id);},45000);
 mount();
