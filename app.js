@@ -588,7 +588,6 @@ function renderIPhoneChat(){
   renderConversationResearch(active)+
   '<div data-social-read-thread>'+(window.agentHQSocialReadThread?.(active)||'')+'</div>'+
   '</div>'+
-  (active==="alex"?'<button type="button" class="agent-ai-help-open" data-ai-assist-open="alex">✦ Request AI Assistance · Alex</button>':"")+
   '<div class="agent-thread-activity" data-agent-activity-thread="'+escapeHTML(active)+'" data-activity-local="'+sendingAgents.has(active)+'" role="status" aria-live="polite" aria-atomic="true"'+(activity?'':' hidden')+'>'+activity+'</div>'+
   '<form id="composer" class="ios-composer photo-enabled-composer" autocomplete="off">'+
    '<div class="photo-composer-drafts" data-photo-drafts="'+escapeHTML(active)+'">'+(window.agentHQCamera?.renderDrafts(active)||'')+'</div>'+
