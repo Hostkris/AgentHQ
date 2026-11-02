@@ -33,6 +33,7 @@ function render(){
  '<textarea name="message" aria-label="Message '+escapeHTML(b.name)+'" placeholder="Message '+escapeHTML(b.name)+'…" rows="2" maxlength="4500" '+(sending?'disabled':'')+'></textarea>'+
  '<button type="submit" aria-label="Send message" '+(sending?'disabled':'')+'>'+(sending?'…':'↑')+'</button></form>'+
  '<p class="custom-msg-status" role="status">'+escapeHTML(feedback)+'</p>'+
+ (b.template_key==='eleanor-secretary-v1'?'<button type="button" class="agent-ai-help-open" data-ai-assist-open="eleanor">✦ Request AI Assistance · Eleanor</button>':'')+
  (b.template_key==='eleanor-secretary-v1'?'<button type="button" class="custom-msg-desk" data-custom-secretary-desk>Open Eleanor’s reminders, goals and appointments</button>':'')+
  '</div>';
  root.querySelector('[name=message]').value=textDraft;
