@@ -20,6 +20,11 @@ function image(id){
  const eleanor=key==="eleanor"||/^eleanor(?:-|$)/i.test(key);
  const index=eleanor?3:known>=0?known:hash%people.length,p=people[index];
  const [hair,skin,shirt,background,style,detail]=eleanor?["#35201e","#edb48a","#29395f","#e9dfd3","updo","glasses"]:p;
+ if(key==="alex")return '<svg class="rpg-portrait-svg rpg-alex-selected" data-portrait-id="alex" style="--rpg-delay:-.4s" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" shape-rendering="crispEdges" role="img" aria-label="Alex approved pixel-art portrait">'+
+ '<image href="./alex-approved-portrait.svg" x="-6" y="-5" width="75" height="75" preserveAspectRatio="none" style="image-rendering:pixelated"/>'+
+ '<g class="rpg-eyelids"><rect x="25" y="22" width="5" height="2" fill="#b86b34"/><rect x="38" y="22" width="5" height="2" fill="#b86b34"/></g>'+
+ '<g class="rpg-speaking-mouth"><rect x="30" y="30" width="7" height="3" fill="#4a2421"/><rect x="31" y="32" width="5" height="1" fill="#a75846"/></g></svg>';
+
  if(eleanor)return '<svg class="rpg-portrait-svg rpg-eleanor-selected" data-portrait-id="eleanor" style="--rpg-delay:-1.25s" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" shape-rendering="crispEdges" role="img" aria-label="Eleanor selected pixel portrait">'+
  '<image href="./eleanor-selected-portrait.svg" x="0" y="0" width="64" height="64" preserveAspectRatio="none"/>'+
  '<g class="rpg-eyelids"><rect x="23" y="29" width="7" height="2" fill="#d69c78"/><rect x="35" y="29" width="7" height="2" fill="#d69c78"/></g>'+
@@ -54,6 +59,11 @@ function update(){
   if(avatar&&!avatar.querySelector(".rpg-portrait-svg")){
    avatar.innerHTML=image(id);avatar.classList.add("rpg-avatar");
   }
+  const portrait=avatar?.querySelector(".rpg-portrait-svg");
+  if(portrait){
+   const active=window.agentHQActivity?.snapshot?.(id)?.some(a=>a.active===true&&a.actor===id)===true;
+   portrait.classList.toggle("rpg-speaking",active);
+  }
  });
  document.querySelectorAll("[data-rpg-worker]").forEach(el=>{
   const key=workerId(el.dataset.rpgWorker);
@@ -61,7 +71,8 @@ function update(){
 
   const id=el.dataset.rpgWorker;
   if((ids.includes(id)||/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(id))&&!el.querySelector(".rpg-portrait-svg"))el.innerHTML=image(id);
-  const isWorking=!!document.querySelector('[data-agent-activity-thread="'+id+'"] [data-activity-running="true"],[data-agent-activity-thread="'+id+'"] .agent-typing-dots');
+  const live=window.agentHQActivity?.snapshot?.(id)||[];
+  const isWorking=live.some(a=>a.active===true&&(a.actor===id||a.actor===key))||!!document.querySelector('[data-agent-activity-thread="'+id+'"] [data-activity-running="true"]');
   const portrait=el.querySelector(".rpg-portrait-svg");
   if(portrait&&portrait.classList.contains("rpg-speaking")!==isWorking)portrait.classList.toggle("rpg-speaking",isWorking);
  });
