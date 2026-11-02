@@ -156,7 +156,37 @@ Deno.serve(async(req:Request)=>{
      .eq("owner_id",owner).eq("id",requestId).eq("status","working")
      .select("id,worker_key,task,response,status,provider,created_at,completed_at").single();
     if(saveError||!completed)throw Error("The AI answer was not durably saved; check the request history");
-    return result(req,{request:completed,saved:true});
+    // Echo verified results into the EXISTING worker conversation.
+    // This is labeled as an external model result, not worker-authored proof.
+    let chatDelivery=false,deliveryNote="";
+    const report="AI ASSISTANCE RESULT ("+(worker==="eleanor"?"Eleanor":"Alex")+")\\n"+
+      "Request: "+task.slice(0,350)+"\\n\\n"+response.slice(0,4700)+
+      "\\n\\nStatus: AI drafting response saved. No calendar, publishing or other external action was performed.";
+    try{
+     if(worker==="eleanor"){
+      const {data:bot}=await db.from("agent_custom_bots")
+       .select("id").eq("owner_id",owner).eq("template_key",ELEANOR_TEMPLATE).eq("status","active").maybeSingle();
+      if(bot?.id){
+       const {error:msgError}=await db.from("agent_custom_bot_messages")
+        .insert({owner_id:owner,bot_id:bot.id,sender:"handoff",body:report.slice(0,5900)});
+       if(msgError)throw Error("Eleanor's conversation could not accept the result");
+       chatDelivery=true;
+      }
+     }else{
+      const {data:thread}=await db.from("agent_conversations").select("id")
+       .eq("owner_id",owner).eq("employee_id","alex").maybeSingle();
+      if(thread?.id){
+       const {error:msgError}=await db.from("agent_messages")
+        .insert({owner_id:owner,conversation_id:thread.id,sender:"employee",body:report.slice(0,17000)});
+       if(msgError)throw Error("Alex's conversation could not accept the result");
+       chatDelivery=true;
+      }
+     }
+     if(!chatDelivery)deliveryNote="Result saved in assistance history; the worker conversation was not available.";
+    }catch{
+     deliveryNote="Result saved in assistance history; the thread update needs a refresh or retry.";
+    }
+    return result(req,{request:completed,saved:true,chat_delivery:chatDelivery,delivery_note:deliveryNote});
    }catch(error){
     const details=String(error instanceof Error?error.message:"AI request failed").slice(0,220);
     await db.from("agent_ai_assistance_requests")
