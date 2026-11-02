@@ -48,8 +48,11 @@ export function parseSecretaryMessage(message,state,clock=new Date()){
  if(!tm)return {question:'What time should I remind you? Please include AM or PM.'};
  let timeText=tm[1].trim(), time=secretaryTime(timeText);
  const tonight=/\btonight\b/i.test(simple), tomorrow=/\btomorrow\b/i.test(simple),today=/\btoday\b/i.test(simple);
- if(!time&&tonight&&/^\d{1,2}(?::[0-5]\d)?$/.test(timeText)){
-  const h=Number(timeText.split(':')[0]);if(h>=1&&h<=12)time=secretaryTime(timeText+' pm');
+ // A bare 10:13 tonight means 10:13 PM, not 10:13 AM.
+ const hasMeridiem=/[ap]\.?\s*m\.?$/i.test(timeText), hour=Number(timeText.split(':')[0]);
+ if(!hasMeridiem&&hour>=1&&hour<=12){
+  if(tonight)time=secretaryTime(timeText+' pm');
+  else if(!/^0\d/.test(timeText))return {question:'Is that AM or PM?'};
  }
  if(!time)return {question:'Is that AM or PM?'};
  let label='';
