@@ -71,7 +71,7 @@ async function send(event){
    feedback='Message saved in Messages.';
   }
   if(ticket!==generation)return;
-  textDraft='';lastLoaded=Date.now();render();
+  textDraft='';if(root?.querySelector('[name=message]'))root.querySelector('[name=message]').value='';lastLoaded=Date.now();render();
  }catch(error){
   if(ticket===generation){feedback='Message could not be confirmed: '+String(error?.message||error);render()}
  }finally{sending=false;if(ticket===generation)render()}
