@@ -1,0 +1,38 @@
+-- Apply the draft schema and this file only in BEGIN/ROLLBACK; no fixture data survives.
+do $$ declare own uuid:=gen_random_uuid(); other_own uuid:=gen_random_uuid(); bot uuid;state_version integer;result jsonb;item uuid;notice jsonb;count_before integer;notice_count integer;request uuid:=gen_random_uuid();ops jsonb;rejected boolean;project uuid;begin
+ insert into auth.users(id,email) values(own,'eleanor-fixture@example.invalid'),(other_own,'eleanor-other@example.invalid');
+ bot:=public.ensure_agent_secretary(own,jsonb_build_object('name','Eleanor','role','Personal Executive Secretary','mission','Maintain the owner private secretary records and scheduled notices.','tone','Professional and precise','instructions','Persist owner-supplied schedules. Never invent clinical instructions.','skills','[]'::jsonb,'anti_jobs','[]'::jsonb,'avatar_emoji','👩🏽‍💼','starting_message','Your secretary records are ready.'),true);
+ if (select brief_time from public.agent_secretary_settings where owner_id=own)<>'07:00'::time or (select timezone from public.agent_secretary_settings where owner_id=own)<>'America/New_York' then raise exception 'Daily briefing time was not saved';end if;
+ if public.next_secretary_local('2026-03-07 13:01:00Z','America/New_York','08:00',array[0,1,2,3,4,5,6])<>'2026-03-08 12:00:00Z'::timestamptz then raise exception 'Spring daylight saving changed the local reminder time';end if;
+ if public.next_secretary_local('2026-10-31 12:01:00Z','America/New_York','08:00',array[0,1,2,3,4,5,6])<>'2026-11-01 13:00:00Z'::timestamptz then raise exception 'Autumn daylight saving changed the local reminder time';end if;
+ ops:=jsonb_build_array(jsonb_build_object('op','save_item','item',jsonb_build_object('kind','reminder','title','Owner supplied example intake','details','Only the owner supplied instructions.','local_time','08:00','timezone','America/New_York','weekdays',jsonb_build_array(0,1,2,3,4,5,6),'data',jsonb_build_object('intake_type','medication'))));
+ result:=public.apply_agent_secretary_ops(own,request,ops,1);item:=(result->'changes'->0->>'id')::uuid;
+ perform public.apply_agent_secretary_ops(own,request,ops,1);
+ if (select count(*) from public.agent_secretary_items where owner_id=own)<>1 then raise exception 'Retry duplicated the reminder';end if;
+ update public.agent_secretary_settings set next_brief_at=now()-interval '1 minute' where owner_id=own;
+ update public.agent_secretary_items set next_due_at=now()-interval '2 minutes' where id=item;
+ perform public.prepare_agent_secretary_deliveries(array[own]);select count(*) into count_before from public.agent_secretary_deliveries where owner_id=own;
+ perform public.prepare_agent_secretary_deliveries(array[own]);if (select count(*) from public.agent_secretary_deliveries where owner_id=own)<>count_before then raise exception 'Scheduled notices duplicated';end if;
+ notice:=public.claim_agent_secretary_delivery(array[own]);
+ if notice->>'kind'<>'reminder' then raise exception 'Oldest due intake was not claimed';end if;
+ perform public.complete_agent_secretary_delivery(own,(notice->>'id')::uuid,(notice->>'lease_id')::uuid,'An actual owner-private reminder notice was saved.');
+ select count(*) into notice_count from public.agent_custom_bot_messages where bot_id=bot;
+ rejected:=false;begin perform public.complete_agent_secretary_delivery(own,(notice->>'id')::uuid,(notice->>'lease_id')::uuid,'A duplicate scheduled notice must not be saved.');exception when others then rejected:=true;end;if not rejected then raise exception 'Replayed delivery lease accepted';end if;
+ if (select count(*) from public.agent_custom_bot_messages where bot_id=bot)<>notice_count then raise exception 'Duplicate secretary message was created';end if;
+ perform public.act_agent_secretary_delivery(own,(notice->>'id')::uuid,'done',gen_random_uuid());
+ if (select status from public.agent_secretary_items where id=item)<>'active' or (select next_due_at from public.agent_secretary_items where id=item)<=now() then raise exception 'Acknowledging today stopped tomorrow’s reminder';end if;
+ select version into state_version from public.agent_secretary_settings where owner_id=own;
+ perform public.apply_agent_secretary_ops(own,gen_random_uuid(),jsonb_build_array(jsonb_build_object('op','ack_item_today','id',item,'choice','done')),state_version);
+ if exists(select 1 from public.agent_secretary_deliveries where owner_id=own and item_id=item and action_state='open') then raise exception 'Early acknowledgement left an open occurrence';end if;
+ perform public.prepare_agent_secretary_deliveries(array[own],now()+interval '2 hours');if exists(select 1 from public.agent_secretary_deliveries where owner_id=own and kind='followup') then raise exception 'An acknowledged intake received a follow-up';end if;
+ select version into state_version from public.agent_secretary_settings where owner_id=own;
+ result:=public.apply_agent_secretary_ops(own,gen_random_uuid(),jsonb_build_array(jsonb_build_object('op','control_item','id',item,'status','stopped')),state_version);
+ if (select status from public.agent_secretary_items where id=item)<>'stopped' or (select next_due_at from public.agent_secretary_items where id=item) is not null then raise exception 'Stop did not persist';end if;
+ rejected:=false;begin perform public.apply_agent_secretary_ops(own,gen_random_uuid(),ops,1);exception when others then rejected:=true;end;if not rejected then raise exception 'Stale secretary update accepted';end if;
+ perform set_config('request.jwt.claim.sub',other_own::text,true);execute 'set local role authenticated';if (select count(*) from public.agent_secretary_items where owner_id=own)<>0 or (select count(*) from public.agent_secretary_deliveries where owner_id=own)<>0 then raise exception 'Other owner read private intake records';end if;execute 'reset role';
+ if has_table_privilege('authenticated','public.agent_secretary_push_keys','select') or has_table_privilege('authenticated','public.agent_secretary_commands','select') or has_function_privilege('authenticated','public.prepare_agent_secretary_deliveries(uuid[],timestamptz)','execute') then raise exception 'Client can read secrets or bypass scheduler authentication';end if;
+ for n in 1..10 loop if public.reserve_agent_secretary_ai(own) is not true then raise exception 'Allowance was exhausted too early';end if;end loop;
+ if public.reserve_agent_secretary_ai(own) then raise exception 'Eleanor exceeded the shared AI allowance';end if;
+ result:=public.create_agent_workspace_project(own,'alex','Secretary allowance fixture project',jsonb_build_object('project_kind','personal'));project:=(result->>'id')::uuid;
+ result:=public.claim_agent_project_turn(own,project,'groq','fixture');if result->>'state'<>'budget' or result->>'retry_at' is null then raise exception 'Project workers did not share Eleanor’s allowance';end if;
+end $$;

@@ -143,7 +143,7 @@
        '</select></label><label>What should they handle?<textarea name="reason" required minlength="10" maxlength="900" rows="3" placeholder="Explain the next step for the other specialist."></textarea></label>'+
        '<button type="submit" class="studio-primary"'+(busy?" disabled":"")+'>Approve written handoff</button>'+
        '<p class="studio-warning">A brief will be generated from this conversation and saved to both coworkers. It does not start an outside task.</p></form></details>':"")+
-     '<p class="studio-warning">This custom worker can chat and draft only. It does not run background tasks, browse or access your accounts.</p></section>';
+     (bot.template_key==='eleanor-secretary-v1'?'<p class="studio-warning">Eleanor uses saved secretary registers and scheduled notices. Open Reminders for her desk, workout plan and notification settings. Connected Gmail requires your separate opt-in.</p><button type="button" data-nav="reminders">Open Eleanor’s desk</button>':'<p class="studio-warning">This custom worker can chat and draft only. It does not run background tasks, browse or access your accounts.</p>')+'</section>';
   }
   return html+'<p class="studio-feedback" role="status">'+E(feedback)+'</p>';
  }
@@ -251,5 +251,6 @@
  if(existing)sync(existing.rows||[],existing.notice||"",existing.messaged||[]);
  draw();
 })();
+
 
 

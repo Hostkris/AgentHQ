@@ -41,7 +41,7 @@ test("Store capabilities do not bypass owner permissions or create automatic ext
 test("Morgan's upgraded name is visible in the application and cache key is refreshed",()=>{
  const app=read("app.js"),html=read("index.html");
  assert.match(app,/\["morgan","🛍️","Morgan","E-Commerce Director"\]/);
- assert.match(html,/src="\.\/app\.js\?v=20261101-projects-app-1"/);
+ assert.match(html,/src="\.\/app\.js\?v=20261102-eleanor-1"/);
 });
 
 

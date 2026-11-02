@@ -6,3 +6,8 @@ verify_jwt = false
 # Fixed public research diagnostics use the same private Vault credential.
 [functions.agent-hq-research-check]
 verify_jwt = false
+
+
+# Eleanor verifies owner sessions or the existing private scheduler credential in its handler.
+[functions.agent-secretary]
+verify_jwt = false

@@ -40,7 +40,7 @@ async function refresh(){
  const bots=data||[];
  window.agentHQActivity?.rememberWorkers(bots);
  const {data:messages,error:messageError}=await agentCloud.from('agent_custom_bot_messages')
-  .select('bot_id').order('created_at',{ascending:false}).limit(500);
+  .select('id,bot_id,created_at').order('created_at',{ascending:false}).limit(500);
  if(serial!==generation)return [];
  if(messageError){window.agentHQBotStudioError?.('Could not sync worker conversations: '+messageError.message);return bots}
  const messaged=[...new Set((messages||[]).map(row=>row.bot_id))];
@@ -48,9 +48,9 @@ async function refresh(){
   .select('id,source_bot_id,target_bot_id,brief,created_at').order('created_at',{ascending:false}).limit(40);
  if(serial!==generation)return [];
  if(handoffError){window.agentHQBotStudioError?.('Could not sync worker handoffs: '+handoffError.message);return bots}
- const key=JSON.stringify({bots,messaged,handoffs:handoffs||[]});
+ const key=JSON.stringify({bots,messaged,latest:(messages||[]).slice(0,10).map(m=>m.id),handoffs:handoffs||[]});
  if(key!==lastBotHash){
-  lastBotHash=key;window.agentHQBotStudioSync?.(bots,'Your AI workers are saved under your Agent HQ sign-in.',messaged,handoffs||[]);
+  lastBotHash=key;const current=document.querySelector('#studio-message-form')?.dataset.studioThread;if(current&&bots.some(b=>b.id===current&&b.template_key==='eleanor-secretary-v1'))void window.agentHQBotStudioUI?.refreshChat?.(current);window.agentHQBotStudioSync?.(bots,'Your AI workers are saved under your Agent HQ sign-in.',messaged,handoffs||[]);
  }
  return bots;
 }
@@ -93,4 +93,5 @@ window.addEventListener('focus',background);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)background()});
 setInterval(()=>{if(!document.hidden)background()},35000);
 background();
+
 

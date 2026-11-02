@@ -1,0 +1,5 @@
+// Device alerts reveal no medication names or other private record contents.
+self.addEventListener('install',event=>event.waitUntil(self.skipWaiting()));
+self.addEventListener('activate',event=>event.waitUntil(self.clients.claim()));
+self.addEventListener('push',event=>{let data={};try{data=event.data?.json()||{}}catch{}event.waitUntil(self.registration.showNotification('Eleanor · Agent HQ',{body:'You have a private secretary update. Open Agent HQ.',tag:typeof data.tag==='string'?data.tag.replace(/[^a-zA-Z0-9_-]/g,'').slice(0,80):'eleanor-update',icon:'./icon.svg',badge:'./icon.svg',data:{url:new URL('./?secretary=1',self.registration.scope).href}}));});
+self.addEventListener('notificationclick',event=>{event.notification.close();const url=new URL('./?secretary=1',self.registration.scope).href;event.waitUntil((async()=>{const windows=await self.clients.matchAll({type:'window',includeUncontrolled:true});for(const w of windows){if(w.url.startsWith(self.registration.scope)&&'focus' in w){await w.navigate(url);return w.focus();}}return self.clients.openWindow(url);})());});

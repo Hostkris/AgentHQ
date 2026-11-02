@@ -1,3 +1,5 @@
+import {secretaryChat} from '../agent-secretary/chat.ts';
+import {ELEANOR_TEMPLATE} from '../../../eleanor-secretary-core.js';
 import {PROJECT_AUTONOMY_POLICY} from "../../../agent-project-autonomy.js";
 import {createClient} from "npm:@supabase/supabase-js@2.79.0";
 import {PUBLIC_WEB_CAPABILITY,explicitPublicResearch,planRoleQuery,publicQueryPlanner,researchForRole} from "../_shared/role-research.ts";
@@ -79,7 +81,7 @@ async function authenticated(req:Request,db:ReturnType<typeof database>){
 async function loadBot(db:ReturnType<typeof database>,owner:string,id:string){
  if(!UUID.test(id))throw Error("Choose a saved worker");
  const {data,error}=await db.from("agent_custom_bots")
-  .select("id,name,role,mission,tone,instructions,skills,anti_jobs,status,starting_message")
+  .select("id,name,role,mission,tone,instructions,skills,anti_jobs,status,starting_message,template_key")
   .eq("id",id).eq("owner_id",owner).maybeSingle();
  if(error||!data)throw Error("Worker not found in your personal workspace");
  return data;
@@ -196,6 +198,10 @@ The handoff is only a saved note approved by the owner. Output plain text, 40–
    const {data:ownerMessage,error:ownerSaveError}=await db.from("agent_custom_bot_messages")
     .insert({owner_id:owner,bot_id:id,sender:"owner",body:message}).select("id").single();
    if(ownerSaveError||!ownerMessage)throw Error("Your outgoing message could not be saved");
+   if(bot.template_key===ELEANOR_TEMPLATE){
+    if(!env("AGENT_HQ_ALLOWED_OWNER_IDS").split(",").some(x=>x.trim().toLowerCase()===owner.toLowerCase()))return result(req,{error:"This account is not authorized for secretary tools"},403);
+    return result(req,await secretaryChat(db,owner,bot,message,complete,ownerMessage.id));
+   }
    const research=async(query:string,purpose:string)=>{
     if(!env("AGENT_HQ_ALLOWED_OWNER_IDS").split(",").some(x=>x.trim().toLowerCase()===owner.toLowerCase()))throw Error("This account is not authorized for public research");
     const researched=await researchForRole({db,owner,worker:id,task:message,query,purpose,key:env("GROQ_API_KEY"),custom:bot,
@@ -242,4 +248,5 @@ Respond as ONE JSON object: {"kind":"reply","text":"friendly concise reply, 1–
   return result(req,{error:"Unsupported Worker Studio action"},400);
  }catch(error){return result(req,{error:error instanceof Error?error.message:"Worker Studio error"},400)}
 });
+
 
