@@ -33,7 +33,6 @@ function render(){
  '<textarea name="message" aria-label="Message '+escapeHTML(b.name)+'" placeholder="Message '+escapeHTML(b.name)+'…" rows="2" maxlength="4500" '+(sending?'disabled':'')+'></textarea>'+
  '<button type="submit" aria-label="Send message" '+(sending?'disabled':'')+'>'+(sending?'…':'↑')+'</button></form>'+
  '<p class="custom-msg-status" role="status">'+escapeHTML(feedback)+'</p>'+
- (b.template_key==='eleanor-secretary-v1'?'<button type="button" class="custom-msg-desk" data-custom-secretary-desk>Open Eleanor’s reminders, goals and appointments</button>':'')+
  '</div>';
  root.querySelector('[name=message]').value=textDraft;
  const scroller=root.querySelector('[data-custom-msg-scroll]');
@@ -151,7 +150,7 @@ document.addEventListener('click',event=>{
  })();
 },true);
 document.addEventListener('click',event=>{
- if(event.target.closest('[data-custom-secretary-desk]')){window.agentHQOpenSecretary?.();return}
+ if(event.target.closest('[data-custom-secretary-desk]')){event.preventDefault();window.agentHQOpenSecretary?.({fromMessage:true});return}
  if(event.target.closest('[data-bot-reload]')){event.preventDefault();void reload({force:true})}
 });
 new MutationObserver(mount).observe(document.getElementById('app')||document.body,{childList:true,subtree:false});
