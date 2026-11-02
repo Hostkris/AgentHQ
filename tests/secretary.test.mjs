@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
-import {ELEANOR_SPEC,ELEANOR_ETHICS,secretaryTime,secretaryDate,dailyBrief,meetingBrief} from '../eleanor-secretary-core.js';
+import {ELEANOR_SPEC,ELEANOR_ETHICS,secretaryTime,secretaryDate,dailyBrief,meetingBrief,reminderText} from '../eleanor-secretary-core.js';
 import {secretaryState,validateSecretaryOps,applySecretaryOps} from '../supabase/functions/agent-secretary/state.ts';
 import {secretaryChat} from '../supabase/functions/agent-secretary/chat.ts';
 import {processSecretaryDue,scopedMeetingEmail} from '../supabase/functions/agent-secretary/scheduler.ts';
@@ -78,4 +78,8 @@ test('The next briefing asks once about an unlogged previous workout without inv
 
 test('A reported skipped workout and a saved rest day are stated accurately in the briefing',async()=>{
  const state=await secretaryState(secretaryFixture(),owner);state.items.push({id:bot,kind:'workout',status:'active',title:'Monday owner workout',details:'Owner supplied exercise plan',weekdays:[1],timezone:'America/New_York'});state.workout_log.push({item_id:bot,local_date:'2026-11-02',status:'skipped'});assert.match(dailyBrief(state,new Date('2026-11-02T12:00:00Z')),/Logged skipped today/);state.workout_log=[];state.items.at(-1).details='Sabbath rest day.';const brief=dailyBrief(state,new Date('2026-11-02T12:00:00Z'));assert.match(brief,/Saved rest day/);assert.doesNotMatch(brief,/Completion not yet logged/);
+});
+
+test('A one-time deadline notice distinguishes reviewing the notice from completing its task',()=>{
+ const text=reminderText({kind:'task',title:'Review the project PDF',details:'Check the saved final draft.',timezone:'America/New_York'},'2026-11-02T15:00:00Z');assert.match(text,/task due/);assert.match(text,/Reviewing this notice does not complete the task/);assert.doesNotMatch(text,/recurring reminder|Mark today done/);
 });
