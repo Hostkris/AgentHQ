@@ -3,6 +3,7 @@
 import {agentCloud} from './agent-cloud-auth.js';
 const escapeHTML=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let activeId=null,ownerId=null,root=null,generation=0,loading=false,sending=false,history=[],feedback='',textDraft='',lastLoaded=0;
+const deleting=new Set();
 const host=()=>document.getElementById('agent-custom-chat-root');
 const cloud=()=>window.agentHQBotStudioCloud;
 function bot(){
@@ -23,7 +24,7 @@ function render(){
  (combined.length?combined.map(m=>m.type==='photo'?window.agentHQCamera?.renderPhotoItem?.(m)||'':
   '<div class="custom-msg-row '+(m.sender==='owner'?'mine':'theirs')+'"><div class="custom-msg-bubble">'+
   (window.agentHQMessageControls?.button?.('bot',m.id)||'')+escapeHTML(m.body||'')+'</div></div>').join(''):
-  (window.agentHQMessageControls?.isDeleted?.('welcome',b.id)?'':'<div class="custom-msg-welcome">'+escapeHTML(b.starting_message||'Send a message to '+b.name+'.')+'</div>'))+
+  (window.agentHQMessageControls?.isDeleted?.('welcome',b.id)?'':'<div class="custom-msg-welcome">'+(window.agentHQMessageControls?.button?.('welcome',b.id)||'')+escapeHTML(b.starting_message||'Send a message to '+b.name+'.')+'</div>'))+
  (window.agentHQRenderResearchForWorker?.(activeId)||'')+
  '</div><div class="agent-thread-activity" data-agent-activity-thread="'+escapeHTML(activeId)+'" data-agent-activity-name="'+escapeHTML(b.name)+'" role="status" aria-live="polite">'+(window.agentHQActivity?.render?.(activeId)||'')+'</div>'+
  '<form class="custom-msg-form photo-enabled-composer" data-custom-message-form>'+
@@ -101,6 +102,54 @@ document.addEventListener('submit',event=>{
  if(!event.target.matches('[data-custom-message-form]'))return;
  void send(event);
 });
+// Custom-worker threads use one-tap delete, matching their visible X controls.
+// Intercept before the legacy handler, which otherwise uses a native confirm
+// and cannot show errors in custom-message bubbles.
+document.addEventListener('click',event=>{
+ const button=event.target.closest?.('[data-chat-dismiss]');
+ if(!button||!root?.contains(button))return;
+ const kind=button.dataset.chatDismiss,id=button.dataset.chatItem;
+ if(!['bot','welcome'].includes(kind)||!id)return;
+ event.preventDefault();event.stopImmediatePropagation();
+ if(deleting.has(kind+':'+id))return;
+ const control=window.agentHQMessageControls;
+ if(!control?.dismiss){
+  feedback='Message deletion is not ready. Refresh Agent HQ and retry.';
+  render();return;
+ }
+ const generationAtTap=generation,thread=activeId;
+ deleting.add(kind+':'+id);
+ button.disabled=true;
+ button.setAttribute('aria-busy','true');
+ button.querySelector('span')?.replaceChildren(document.createTextNode('…'));
+ const status=root.querySelector('.custom-msg-status');
+ if(status)status.textContent='Deleting message…';
+ void (async()=>{
+  try{
+   // The existing owner-scoped RPC actually deletes the stored bot message.
+   await control.dismiss(kind,id);
+   if(generationAtTap!==generation||thread!==activeId)return;
+   if(kind==='bot'){
+    history=history.filter(m=>m.id!==id);
+    try{history=await cloud().history(thread)}
+    catch{/* The durable delete succeeded; keep the deleted row hidden. */}
+   }
+   if(generationAtTap===generation){
+    feedback='Message deleted.';
+    lastLoaded=Date.now();
+    render();
+   }
+  }catch(error){
+   if(generationAtTap===generation){
+    feedback='Could not delete message: '+String(error?.message||error);
+    render();
+   }
+  }finally{
+   deleting.delete(kind+':'+id);
+   if(button.isConnected){button.disabled=false;button.removeAttribute('aria-busy');}
+  }
+ })();
+},true);
 document.addEventListener('click',event=>{
  if(event.target.closest('[data-custom-secretary-desk]')){window.agentHQOpenSecretary?.();return}
  if(event.target.closest('[data-bot-reload]')){event.preventDefault();void reload({force:true})}
