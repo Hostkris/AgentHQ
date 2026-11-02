@@ -63,3 +63,9 @@ test('Reference image tool forwards actual owned pixels and source direction, ne
  const result=await callProjectTool(db,{id:cid,owner_id:own},'get_handoff_reference_photo',{handoff_id:hid,photo_id:photo});assert.equal(result.content[1].type,'image');assert.equal(Buffer.from(result.content[1].data,'base64').compare(Buffer.from(bytes)),0);assert.match(result.content[0].text,/Use navy and ivory/);
  await assert.rejects(()=>callProjectTool(db,{id:cid,owner_id:other},'get_handoff_reference_photo',{handoff_id:hid,photo_id:photo}),/not available/);
 });
+
+test('Hosted gateway and full public paths resolve to the same discovery and owner endpoints',async()=>{
+ const db=await fixture(),handler=bridgeHandler(db,o=>o===own);
+ for(const path of ['/agent-chatgpt-bridge/health','/functions/v1/agent-chatgpt-bridge/health','/health']){const response=await handler(new Request('https://edge.invalid'+path));assert.equal(response.status,200,path);assert.equal((await response.json()).server_url,MCP_URL);}
+ const response=await handler(new Request('https://edge.invalid/agent-chatgpt-bridge',{method:'POST',headers:{authorization:'Bearer owner-session','content-type':'application/json'},body:JSON.stringify({action:'status'})}));assert.equal(response.status,200);assert.ok((await response.json()).connections.length);
+});

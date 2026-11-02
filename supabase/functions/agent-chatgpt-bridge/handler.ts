@@ -34,7 +34,7 @@ async function ownerAction(db:any,owner:string,input:any){
 }
 function makeHandler(db:any,allowed:(owner:string)=>boolean,fetcher:typeof fetch=fetch,pdfLibrary?:any){
  return async(req:Request)=>{
-  const url=new URL(req.url),path=url.pathname.replace(/^\/functions\/v1\/agent-chatgpt-bridge/,'')||'/',origin=req.headers.get('origin');
+  const url=new URL(req.url),path=url.pathname.replace(/^\/(?:functions\/v1\/)?agent-chatgpt-bridge(?=\/|$)/,'')||'/',origin=req.headers.get('origin');
   if(origin&&origin!==ORIGIN&&origin!=='https://chatgpt.com')return json({error:'Origin not permitted'},403);
   if(req.method==='OPTIONS')return new Response(null,{status:204,headers});
   if(req.method==='GET'&&(path==='/.well-known/oauth-protected-resource'||path==='/.well-known/oauth-protected-resource/mcp'))return json(resourceMetadata());
