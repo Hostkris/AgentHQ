@@ -11,7 +11,7 @@ export function secretaryHandler(db:any,owners:string[],deps:any){
   if(new URL(req.url).searchParams.get('op')==='tick'){
    const token=req.headers.get('x-agent-hq-runner-token')||'';if(!/^[0-9a-f]{64}$/.test(token))return response({error:'Scheduler authorization required'},401);
    const {data,error}=await db.rpc('verify_agent_project_runner',{p_token:token});if(error||data!==true)return response({error:'Scheduler authorization required'},401);
-   try{return response(await processSecretaryDue(db,owners,deps,true));}catch{return response({error:'Secretary work remains saved and will retry'},503);}
+   try{if(deps.preparePush)await deps.preparePush(db);return response(await processSecretaryDue(db,owners,deps,true));}catch{return response({error:'Secretary work remains saved and will retry'},503);}
   }
   const token=req.headers.get('authorization')?.replace(/^Bearer\s+/i,'').trim();if(!token)return response({error:'Sign in to Agent HQ'},401);
   const {data:auth,error:authError}=await db.auth.getUser(token);const owner=auth?.user?.id;if(authError||!owner||!owners.includes(owner.toLowerCase()))return response({error:'Sign-in expired or account not authorized'},401);

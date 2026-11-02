@@ -183,5 +183,7 @@ jobs:
         if: always()
         with:
           name: projects-app-previews
-          path: /tmp/agenthq-projects-browser
+          path: |
+            /tmp/agenthq-projects-browser
+            /tmp/agenthq-secretary-browser
 

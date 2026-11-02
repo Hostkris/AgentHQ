@@ -71,3 +71,7 @@ test('Real Web Push encryption sends a generic notice and records acceptance sep
  let requests=0;await sendSecretaryPush(db,[owner],async(url,options)=>{requests++;assert.equal(url,'https://web.push.apple.com/fixture-endpoint');assert.ok(options.headers.Authorization||options.headers.authorization);assert.equal(Buffer.from(options.body).includes(Buffer.from('Example intake')),false);assert.ok(options.body.length>100);return new Response(null,{status:201});},lib);
  assert.equal(requests,1);assert.equal(db.tables.agent_secretary_deliveries[0].push_state,'accepted');assert.equal(db.tables.agent_secretary_deliveries[0].action_state,'open');
 });
+
+test('The next briefing asks once about an unlogged previous workout without inventing completion or questioning a rest day',async()=>{
+ const state=await secretaryState(secretaryFixture(),owner);state.items.push({id:bot,kind:'workout',status:'active',title:'Sunday owner workout',details:'Owner supplied exercise plan',weekdays:[0],timezone:'America/New_York'});let brief=dailyBrief(state,new Date('2026-11-02T12:00:00Z'));assert.match(brief,/Yesterday’s saved workout has no completion/);state.workout_log.push({item_id:bot,local_date:'2026-11-01',status:'completed'});assert.doesNotMatch(dailyBrief(state,new Date('2026-11-02T12:00:00Z')),/Yesterday’s saved workout has no completion/);state.workout_log=[];state.items.at(-1).details='Sabbath rest day.';assert.doesNotMatch(dailyBrief(state,new Date('2026-11-02T12:00:00Z')),/Yesterday’s saved workout has no completion/);
+});
