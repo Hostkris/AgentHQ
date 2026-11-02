@@ -1,4 +1,4 @@
-import {mountChatGPTHandoff} from './agent-chatgpt-handoff.js?v=20261102-touch-feedback-1';
+import {mountChatGPTHandoff} from './agent-chatgpt-handoff.js?v=20261102-auto-handoff-sync-1';
 import {agentCloud} from './agent-cloud-auth.js';
 import {preparePhoto} from './agent-photo-library.js?v=20261024-camera-messages-2';
 import {escapeProjectText as esc,projectStatus,projectMatches,projectFileType,finalReviewAvailable,fileRole,downloadedBlob,saveProjectBlob} from './agent-projects-app-core.js?v=20261101-projects-app-1';
@@ -123,6 +123,12 @@ async function choosePhotos(files){
 function mount(){const next=currentRoot();if(next===root)return;serial++;cleanAsset();root=next;if(root){render();if(selected)void openProject(selected,true);else if(!loading)void loadProjects();}}
 new MutationObserver(mount).observe(document.getElementById('app')||document.body,{childList:true,subtree:true});
 document.addEventListener('agenthq-project-activity',()=>{clearTimeout(refreshTimer);refreshTimer=setTimeout(()=>void refresh(true),1200)});
+const refreshOnReturn=()=>{if(currentRoot()&&!document.hidden&&!document.querySelector('dialog[open]'))void refresh(true)};
+window.addEventListener('focus',refreshOnReturn);
+document.addEventListener('visibilitychange',refreshOnReturn);
+// Keep the Projects list current while visible. The selected handoff panel
+// separately watches for updates and stops when that view is removed.
+setInterval(()=>{if(currentRoot()&&!document.hidden&&!selected&&!document.activeElement?.matches('input,textarea,select')&&!document.querySelector('dialog[open]'))void refresh(true)},45000);
 document.addEventListener('agenthq-project-created',event=>{if(currentRoot())void openProject(event.detail.id)});
 document.addEventListener('agenthq-open-project-app',event=>{selected=null;details=null;selectedFile=null;void openProject(event.detail.id)});
 agentCloud.auth.onAuthStateChange((_event,session)=>{const next=session?.user?.id||null;if(next!==ownerId){epoch++;serial++;ownerId=next;projects=[];cursor=null;selected=null;details=null;selectedFile=null;feedback.clear();cleanAsset();document.querySelectorAll('dialog.project-photo-dialog').forEach(d=>d.close());notice='';if(currentRoot())void loadProjects();}});
