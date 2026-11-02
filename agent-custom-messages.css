@@ -34,3 +34,11 @@
  .ios-chat-shell .custom-msg-form,.ios-chat-shell .custom-msg-status{background:#18181c}
  .ios-chat-shell .custom-msg-form textarea{background:#25252b;color:#f9fafb;border-color:#474750}
 }
+
+/* Every saved bot bubble and the starter greeting have a visible functional X. */
+.ios-chat-shell .custom-msg-welcome{position:relative;box-sizing:border-box;padding:16px 55px 16px 18px;max-width:min(84%,580px);margin:8px auto 12px 0;text-align:left;background:#e6e7eb;color:#1d1d1f;border-radius:20px;font-size:16px}
+.ios-chat-shell .custom-msg-welcome .chat-delete-bar{position:absolute;right:8px;top:8px;margin:0;width:44px;height:44px;display:grid;place-items:center;pointer-events:none}
+.ios-chat-shell .custom-msg-welcome .chat-delete-button{transform:none;pointer-events:auto;color:inherit!important}
+.ios-chat-shell .custom-msg-bubble .chat-delete-button[aria-busy=true],
+.ios-chat-shell .custom-msg-welcome .chat-delete-button[aria-busy=true]{opacity:.55}
+@media(prefers-color-scheme:dark){.ios-chat-shell .custom-msg-welcome{background:#303039;color:#f1f1f5}}
