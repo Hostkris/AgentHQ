@@ -28,6 +28,31 @@ export async function mountChatGPTHandoff(container,project,revision,onChange){
   container.innerHTML='<h3>ChatGPT handoff</h3><p>'+esc(stale?'The project changed. Update the handoff before ChatGPT returns files.':h?.status==='ready'?'Ready for you to start in ChatGPT.':h?.status==='in_progress'?'Opened in ChatGPT. Waiting for actual finished files.':h?.status==='returned'?'Files returned. Review them in this project.':'Use ChatGPT to make this project’s images or documents, then return the files here.')+'</p>'+(active?'<p>Internal workers are held while this handoff is open.</p>':'')+(h?.blocker?'<p class="chatgpt-handoff-blocker"><strong>ChatGPT needs attention:</strong> '+esc(h.blocker)+'</p>':'')+(active&&!stale?'<label>Prompt for ChatGPT<textarea data-handoff-prompt readonly rows="5">'+esc(promptFor(h.id))+'</textarea></label><div class="chatgpt-handoff-actions"><button type="button" data-handoff-copy>Copy handoff prompt</button><a href="https://chatgpt.com/" target="_blank" rel="noopener">Open ChatGPT ↗</a></div>':'')+'<div class="chatgpt-handoff-actions">'+(!active||stale?'<button type="button" data-handoff-prepare>'+esc(stale?'Update handoff':'Prepare ChatGPT handoff')+'</button>':'')+(active?'<button type="button" data-handoff-cancel>Cancel handoff</button>':'')+'<button type="button" data-handoff-setup>Connection setup</button><button type="button" data-handoff-refresh>Check for returned files</button></div><p class="chatgpt-handoff-help">You start the job in ChatGPT. Returned files remain unapproved until you review them here.</p><p role="status"></p>';
   const status=container.querySelector('[role=status]');container.querySelector('[data-handoff-setup]').onclick=openChatGPTConnection;
   container.querySelector('[data-handoff-refresh]').onclick=()=>onChange();
+  // Check this project while its panel is open. A returned file or blocker
+  // refreshes the saved file list and handoff status without a manual tap.
+  // The timer stops automatically after navigating away from this panel.
+  const snapshot=entry=>entry?[entry.id,entry.status,entry.revision,entry.blocker||'',entry.updated_at||''].join('|'):'none';
+  const initialSnapshot=snapshot(h);
+  const checkUpdates=async()=>{
+   if(!container.isConnected||generation!==epoch)return;
+   if(!document.hidden){
+    try{
+     const response=await api('project_status',{project_id:project});
+     if(!container.isConnected||generation!==epoch)return;
+     if(snapshot(response.handoff)!==initialSnapshot){
+      await onChange();
+      return;
+     }
+    }catch(error){
+     if(container.isConnected){
+      const note=container.querySelector('[role=status]');
+      if(note)note.textContent='Automatic handoff check will retry. '+String(error?.message||error);
+     }
+    }
+   }
+   if(container.isConnected&&generation===epoch)setTimeout(checkUpdates,12000);
+  };
+  setTimeout(checkUpdates,12000);
   container.querySelector('[data-handoff-copy]')?.addEventListener('click',()=>copy(promptFor(h.id),status));
   container.querySelector('[data-handoff-cancel]')?.addEventListener('click',async event=>{event.currentTarget.disabled=true;try{await api('cancel_handoff',{handoff_id:h.id});await onChange();}catch(e){status.textContent=e.message;event.currentTarget.disabled=false;}});
   container.querySelector('[data-handoff-prepare]')?.addEventListener('click',()=>{
