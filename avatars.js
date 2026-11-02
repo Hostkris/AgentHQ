@@ -51,8 +51,14 @@ function update(){
   }
  });
  document.querySelectorAll("[data-rpg-worker]").forEach(el=>{
+  const key=workerId(el.dataset.rpgWorker);
+  if(key==="eleanor")el.dataset.avatarIdentity="eleanor";
+
   const id=el.dataset.rpgWorker;
   if((ids.includes(id)||/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(id))&&!el.querySelector(".rpg-portrait-svg"))el.innerHTML=image(id);
+  const isWorking=!!document.querySelector('[data-agent-activity-thread="'+id+'"] [data-activity-running="true"],[data-agent-activity-thread="'+id+'"] .agent-typing-dots');
+  const portrait=el.querySelector(".rpg-portrait-svg");
+  if(portrait&&portrait.classList.contains("rpg-speaking")!==isWorking)portrait.classList.toggle("rpg-speaking",isWorking);
  });
 }
 const root=document.getElementById("app");
