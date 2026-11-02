@@ -52,3 +52,70 @@ export async function sendSecretaryPush(db:any,owners:string[],fetcher:typeof fe
   const attempts=(d.push_attempts||0)+1;await db.from('agent_secretary_deliveries').update({push_state:accepted?'accepted':unknown?'unknown':retry&&attempts<3?'pending':'failed',push_attempts:attempts,next_push_at:new Date(Date.now()+120000).toISOString()}).eq('id',d.id).eq('owner_id',d.owner_id);
  }
 }
+
+export async function sendAgentWorkPush(db:any,owners:string[],fetcher:typeof fetch=fetch,webpush?:any){
+ if(!owners.length)return {sent:0};
+ const now=new Date().toISOString();
+ const {data:alerts,error}=await db.from('agent_secretary_agent_alerts')
+  .select('id,owner_id,alert_kind,push_attempts').in('owner_id',owners)
+  .eq('status','open').eq('push_state','pending').lte('next_push_at',now)
+  .order('created_at').limit(12);
+ if(error)throw Error('Agent alerts could not be read');
+ if(!alerts?.length)return {sent:0};
+ const lib=webpush||await library();let keys:any,delivered=0;
+ for(const alert of alerts){
+  const {data:settings}=await db.from('agent_secretary_settings')
+    .select('agent_alerts_enabled').eq('owner_id',alert.owner_id).maybeSingle();
+  if(!settings?.agent_alerts_enabled)continue;
+  const {data:devices}=await db.from('agent_secretary_push_subscriptions')
+    .select('id,endpoint,p256dh,auth_key').eq('owner_id',alert.owner_id).eq('active',true).limit(5);
+  if(!devices?.length){
+   await db.from('agent_secretary_agent_alerts').update({push_state:'not_enabled'})
+    .eq('id',alert.id).eq('status','open');continue;
+  }
+  keys??=await pushKeys(db,lib);
+  let accepted=false,retry=false;
+  for(const device of devices){
+   try{
+    validatePushSubscription({endpoint:device.endpoint,keys:{p256dh:device.p256dh,auth:device.auth_key}});
+    // Lock-screen text stays generic. Sensitive specifics are only in the authenticated inbox.
+    const payload=JSON.stringify({kind:'agent_attention',alert_id:alert.id,
+      tag:'eleanor-agent-'+alert.id});
+    const request=lib.generateRequestDetails(
+     {endpoint:device.endpoint,keys:{p256dh:device.p256dh,auth:device.auth_key}},
+     payload,{TTL:3600,urgency:'high',topic:alert.id.replace(/-/g,''),
+      vapidDetails:{subject:'https://hostkris.github.io/AgentHQ/',
+       publicKey:keys.public_key,privateKey:keys.private_key}});
+    const r=await fetcher(request.endpoint,{method:'POST',headers:request.headers,
+     body:request.body,redirect:'error',signal:AbortSignal.timeout(10000)});
+    if(r.ok){
+     accepted=true;delivered++;
+     await db.from('agent_secretary_push_subscriptions')
+      .update({last_success_at:new Date().toISOString(),last_error:null})
+      .eq('id',device.id).eq('owner_id',alert.owner_id);
+    }else if([404,410].includes(r.status)){
+     await db.from('agent_secretary_push_subscriptions')
+      .update({active:false,last_error:'Push subscription expired. Enable alerts on this device again.'})
+      .eq('id',device.id).eq('owner_id',alert.owner_id);
+    }else{
+     retry=retry||r.status===429||r.status>=500;
+     await db.from('agent_secretary_push_subscriptions')
+      .update({last_error:'The push service did not accept the agent alert (HTTP '+r.status+').'})
+      .eq('id',device.id).eq('owner_id',alert.owner_id);
+    }
+   }catch{
+    retry=true;
+    await db.from('agent_secretary_push_subscriptions')
+     .update({last_error:'Agent alert delivery could not be confirmed.'})
+     .eq('id',device.id).eq('owner_id',alert.owner_id);
+   }
+  }
+  const attempts=(alert.push_attempts||0)+1;
+  const newStatus=accepted?'accepted':retry&&attempts<3?'pending':'failed';
+  await db.from('agent_secretary_agent_alerts')
+   .update({push_state:newStatus,push_attempts:attempts,
+     next_push_at:new Date(Date.now()+Math.min(600000,120000*attempts)).toISOString()})
+   .eq('id',alert.id).eq('owner_id',alert.owner_id).eq('status','open');
+ }
+ return {accepted:delivered};
+}
