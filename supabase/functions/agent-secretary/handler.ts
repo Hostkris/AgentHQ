@@ -1,6 +1,6 @@
 import {ensureSecretary,secretaryState,applySecretaryOps,uuid} from './state.ts';
 import {processSecretaryDue} from './scheduler.ts';
-import {pushKeys,savePushSubscription} from './push.ts';
+import {pushKeys,savePushSubscription,devicePushStatus} from './push.ts';
 const ORIGIN='https://hostkris.github.io';
 const headers={'Access-Control-Allow-Origin':ORIGIN,'Access-Control-Allow-Headers':'authorization,apikey,content-type,x-client-info','Access-Control-Allow-Methods':'POST,OPTIONS','Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'};
 const response=(value:any,status=200)=>new Response(JSON.stringify(value),{status,headers});
@@ -25,6 +25,7 @@ export function secretaryHandler(db:any,owners:string[],deps:any){
    }
    if(input.action==='push_config'){const keys=await pushKeys(db,deps.webpush);return response({public_key:keys.public_key});}
    if(input.action==='subscribe_push')return response(await savePushSubscription(db,owner,input));
+   if(input.action==='device_status')return response(await devicePushStatus(db,owner,input));
    if(input.action==='unsubscribe_push'){
     if(!uuid(input.device_id))throw Error('Choose a notification device');const {error}=await db.from('agent_secretary_push_subscriptions').update({active:false}).eq('id',input.device_id).eq('owner_id',owner);if(error)throw Error('Could not disable this device');return response({disabled:true});
    }
