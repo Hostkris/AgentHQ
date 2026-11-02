@@ -25,7 +25,11 @@ function closePopup(rememberThis=true){
 }
 function noticeList(state){
  const active=new Map((state.items||[]).filter(i=>i.status==='active').map(i=>[i.id,i]));
- return (state.deliveries||[]).filter(d=>d.status==='saved'&&d.action_state==='open'&&(!d.item_id||(active.has(d.item_id)&&active.get(d.item_id).version===d.item_version)));
+ const reminders=(state.deliveries||[]).filter(d=>d.status==='saved'&&d.action_state==='open'&&(!d.item_id||(active.has(d.item_id)&&active.get(d.item_id).version===d.item_version)));
+ const work=state.settings?.agent_alerts_enabled?(state.agent_alerts||[]).filter(a=>a.status==='open').map(a=>({
+  id:a.id,kind:'Agent '+a.alert_kind,body:a.actor+': '+a.title+'. '+a.body,agent:true
+ })):[];
+ return [...work,...reminders];
 }
 function alertGroup(notices){
  const ids=notices.map(d=>d.id).sort();
@@ -52,7 +56,7 @@ function popup(alert){
   '<div class="eleanor-pop-compose-row"><textarea id="eleanor-pop-reply" name="message" rows="2" maxlength="4500" placeholder="Message Eleanor right here…" required></textarea>'+
   '<button class="eleanor-pop-send" type="submit" aria-label="Send reply to Eleanor">Send</button></div>'+
   '<p class="eleanor-pop-status" role="status"></p></form>'+
-  '<footer class="eleanor-pop-footer"><button type="button" data-eleanor-pop-desk>Open secretary desk</button><span>Closing this window does not cancel reminders.</span></footer></section>';
+  '<footer class="eleanor-pop-footer"><button type="button" data-eleanor-pop-desk>'+ (alert.notices.some(d=>d.agent)?'Review agent alerts':'Open secretary desk')+'</button><span>Closing this window does not approve or cancel any request.</span></footer></section>';
  document.body.append(el);
  el.querySelector('.eleanor-pop-card').focus({preventScroll:true});
  el.querySelector('.eleanor-pop-close').onclick=()=>closePopup();
@@ -63,6 +67,7 @@ function popup(alert){
  el.querySelector('[data-eleanor-pop-desk]').onclick=()=>{
   closePopup();
   window.agentHQOpenSecretary?.();
+  if(alert.notices.some(d=>d.agent))window.dispatchEvent(new Event('agenthq-secretary-show-alerts'));
  };
  const form=el.querySelector('form');
  form.onsubmit=async event=>{
