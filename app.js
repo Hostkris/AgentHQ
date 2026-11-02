@@ -70,6 +70,7 @@ window.agentHQPersonalError=message=>{
 };
 const studioBots=[],studioMessaged=new Set(),studioHandoffs=[];
 let activeCustomBot=null;
+let secretaryReturnBot=null;
 window.agentHQOpenBotMessage=id=>{
  const bot=studioBots.find(b=>b.id===id&&b.status==="active");
  if(!bot)return false;
@@ -118,7 +119,7 @@ window.agentHQProjectsChanged=()=>{
  else if(["messages","contacts","assignments","home"].includes(screen))renderWithoutInterruptingDraft();
  syncAppBadge();
 };
-window.agentHQOpenSecretary=()=>{screen="reminders";settingsReturn=false;render();};
+window.agentHQOpenSecretary=({fromMessage=false}={})=>{secretaryReturnBot=fromMessage?activeCustomBot:null;screen="reminders";settingsReturn=false;render();};
 window.agentHQOpenApprovals=()=>{screen="approvals";settingsReturn=false;render();};
 window.agentHQOpenProjects=id=>{screen="projects";settingsReturn=false;render();if(id)document.dispatchEvent(new CustomEvent("agenthq-open-project-app",{detail:{id}}))};
 window.agentHQProjectsError=message=>{if(screen==="chat"){const el=document.querySelector("#send-feedback");if(el)el.textContent=String(message)}};
@@ -825,13 +826,13 @@ const title=isChat?(active==="hq"?"Company Headquarters":staff.find(x=>x[0]===ac
   const bot=studioBots.find(b=>b.id===activeCustomBot&&b.status==="active");
   app.innerHTML='<main class="shell ios-chat-shell"><header class="ios-chat-header">'+
    '<button type="button" class="ios-back" data-nav="messages" aria-label="Back to messages">‹ <span>Messages</span></button>'+
-   '<div class="ios-contact"><span class="ios-contact-avatar" data-rpg-worker="'+escapeHTML(activeCustomBot||'')+'">'+escapeHTML(bot?.avatar_emoji||"🤖")+'</span><span class="ios-contact-name">'+escapeHTML(bot?.name||"Worker")+
+   '<div class="ios-contact">'+(bot?.template_key==="eleanor-secretary-v1"?'<button type="button" class="ios-contact-avatar eleanor-secretary-avatar-button" data-custom-secretary-desk data-rpg-worker="'+escapeHTML(activeCustomBot||'')+'" aria-label="Open Eleanor’s reminders, goals and appointments" title="Open Eleanor’s desk">'+escapeHTML(bot?.avatar_emoji||"🤖")+'</button>':'<span class="ios-contact-avatar" data-rpg-worker="'+escapeHTML(activeCustomBot||'')+'">'+escapeHTML(bot?.avatar_emoji||"🤖")+'</span>')+'<span class="ios-contact-name">'+escapeHTML(bot?.name||"Worker")+
    '<small>'+escapeHTML(bot?.role||"AI coworker")+'</small></span></div>'+
    '<button type="button" class="ios-refresh" data-bot-reload aria-label="Refresh worker messages">↻</button></header>'+body+'</main>';
  }else if(screen==="camera"){
  app.innerHTML='<main class="camera-screen-shell">'+body+'</main>';
  }else{
- app.innerHTML=`<main class="shell ${screen==="home"?"home-shell":screen==="office"?"office-shell":screen==="settings"?"settings-shell":screen==="projects"?"projects-shell":""}"><header class="main-navigation">${screen!=="home"?`<button class="back" data-nav="${screen==="team"?"assignments":settingsReturn?"settings":"home"}" aria-label="Go back">‹ ${settingsReturn?"Settings":"Home"}</button>`:`<button type="button" class="home-brand" data-nav="office" aria-label="Open office">${window.AgentHQIcons?.svg("office")||""}<span>Office</span></button>`}<span class="header-brand">Agent HQ</span></header>${screen==="home"?"":`<h1>${escapeHTML(title||"Agent HQ")}</h1>`}${body}</main>`;
+ app.innerHTML=`<main class="shell ${screen==="home"?"home-shell":screen==="office"?"office-shell":screen==="settings"?"settings-shell":screen==="projects"?"projects-shell":""}"><header class="main-navigation">${screen!=="home"?`<button class="back" data-nav="${screen==="team"?"assignments":screen==="reminders"&&secretaryReturnBot?"botchat":settingsReturn?"settings":"home"}" aria-label="Go back">‹ ${screen==="reminders"&&secretaryReturnBot?"Eleanor":settingsReturn?"Settings":"Home"}</button>`:`<button type="button" class="home-brand" data-nav="office" aria-label="Open office">${window.AgentHQIcons?.svg("office")||""}<span>Office</span></button>`}<span class="header-brand">Agent HQ</span></header>${screen==="home"?"":`<h1>${escapeHTML(title||"Agent HQ")}</h1>`}${body}</main>`;
  }if(screen==="contacts"||screen==="messages"){const show=(q="")=>{
  const inbox=screen==="messages";
  const hasConversation=id=>(id==="hq"&&window.agentHQProjects?.all().length>0)||window.agentHQCamera?.hasPhotos?.(id)||employeeAttention(id)>0||(messages.get(id)||[]).some(m=>m.type==="text"&&String(m.text||"").trim().length>0);
