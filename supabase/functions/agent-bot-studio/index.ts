@@ -159,9 +159,9 @@ Deno.serve(async(req:Request)=>{
     // Echo verified results into the EXISTING worker conversation.
     // This is labeled as an external model result, not worker-authored proof.
     let chatDelivery=false,deliveryNote="";
-    const report="AI ASSISTANCE RESULT ("+(worker==="eleanor"?"Eleanor":"Alex")+")\\n"+
-      "Request: "+task.slice(0,350)+"\\n\\n"+response.slice(0,4700)+
-      "\\n\\nStatus: AI drafting response saved. No calendar, publishing or other external action was performed.";
+    const report="AI ASSISTANCE RESULT ("+(worker==="eleanor"?"Eleanor":"Alex")+")\n"+
+      "Request: "+task.slice(0,350)+"\n\n"+response.slice(0,4700)+
+      "\n\nStatus: AI drafting response saved. No calendar, publishing or other external action was performed.";
     try{
      if(worker==="eleanor"){
       const {data:bot}=await db.from("agent_custom_bots")
