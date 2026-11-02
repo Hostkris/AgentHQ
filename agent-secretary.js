@@ -2,13 +2,13 @@ import {agentCloud} from './agent-cloud-auth.js';
 import {ELEANOR_ETHICS,secretaryDate} from './eleanor-secretary-core.js?v=20261102-eleanor-1';
 const E=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const DAYS=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-let owner=null,epoch=0,state=null,root=null,tab='today',notice='',busy=false,loading=false,loadingEpoch=null,publicKey=null,registration=null,pendingOpen=new URL(location.href).searchParams.has('secretary');
+let owner,epoch=0,state=null,root=null,tab='today',notice='',busy=false,loading=false,loadingEpoch=null,publicKey=null,registration=null,pendingOpen=new URL(location.href).searchParams.has('secretary');
 const host=()=>document.getElementById('agent-secretary-root');
 const localDate=()=>secretaryDate(new Date(),state.settings.timezone);
 const dateText=value=>value?new Intl.DateTimeFormat('en-US',{timeZone:state.settings.timezone,dateStyle:'medium',timeStyle:'short'}).format(new Date(value)):'Not set';
 async function api(action,extra={}){
  const generation=epoch,{data,error:authError}=await agentCloud.auth.getUser();if(authError||!data.user)throw Error('Sign in under Settings → Account to open Eleanor’s desk.');
- const {data:result,error}=await agentCloud.functions.invoke('agent-secretary',{body:{action,...extra}});if(generation!==epoch)throw Error('The signed-in account changed.');let reason=result?.error;if(error?.context?.clone&&!reason)try{reason=(await error.context.clone().json())?.error}catch{}if(error||reason)throw Error(reason||error.message||'The secretary request failed.');return result;
+ if(generation!==epoch)throw Error('The signed-in account changed.');const {data:result,error}=await agentCloud.functions.invoke('agent-secretary',{body:{action,...extra}});if(generation!==epoch)throw Error('The signed-in account changed.');let reason=result?.error;if(error?.context?.clone&&!reason)try{reason=(await error.context.clone().json())?.error}catch{}if(error||reason)throw Error(reason||error.message||'The secretary request failed.');return result;
 }
 async function load(){const generation=epoch;if(loading&&loadingEpoch===generation)return;loading=true;loadingEpoch=generation;try{const next=await api('state');if(generation===epoch){state=next;notice='';}}catch(e){if(generation===epoch)notice=e.message;}finally{if(loadingEpoch===generation){loading=false;loadingEpoch=null;}if(generation===epoch)render();}}
 async function apply(operations,requestId=crypto.randomUUID()){
@@ -57,8 +57,8 @@ function bind(){
  root.querySelectorAll('[data-secretary-disable-push]').forEach(b=>b.onclick=async()=>{b.disabled=true;try{await api('unsubscribe_push',{device_id:b.dataset.secretaryDisablePush});await load();message('That device is disabled.');}catch(e){message(e.message);b.disabled=false;}});
  root.querySelector('[data-secretary-check-due]')?.addEventListener('click',async()=>{try{await api('check_due');await load();await window.agentHQBotStudioCloud?.refresh?.();message('Due notices checked.');}catch(e){message(e.message);}});
 }
-function mount(){if(pendingOpen&&window.agentHQOpenSecretary){pendingOpen=false;window.agentHQOpenSecretary();}const next=host();if(next===root)return;root=next;if(root){render();void load();}}
+function mount(){if(pendingOpen&&window.agentHQOpenSecretary){pendingOpen=false;window.agentHQOpenSecretary();}const next=host();if(next===root)return;root=next;if(root){render();if(owner)void load();}}
 new MutationObserver(mount).observe(document.getElementById('app')||document.body,{childList:true,subtree:true});
 agentCloud.auth.onAuthStateChange((_event,session)=>{const next=session?.user?.id||null;if(next!==owner){owner=next;epoch++;state=null;publicKey=null;notice=next?'Loading your private registers…':'Sign in under Settings → Account to open Eleanor’s desk.';document.querySelectorAll('dialog.secretary-dialog').forEach(d=>d.close());render();if(!next&&navigator.serviceWorker?.getRegistration)void navigator.serviceWorker.getRegistration('./').then(r=>r?.pushManager?.getSubscription()).then(s=>s?.unsubscribe()).catch(()=>{});if(next&&root)void load();}if(next&&'serviceWorker' in navigator){registration??=navigator.serviceWorker.register('./agent-secretary-sw.js',{scope:'./'}).catch(()=>null);void api('push_config').then(r=>publicKey=r.public_key).catch(()=>{});}});
-window.addEventListener('focus',()=>{if(root)void load();});setInterval(()=>{if(document.hidden)return;if(root&&!document.activeElement?.closest('input,textarea,select,dialog'))void load();const id=state?.settings?.bot_id||window.agentHQBotStudioSnapshot?.rows?.find(b=>b.template_key==='eleanor-secretary-v1')?.id;if(id&&document.querySelector('#studio-message-form')?.dataset.studioThread===id)void window.agentHQBotStudioUI?.refreshChat?.(id);},45000);
+window.addEventListener('focus',()=>{if(owner&&root)void load();});setInterval(()=>{if(document.hidden||!owner)return;if(root&&!document.activeElement?.closest('input,textarea,select,dialog'))void load();const id=state?.settings?.bot_id||window.agentHQBotStudioSnapshot?.rows?.find(b=>b.template_key==='eleanor-secretary-v1')?.id;if(id&&document.querySelector('#studio-message-form')?.dataset.studioThread===id)void window.agentHQBotStudioUI?.refreshChat?.(id);},45000);
 mount();
