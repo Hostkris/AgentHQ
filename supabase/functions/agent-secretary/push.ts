@@ -56,20 +56,38 @@ export async function sendSecretaryPush(db:any,owners:string[],fetcher:typeof fe
 export async function sendAgentWorkPush(db:any,owners:string[],fetcher:typeof fetch=fetch,webpush?:any){
  if(!owners.length)return {sent:0};
  const now=new Date().toISOString();
- const {data:alerts,error}=await db.from('agent_secretary_agent_alerts')
-  .select('id,owner_id,alert_kind,push_attempts').in('owner_id',owners)
-  .eq('status','open').eq('push_state','pending').lte('next_push_at',now)
-  .order('created_at').limit(12);
- if(error)throw Error('Agent alerts could not be read');
- if(!alerts?.length)return {sent:0};
+ const cutoff=new Date(Date.now()-90*60000).toISOString();
+ const [initial,followups]=await Promise.all([
+  db.from('agent_secretary_agent_alerts').select('id,owner_id,alert_kind,push_attempts')
+   .in('owner_id',owners).eq('status','open').eq('push_state','pending')
+   .lte('next_push_at',now).order('created_at').limit(12),
+  db.from('agent_secretary_agent_alerts').select('id,owner_id,alert_kind,push_attempts')
+   .in('owner_id',owners).eq('status','open').eq('push_state','accepted')
+   .is('followup_sent_at',null).lte('created_at',cutoff)
+   .order('created_at').limit(4)
+ ]);
+ if(initial.error||followups.error)throw Error('Agent alerts could not be read');
+ const alerts=[
+  ...(initial.data||[]).map((a:any)=>({...a,followup:false})),
+  ...(followups.data||[]).map((a:any)=>({...a,followup:true}))
+ ];
+ if(!alerts.length)return {sent:0};
  const lib=webpush||await library();let keys:any,delivered=0;
  for(const alert of alerts){
+  if(alert.followup){
+   const {data:claimed,error:claimError}=await db.from('agent_secretary_agent_alerts')
+    .update({followup_sent_at:new Date().toISOString()})
+    .eq('id',alert.id).eq('owner_id',alert.owner_id).eq('status','open')
+    .eq('push_state','accepted').is('followup_sent_at',null).select('id').maybeSingle();
+   if(claimError||!claimed)continue;
+  }
   const {data:settings}=await db.from('agent_secretary_settings')
     .select('agent_alerts_enabled').eq('owner_id',alert.owner_id).maybeSingle();
   if(!settings?.agent_alerts_enabled)continue;
   const {data:devices}=await db.from('agent_secretary_push_subscriptions')
     .select('id,endpoint,p256dh,auth_key').eq('owner_id',alert.owner_id).eq('active',true).limit(5);
   if(!devices?.length){
+   if(alert.followup)continue;
    await db.from('agent_secretary_agent_alerts').update({push_state:'not_enabled'})
     .eq('id',alert.id).eq('status','open');continue;
   }
@@ -110,6 +128,7 @@ export async function sendAgentWorkPush(db:any,owners:string[],fetcher:typeof fe
      .eq('id',device.id).eq('owner_id',alert.owner_id);
    }
   }
+  if(alert.followup)continue;
   const attempts=(alert.push_attempts||0)+1;
   const newStatus=accepted?'accepted':retry&&attempts<3?'pending':'failed';
   await db.from('agent_secretary_agent_alerts')
