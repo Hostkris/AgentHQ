@@ -78,7 +78,7 @@
   }
  }
  function render(){
-  const tabs=[["marketplace","Discover"],["builder","Create"],["library","My workers"]];
+  const tabs=[["marketplace","Discover"],["builder","Create"],["library","Drafts & archived"]];
   let html='<div class="studio-heading"><div><strong>🧬 AI Worker Studio</strong><small>Make your own specialists — one job per bot</small></div>'+
    '<span class="studio-counter">'+bots.filter(b=>b.status==="active").length+' active</span></div>'+
    '<nav class="studio-nav">'+tabs.map(([id,label])=>'<button type="button" data-studio-tab="'+id+'" class="'+(id===tab?"active":"")+'">'+label+'</button>').join("")+'</nav>';
@@ -111,7 +111,7 @@
   }else if(tab==="library"){
    html+='<div class="studio-library-intro"><p>Worker Studio creates and configures workers. Active workers live in Messages; drafts and archived designs remain here for management.</p>'+
      '<button class="studio-primary" type="button" data-studio-tab="builder">＋ Create worker</button></div>';
-   html+=bots.length?'<div class="studio-worker-list">'+bots.map(b=>{
+   html+=bots.some(b=>b.status!=="active")?'<div class="studio-worker-list">'+bots.filter(b=>b.status!=="active").map(b=>{
     const active=b.status==="active",archived=b.status==="archived";
     return '<article class="studio-worker"><div class="studio-worker-summary"><span class="studio-worker-avatar" data-rpg-worker="'+E(b.id)+'"></span>'+
      '<div><strong>'+E(b.name)+'</strong><small>'+E(b.role)+'</small><span class="studio-worker-status">'+E(b.status)+'</span></div></div>'+
@@ -121,7 +121,7 @@
      (!archived?'<button type="button" data-studio-archive="'+E(b.id)+'" class="studio-secondary">Archive</button>':
       '<button type="button" data-studio-delete="'+E(b.id)+'" class="studio-danger">Delete</button>')+
      '</div></article>';
-   }).join("")+'</div>':'<p class="studio-empty">No saved workers yet. Try a starter from Discover or create your own in Worker Architect.</p>';
+   }).join("")+'</div>':'<p class="studio-empty">No drafts or archived workers here. Your activated workers are in Messages. Create another worker when you need one.</p>';
   }else if(tab==="chat"){
    const bot=selectedBot();
    if(!bot)return html+'<p class="studio-empty">Choose a worker from My workers.</p>';
