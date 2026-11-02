@@ -53,10 +53,10 @@ async function reload({force=false}={}){
 async function send(event){
  event.preventDefault();
  if(sending||!activeId)return;
- const form=event.currentTarget,id=activeId,b=bot(),ticket=generation;
+ const form=event.target,id=activeId,b=bot(),ticket=generation;
  if(!b)return;
  const message=String(form.elements.namedItem('message')?.value||'').trim();
- if(!message&&!window.agentHQCamera?.hasDrafts?.(id))return;
+ if(!message&&!window.agentHQCamera?.hasDrafts?.(id)){feedback='Write a message first.';render();return;}
  sending=true;feedback='Sending to '+b.name+'…';render();
  try{
   if(window.agentHQCamera?.hasDrafts?.(id)){
@@ -73,7 +73,22 @@ async function send(event){
   if(ticket!==generation)return;
   textDraft='';if(root?.querySelector('[name=message]'))root.querySelector('[name=message]').value='';lastLoaded=Date.now();render();
  }catch(error){
-  if(ticket===generation){feedback='Message could not be confirmed: '+String(error?.message||error);render()}
+  if(ticket===generation){
+   const reason=String(error?.message||error);
+   try{
+    // Some server errors occur after an owner's message was saved.
+    // Re-read before offering retry, so the owner knows whether it arrived.
+    const recent=await cloud().history(id);
+    if(ticket!==generation)return;
+    history=recent||[];
+    const recentOwner=history.filter(row=>row.sender==='owner').at(-1);
+    if(recentOwner?.body?.trim()===message){
+     textDraft='';const field=root?.querySelector('[name=message]');if(field)field.value='';
+     feedback='Eleanor received your message but did not finish replying. No reminder or other change has been confirmed. '+reason;
+    }else feedback='Your message could not be sent: '+reason;
+   }catch{feedback='Could not confirm whether your message was saved. Check the conversation before retrying. '+reason}
+   render();
+  }
  }finally{sending=false;if(ticket===generation)render()}
 }
 function mount(){
