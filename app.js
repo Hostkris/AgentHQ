@@ -119,6 +119,7 @@ window.agentHQProjectsChanged=()=>{
  syncAppBadge();
 };
 window.agentHQOpenSecretary=()=>{screen="reminders";settingsReturn=false;render();};
+window.agentHQOpenApprovals=()=>{screen="approvals";settingsReturn=false;render();};
 window.agentHQOpenProjects=id=>{screen="projects";settingsReturn=false;render();if(id)document.dispatchEvent(new CustomEvent("agenthq-open-project-app",{detail:{id}}))};
 window.agentHQProjectsError=message=>{if(screen==="chat"){const el=document.querySelector("#send-feedback");if(el)el.textContent=String(message)}};
 const teamStatusLabel={planned:"Planned",in_progress:"In progress",blocked:"Waiting for information",completed:"Completed"};
