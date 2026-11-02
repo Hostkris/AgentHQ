@@ -32,7 +32,29 @@ export async function mountChatGPTHandoff(container,project,revision,onChange){
   container.querySelector('[data-handoff-cancel]')?.addEventListener('click',async event=>{event.currentTarget.disabled=true;try{await api('cancel_handoff',{handoff_id:h.id});await onChange();}catch(e){status.textContent=e.message;event.currentTarget.disabled=false;}});
   container.querySelector('[data-handoff-prepare]')?.addEventListener('click',()=>{
    const d=dialogShell('Prepare ChatGPT handoff','<form><label>What should ChatGPT make?<textarea name="brief" rows="5" maxlength="6000" required minlength="5" placeholder="Create three product photographs using my reference images and brand handbook. Preserve the actual container and packaging.">'+esc(stale?h.brief:'')+'</textarea></label><p>Only this project, its relevant approved handbook and saved references will be available through this handoff. Internal workers will wait until files return or you cancel.</p><button class="primary" type="submit">Prepare handoff</button><p role="status"></p></form>');
-   d.querySelector('form').onsubmit=async event=>{event.preventDefault();const button=d.querySelector('[type=submit]'),message=d.querySelector('[role=status]');button.disabled=true;try{await api('queue_handoff',{project_id:project,revision,brief:String(new FormData(event.currentTarget).get('brief')||'')});if(generation!==epoch)return;d.close();await window.agentHQProjects?.refresh?.();await onChange();}catch(e){message.textContent=e.message;button.disabled=false;}};
+   d.querySelector('form').onsubmit=async event=>{
+    event.preventDefault();
+    const button=d.querySelector('[type=submit]'),message=d.querySelector('[role=status]');
+    if(button.disabled)return; // A slow network response must never create a duplicate handoff.
+    const brief=String(new FormData(event.currentTarget).get('brief')||'');
+    button.disabled=true;
+    button.textContent='Preparing…';
+    button.setAttribute('aria-busy','true');
+    message.textContent='Sending the handoff to Agent HQ. Your tap was received.';
+    try{
+      await api('queue_handoff',{project_id:project,revision,brief});
+      if(generation!==epoch)return;
+      message.textContent='Handoff saved. Refreshing this project…';
+      d.close();
+      await window.agentHQProjects?.refresh?.();
+      await onChange();
+    }catch(e){
+      message.textContent='Could not prepare handoff: '+String(e?.message||e);
+      button.disabled=false;
+      button.textContent='Try preparing handoff again';
+      button.removeAttribute('aria-busy');
+    }
+   };
   });
  }catch(e){if(container.isConnected)container.innerHTML='<h3>ChatGPT handoff</h3><p role="status">'+esc(e.message)+'</p>';}
 }
