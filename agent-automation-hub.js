@@ -4,7 +4,7 @@ import {agentCloud} from "./agent-cloud-auth.js";
 const esc=(s)=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 let result=null,message="",busy=false,lastCheck=0,checking=false;
 // Keep new authorizations available while confirming intent before consuming free-plan slots.
-let nangoLink="",nangoLinkExpiresAt="",nangoVerification=null,cleanupReview=null;
+let nangoLink="",nangoLinkExpiresAt="",nangoVerification=null,cleanupReview=null,nangoVerifiedCheckedAt=0;
 function render(){
  const root=document.getElementById("agenthq-automation-root");
  if(!root)return;
@@ -27,7 +27,7 @@ function render(){
   '<small>'+esc(n?.integrations?.length?'Allowed integrations: '+n.integrations.join(", "):"Provider authorizations require a Nango server configuration.")+'</small>'+
   (v?'<small class="ah-connect-feedback" role="status">'+esc(v.message||"Live connection test returned no detail.")+(v.githubLogin?' GitHub user: '+esc(v.githubLogin)+'.':'')+'</small>':'')+
   '<button type="button" data-ah-automation="connect" '+(busy||!n?.configured?'disabled':'')+'>Authorize a new account</button>'+
-  '<small>Your existing GitHub connection is verified. Starting another authorization may use an additional Nango connection; Agent HQ will ask before proceeding.</small>'+
+  '<small>'+esc(verified?'Your existing GitHub connection is verified. Starting another authorization may use an additional Nango connection; Agent HQ will ask before proceeding.':'A new authorization may use an additional Nango connection. Confirm the existing status before proceeding.')+'</small>'+
   '<button type="button" class="ah-review-button" data-ah-automation="inventory" '+(busy||checking||!verified?'disabled':'')+'>Review existing GitHub connections (read-only)</button>'+
   (cleanupReview?'<div class="ah-connection-review" role="status">'+
     '<strong>'+esc(cleanupReview.state==="ready"?"GitHub connection cleanup review":"Connection review needs attention")+'</strong>'+
@@ -61,7 +61,10 @@ async function refresh(force=false){
   const {data}=await agentCloud.auth.getUser();
   if(!data?.user){result=null;message="Sign in to Agent HQ to check and connect accounts.";return;}
   result=await invoke("status");
-  if(force){
+  // Auto-verify on first visit and after five minutes, so the connected badge
+  // survives opening and closing Settings without storing unverified claims.
+  if(force||!nangoVerification||Date.now()-nangoVerifiedCheckedAt>300000){
+    nangoVerifiedCheckedAt=Date.now();
     nangoVerification=null;cleanupReview=null;
     if(result?.nango?.configured){
       message="Integration settings recognized. Running a read-only GitHub connection test through Nango…";
@@ -130,6 +133,6 @@ document.addEventListener("click",async(e)=>{
 });
 const observer=new MutationObserver(()=>{if(document.getElementById("agenthq-automation-root")){render();refresh().catch(()=>{});}});
 observer.observe(document.getElementById("app")||document.body,{childList:true,subtree:true});
-agentCloud.auth.onAuthStateChange(()=>{lastCheck=0;result=null;nangoVerification=null;cleanupReview=null;nangoLink="";nangoLinkExpiresAt="";message="Sign-in changed; checking integrations…";render();setTimeout(()=>refresh(false),0)});
+agentCloud.auth.onAuthStateChange(()=>{lastCheck=0;result=null;nangoVerification=null;nangoVerifiedCheckedAt=0;cleanupReview=null;nangoLink="";nangoLinkExpiresAt="";message="Sign-in changed; checking integrations…";render();setTimeout(()=>refresh(false),0)});
 window.addEventListener("focus",()=>{if(document.getElementById("agenthq-automation-root"))refresh(false).catch(()=>{})});
 render();
