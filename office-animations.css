@@ -29,3 +29,13 @@
 :root[data-theme-mode=light] .home-shell .header-brand{background:rgba(255,255,255,.51);color:#182d3c}
 @media(prefers-reduced-motion:reduce){.rpg-portrait-svg,.rpg-eyelids,.rpg-mouth-pixels,.office-sprite,.office-emoji-bubble,.handoff-paper{animation:none!important}}
 
+
+/* Pixel portrait animations shared by Office, Messages, Studio and worker thread headers. */
+.rpg-portrait-svg .rpg-speaking-mouth{opacity:0}
+.rpg-portrait-svg.rpg-speaking .rpg-speaking-mouth{opacity:1;animation:rpg-syllables .37s steps(1,end) infinite}
+.rpg-portrait-svg.rpg-speaking .rpg-mouth-pixels{opacity:0}
+.rpg-portrait-svg .rpg-eye-pixels{transform-origin:center}
+.rpg-portrait-svg{image-rendering:pixelated;image-rendering:crisp-edges}
+.ios-contact-avatar .rpg-portrait-svg,.studio-chat-face .rpg-portrait-svg,.studio-worker-avatar .rpg-portrait-svg{width:100%;height:100%}
+@keyframes rpg-syllables{0%,100%{transform:scaleY(.5)}33%{transform:scaleY(1)}66%{transform:scaleY(.7)}}
+@media(prefers-reduced-motion:reduce){.rpg-portrait-svg.rpg-speaking .rpg-speaking-mouth{animation:none!important}}
