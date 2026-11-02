@@ -95,8 +95,21 @@ async function check(force=false){
   const {data:auth,error:authError}=await agentCloud.auth.getUser();
   if(authError||!auth?.user){if(owner!==null){closePopup(false);owner=null;botId=null;latestState=null}return}
   if(owner!==auth.user.id){closePopup(false);owner=auth.user.id;botId=null;latestState=null}
-  const {data,error}=await agentCloud.functions.invoke('agent-secretary',{body:{action:'state'}});
+  let {data,error}=await agentCloud.functions.invoke('agent-secretary',{body:{action:'state'}});
   if(ticket!==sequence||error||!data?.settings)return;
+  // Foreground safety net: if a scheduled reminder is due, process it now
+  // instead of relying solely on an external minute-by-minute scheduler.
+  const due=(data.items||[]).some(i=>i.status==='active'&&i.kind!=='workout'&&i.next_due_at&&
+    Date.parse(i.next_due_at)<=Date.now());
+  if(due){
+   const run=await agentCloud.functions.invoke('agent-secretary',{body:{action:'check_due'}});
+   if(ticket!==sequence)return;
+   if(!run.error&&!run.data?.error){
+    const refreshed=await agentCloud.functions.invoke('agent-secretary',{body:{action:'state'}});
+    if(ticket!==sequence)return;
+    if(!refreshed.error&&refreshed.data?.settings)data=refreshed.data;
+   }
+  }
   botId=data.settings.bot_id;
   latestState=data;
   lastCheck=Date.now();
