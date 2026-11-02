@@ -1,0 +1,15 @@
+.custom-msg-conversation{display:flex;flex-direction:column;min-height:0;height:calc(100dvh - 150px);max-height:850px;max-width:900px;margin:auto;background:var(--card,#fff);border-radius:20px;overflow:hidden}
+.custom-msg-scroll{flex:1;min-height:80px;overflow-y:auto;padding:18px 16px 24px;overscroll-behavior:contain;display:flex;flex-direction:column;gap:10px}
+.custom-msg-row{display:flex;max-width:100%}.custom-msg-row.mine{justify-content:flex-end}.custom-msg-row.theirs{justify-content:flex-start}
+.custom-msg-bubble{border-radius:18px;padding:11px 14px;white-space:pre-wrap;overflow-wrap:anywhere;max-width:min(83%,600px);line-height:1.48;font-size:15px;background:#e9ecf1;color:#222}
+.custom-msg-row.mine .custom-msg-bubble{background:#26637f;color:white}
+.custom-msg-welcome{color:var(--muted,#66717d);margin:auto;padding:22px;text-align:center;max-width:440px;line-height:1.5;font-size:14px}
+.custom-msg-form{display:flex;align-items:flex-end;gap:8px;border-top:1px solid var(--border,#d7dce2);padding:12px 14px calc(12px + env(safe-area-inset-bottom,0px));flex-wrap:wrap}
+.custom-msg-form .photo-composer-drafts{width:100%}.custom-msg-form textarea{flex:1;min-width:0;max-height:130px;min-height:43px;resize:vertical;border:1px solid var(--border,#d7dce2);background:var(--bg,#fff);color:inherit;border-radius:17px;padding:11px 12px;box-sizing:border-box;font:16px/1.35 system-ui}
+.custom-msg-form button{border:0;border-radius:50%;width:42px;height:42px;background:#26637f;color:#fff;font-size:23px;display:grid;place-items:center;cursor:pointer;touch-action:manipulation;flex-shrink:0}
+.custom-msg-form button:disabled{opacity:.55}.custom-msg-form .custom-msg-photo{background:rgba(120,130,140,.15);color:inherit}
+.custom-msg-status{font-size:12px;line-height:1.5;margin:0;padding:0 14px 8px;color:var(--muted,#66717d);min-height:18px}
+.custom-msg-desk{border:0;border-top:1px solid var(--border,#d7dce2);padding:10px 15px;background:var(--card,#fff);color:#26637f;text-align:center;font:600 13px system-ui;cursor:pointer}
+.custom-msg-state{padding:25px;text-align:center}
+@media(max-height:650px){.custom-msg-conversation{height:calc(100dvh - 112px)}}
+@media(prefers-color-scheme:dark){.custom-msg-conversation,.custom-msg-desk{background:#1d2531;color:#eef3f9}.custom-msg-bubble{background:#394555;color:#eef3f9}.custom-msg-form textarea{background:#18212c;border-color:#404d5b;color:#eef3f9}.custom-msg-desk{color:#afd9ec}}
