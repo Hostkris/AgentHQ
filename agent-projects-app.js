@@ -1,4 +1,4 @@
-import {mountChatGPTHandoff} from './agent-chatgpt-handoff.js?v=20261102-chatgpt-handoff-1';
+import {mountChatGPTHandoff} from './agent-chatgpt-handoff.js?v=20261102-touch-feedback-1';
 import {agentCloud} from './agent-cloud-auth.js';
 import {preparePhoto} from './agent-photo-library.js?v=20261024-camera-messages-2';
 import {escapeProjectText as esc,projectStatus,projectMatches,projectFileType,finalReviewAvailable,fileRole,downloadedBlob,saveProjectBlob} from './agent-projects-app-core.js?v=20261101-projects-app-1';
