@@ -1,10 +1,11 @@
 // Eleanor's one-at-a-time, owner-confirmed AI assistance requests.
 // This module never performs calendar changes, publishing or account actions.
 export function aiHelpDecision(message:string){
- const s=String(message||'').trim().replace(/^(?:eleanor|hey eleanor)\s*[,!:.]?\s*/i,'').replace(/[.!?]+$/,'').trim().toLowerCase();
- if(/^(?:yes|yeah|yep|yup|absolutely|affirmative|approve|approved|i approve|go ahead|green light|you have my approval|okay|ok|sure|please do|do it|sounds good)$/i.test(s))return 'approve';
- if(/^(?:no|nope|nah|decline|declined|deny|denied|do not|don't|cancel|not now|please don't|please do not|no thanks|no thank you)$/i.test(s))return 'decline';
- if(/^(?:maybe|hold on|wait|wait a minute|not sure|let me think|later|give me a moment|one moment|not yet|pause)$/i.test(s))return 'hold';
+ const s=String(message||'').trim().replace(/^(?:eleanor|hey eleanor)\s*[,!:.]?\s*/i,'')
+  .replace(/[.!?]+$/,'').replace(/\s+/g,' ').trim().toLowerCase();
+ if(/^(?:yes|yeah|yep|yup|absolutely|affirmative|approve|approved|i approve|i approve it|green light|you have my approval|you have my permission|go ahead|go for it|do it|sounds good|sure|sure thing|okay|ok|yes please|yeah please|yes go ahead|yeah go ahead|sure go ahead|okay go ahead|ok go ahead|approved go ahead|please do|yes do it)$/i.test(s))return 'approve';
+ if(/^(?:no|nope|nah|decline|declined|deny|denied|do not|don't|cancel|not now|not right now|please don't|please do not|no thanks|no thank you|no don't|no do not|i decline|decline it|don't do it|do not do it|nope not now)$/i.test(s))return 'decline';
+ if(/^(?:maybe|maybe later|maybe not yet|hold on|hold up|hold on a second|hold on a minute|wait|wait a minute|wait a second|not sure|i'm not sure|let me think|let me think about it|later|give me a moment|one moment|not yet|pause)$/i.test(s))return 'hold';
  return null;
 }
 export function wantsAIHelp(message:string){
