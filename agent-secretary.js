@@ -45,7 +45,7 @@ async function enablePush(){
 }
 function bind(){
  root.querySelectorAll('[data-secretary-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.secretaryTab;notice='';render();});root.querySelector('[data-secretary-refresh]')?.addEventListener('click',load);
- root.querySelector('[data-secretary-chat]')?.addEventListener('click',()=>{const button=document.createElement('button');button.dataset.studioWorker=state.settings.bot_id;button.hidden=true;document.getElementById('app').append(button);button.click();button.remove();});
+ root.querySelector('[data-secretary-chat]')?.addEventListener('click',()=>window.agentHQOpenBotMessage?.(state.settings.bot_id));
  root.querySelectorAll('[data-secretary-add]').forEach(b=>b.onclick=()=>showForm(b.dataset.secretaryAdd));root.querySelectorAll('[data-secretary-edit]').forEach(b=>b.onclick=()=>{const i=state.items.find(i=>i.id===b.dataset.secretaryEdit);if(i)showForm(i.kind,i);});
  root.querySelectorAll('[data-secretary-control]').forEach(b=>b.onclick=async()=>{b.disabled=true;try{await apply([{op:'control_item',id:b.dataset.secretaryControl,status:b.dataset.choice}]);message('Saved: '+b.dataset.choice+'.');}catch(e){message(e.message);b.disabled=false;}});
  root.querySelectorAll('[data-secretary-today]').forEach(b=>b.onclick=async()=>{b.disabled=true;try{await apply([{op:'ack_item_today',id:b.dataset.secretaryToday,choice:'done'}]);message('Today’s reported completion is recorded. Tomorrow’s reminder remains active.');}catch(e){message(e.message);b.disabled=false;}});
