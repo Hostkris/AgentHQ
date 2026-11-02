@@ -1,0 +1,18 @@
+/* Consistent physical press feedback across dashboard, Settings, Messages and workers.
+   The animations communicate touch, but never imply a server action succeeded. */
+:where(button,a[href],summary,[role="button"]){
+ -webkit-tap-highlight-color:transparent;
+ touch-action:manipulation;
+ transition:transform 135ms cubic-bezier(.2,.8,.2,1),filter 135ms ease,box-shadow 135ms ease;
+}
+:where(button,a[href],summary,[role="button"]):not(:disabled):not([aria-disabled="true"]):not([inert]):is(:active,.agent-press-feedback){
+ transform:scale(.965);
+ filter:brightness(.9);
+}
+:where(input[type="checkbox"],input[type="radio"]).agent-press-feedback{filter:brightness(.85);outline:2px solid var(--ui-blue,#177cf3);outline-offset:2px}
+:where(button,a[href],summary,[role="button"]):focus-visible{outline:3px solid var(--ui-blue,#177cf3);outline-offset:2px}
+:where(button[disabled],[aria-disabled="true"]){cursor:not-allowed;opacity:.6}
+@media(prefers-reduced-motion:reduce){
+ :where(button,a[href],summary,[role="button"]){transition:none}
+ :where(button,a[href],summary,[role="button"]):is(:active,.agent-press-feedback){transform:none;filter:brightness(.92)}
+}
