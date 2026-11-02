@@ -106,17 +106,17 @@
      '<div class="studio-review"><strong>Must not do</strong><span>'+E((draft.anti_jobs||[]).join(" · "))+'</span></div>'+
      '<details><summary>View worker instructions</summary><p>'+E(draft.instructions)+'</p></details>'+
      '<p class="studio-warning">No tools or account access are activated by saving this design. You decide when to add it to the team.</p>'+
-     '<button type="button" class="studio-primary" data-studio-save="1"'+(busy?" disabled":"")+'>Save worker as draft</button></section>';
+     '<button type="button" class="studio-primary" data-studio-save="1"'+(busy?" disabled":"")+'>Create worker and open Messages</button></section>';
    }
   }else if(tab==="library"){
-   html+='<div class="studio-library-intro"><p>Your own saved workers. Activate a draft to start private conversations; archive a worker to stop new messages.</p>'+
+   html+='<div class="studio-library-intro"><p>Worker Studio creates and configures workers. Active workers live in Messages; drafts and archived designs remain here for management.</p>'+
      '<button class="studio-primary" type="button" data-studio-tab="builder">＋ Create worker</button></div>';
    html+=bots.length?'<div class="studio-worker-list">'+bots.map(b=>{
     const active=b.status==="active",archived=b.status==="archived";
     return '<article class="studio-worker"><div class="studio-worker-summary"><span class="studio-worker-avatar" data-rpg-worker="'+E(b.id)+'"></span>'+
      '<div><strong>'+E(b.name)+'</strong><small>'+E(b.role)+'</small><span class="studio-worker-status">'+E(b.status)+'</span></div></div>'+
      '<p>'+E(b.mission)+'</p><div class="studio-actions">'+
-     (active?'<button type="button" data-studio-chat="'+E(b.id)+'" class="studio-primary">Message worker</button>':
+     (active?'<button type="button" data-studio-chat="'+E(b.id)+'" class="studio-primary">Open in Messages ↗</button>':
       '<button type="button" data-studio-activate="'+E(b.id)+'" class="studio-primary">'+(archived?"Reactivate":"Add to team")+'</button>')+
      (!archived?'<button type="button" data-studio-archive="'+E(b.id)+'" class="studio-secondary">Archive</button>':
       '<button type="button" data-studio-delete="'+E(b.id)+'" class="studio-danger">Delete</button>')+
@@ -179,13 +179,18 @@
   if(save)await guarded(async()=>{
    if(!draft)throw Error("Design your worker first");
    const result=await cloud().save(draft,templateKey);
-   draft=null;templateKey="";
-   tab="library";feedback=result.worker?.name+" saved as a draft. Add it to the team when ready.";
+   const id=result?.worker?.id;
+   draft=null;templateKey="";tab="library";
+   if(!id)throw Error("Worker draft saved, but its identifier was unavailable. Activate it from My workers.");
+   await cloud().activate(id);
+   feedback="Worker created and activated in Messages.";
+   if(!window.agentHQOpenBotMessage?.(id))throw Error("Worker activated. Open Messages to start the conversation.");
   });
   const activate=event.target.closest("[data-studio-activate]");
   if(activate)await guarded(async()=>{
    await cloud().activate(activate.dataset.studioActivate);
-   feedback="Worker activated and available for conversation.";
+   feedback="Worker activated and available in Messages.";
+   window.agentHQOpenBotMessage?.(activate.dataset.studioActivate);
   });
   const archive=event.target.closest("[data-studio-archive]");
   if(archive&&window.confirm("Archive this worker? Its saved conversation remains, but new messages are paused."))
@@ -194,7 +199,7 @@
   if(remove&&window.confirm("Permanently delete this archived worker and all its saved messages?"))
    await guarded(async()=>{await cloud().remove(remove.dataset.studioDelete);feedback="Worker and saved messages deleted."});
   const chat=event.target.closest("[data-studio-chat]");
-  if(chat){selected=chat.dataset.studioChat;setTab("chat");loadChat(selected)}
+  if(chat)window.agentHQOpenBotMessage?.(chat.dataset.studioChat);
  });
  app.addEventListener("submit",async event=>{
   if(event.target.matches("#studio-handoff-form")){
