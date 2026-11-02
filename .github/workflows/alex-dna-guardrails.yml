@@ -170,15 +170,17 @@ jobs:
           node-version: '24'
       - name: Install Safari engine for browser validation
         run: npm install --no-save --package-lock=false playwright@1.62.1 pdf-lib@1.17.1 pdfjs-dist@6.4.299 && npx playwright install --with-deps webkit
+      - name: Verify Eleanor desk and privacy on iPhone and Mac
+        run: node tests/secretary.browser.mjs && AGENTHQ_TEST_DEVICE=mac node tests/secretary.browser.mjs
       - name: Verify iPhone activity and collaboration
         env:
           AGENTHQ_TEST_BROWSER: webkit
-        run: node tests/live-activity.browser.mjs && node tests/company-hq.browser.mjs && node tests/project-workspace.browser.mjs && node tests/projects-app.browser.mjs && node tests/secretary.browser.mjs
+        run: node tests/live-activity.browser.mjs && node tests/company-hq.browser.mjs && node tests/project-workspace.browser.mjs && node tests/projects-app.browser.mjs
       - name: Verify Mac activity and collaboration
         env:
           AGENTHQ_TEST_BROWSER: webkit
           AGENTHQ_TEST_DEVICE: mac
-        run: node tests/live-activity.browser.mjs && node tests/company-hq.browser.mjs && node tests/projects-app.browser.mjs && node tests/secretary.browser.mjs
+        run: node tests/live-activity.browser.mjs && node tests/company-hq.browser.mjs && node tests/projects-app.browser.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
