@@ -50,7 +50,7 @@ export function validateSecretaryOps(ops:any,state:any,message?:string){
     if(i.kind==='reminder'){
      if(/\b(?:until|through|starting|beginning|for \d+ days)\b/.test(body))throw Error('Confirm the reminder start and end boundaries before making it permanent');
      const statedTime=source(raw.time_source),directTime=secretaryTime(statedTime);
-     const inferredTonight=raw.date_source==='tonight'&&!/[ap]\\.?\\s*m\\.?$/i.test(statedTime)&&secretaryTime(statedTime+' pm')===result.item.local_time;
+     const inferredTonight=raw.date_source==='tonight'&&!/[ap]\.?\s*m\.?$/i.test(statedTime)&&secretaryTime(statedTime+' pm')===result.item.local_time;
      if(directTime!==result.item.local_time&&!inferredTonight)throw Error('The reminder time does not match the owner’s words');
      const everyday=/\b(daily|every day|each day|everyday)\b/.test(body),weekdays=/\bweekdays\b/.test(body),names=['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
      const selected=everyday?[0,1,2,3,4,5,6]:weekdays?[1,2,3,4,5]:names.flatMap((n,index)=>new RegExp('\\bevery\\s+'+n+'\\b','i').test(body)?[index]:[]);
