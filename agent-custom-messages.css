@@ -13,3 +13,24 @@
 .custom-msg-state{padding:25px;text-align:center}
 @media(max-height:650px){.custom-msg-conversation{height:calc(100dvh - 112px)}}
 @media(prefers-color-scheme:dark){.custom-msg-conversation,.custom-msg-desk{background:#1d2531;color:#eef3f9}.custom-msg-bubble{background:#394555;color:#eef3f9}.custom-msg-form textarea{background:#18212c;border-color:#404d5b;color:#eef3f9}.custom-msg-desk{color:#afd9ec}}
+
+/* Keep custom-worker threads as readable and consistent as existing iOS Messages. */
+.ios-chat-shell .custom-msg-conversation{border-radius:0;background:transparent;box-shadow:none;width:100%;max-width:100%;height:calc(100dvh - 150px);font-size:16px}
+.ios-chat-shell .custom-msg-scroll{padding:16px 15px;gap:12px;scrollbar-width:thin}
+.ios-chat-shell .custom-msg-bubble{position:relative;box-sizing:border-box;max-width:min(84%,640px);padding:12px 58px 12px 15px!important;border-radius:20px;font-size:16px;line-height:1.48;letter-spacing:0;box-shadow:none}
+.ios-chat-shell .custom-msg-row.mine .custom-msg-bubble{background:#2d9d59;color:#fff}
+.ios-chat-shell .custom-msg-row.theirs .custom-msg-bubble{background:#e6e7eb;color:#1d1d1f}
+.ios-chat-shell .custom-msg-bubble .chat-delete-bar{position:absolute;top:8px;right:8px;height:44px;width:44px;margin:0;display:flex;justify-content:center;align-items:center;pointer-events:none}
+.ios-chat-shell .custom-msg-bubble .chat-delete-button{transform:none;pointer-events:auto;color:inherit!important}
+.ios-chat-shell .custom-msg-form{padding:12px 14px 10px;align-items:center;gap:9px;background:var(--ui-page,#f2f2f7)}
+.ios-chat-shell .custom-msg-form textarea{background:var(--ui-card,#fff);border:1px solid #d6d6dc;border-radius:22px;min-height:44px;font-size:16px;line-height:1.4;padding:10px 14px}
+.ios-chat-shell .custom-msg-form button[type=submit]{background:#25b559;font-weight:700;font-size:25px}
+.ios-chat-shell .custom-msg-form button[type=submit]:active{transform:scale(.94)}
+.ios-chat-shell .custom-msg-status{background:var(--ui-page,#f2f2f7);font-size:13px;padding:6px 15px 8px;line-height:1.5;overflow-wrap:anywhere}
+.ios-chat-shell .custom-msg-desk{font-size:14px;background:var(--ui-card,#fff)}
+@media(prefers-color-scheme:dark){
+ .ios-chat-shell .custom-msg-row.theirs .custom-msg-bubble{background:#303039;color:#f1f1f5}
+ .ios-chat-shell .custom-msg-row.mine .custom-msg-bubble{background:#228a4c;color:#fff}
+ .ios-chat-shell .custom-msg-form,.ios-chat-shell .custom-msg-status{background:#18181c}
+ .ios-chat-shell .custom-msg-form textarea{background:#25252b;color:#f9fafb;border-color:#474750}
+}
