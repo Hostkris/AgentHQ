@@ -1,5 +1,6 @@
 import {dailyBrief,meetingBrief,reminderText} from '../../../eleanor-secretary-core.js';
 import {secretaryState} from './state.ts';
+import {collectAgentAlerts} from './agent-alerts.ts';
 export async function scopedMeetingEmail(state:any,event:any,deps:any){
  if(!state.settings.email_for_meetings)return {state:'not_enabled',messages:[]};
  const addresses=(event.data?.attendees||[]).map((a:any)=>String(a.email||'').trim().toLowerCase()).filter((a:string)=>/^[a-z0-9.!#$%&'*+\-/=?^_`{|}~]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(a)).slice(0,8);
@@ -24,5 +25,14 @@ export async function processSecretaryDue(db:any,owners:string[],deps:any,schedu
   }
  }
  if(scheduled)await db.from('agent_secretary_settings').update({last_scheduler_at:new Date().toISOString()}).in('owner_id',owners);
- if(deps.deliverPush)await deps.deliverPush(db,owners);return {saved,state:saved?'processed':'idle'};
+ if(deps.deliverPush)await deps.deliverPush(db,owners);
+ let agentAlerts=null;
+ try{
+  agentAlerts=await collectAgentAlerts(db,owners);
+  if(deps.deliverAgentPush)await deps.deliverAgentPush(db,owners);
+ }catch(error){
+  // A project-alert failure must not hold up medication/reminder deliveries.
+  agentAlerts={error:'Agent alert collection or push was delayed; it will retry.'};
+ }
+ return {saved,state:saved?'processed':'idle',agent_alerts:agentAlerts};
 }
