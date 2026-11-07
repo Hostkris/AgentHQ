@@ -24,7 +24,7 @@ export function secretaryTime(value){
  if(/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(t))return t;return null;
 }
 export function secretaryDate(clock,zone){const p=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(clock).map(x=>[x.type,x.value]));return p.year+'-'+p.month+'-'+p.day;}
-export function stateSummary(state){return {Daily_Reminders:state.items.filter(i=>i.kind==='reminder'),Workout_Schedule:state.items.filter(i=>i.kind==='workout'),Fitness_Log:state.workout_log||[],Active_Tasks:state.items.filter(i=>i.kind==='task'),Meetings:state.items.filter(i=>i.kind==='meeting'),settings:state.settings};}
+export function stateSummary(state){return {Daily_Reminders:state.items.filter(i=>i.kind==='reminder'),Workout_Schedule:state.items.filter(i=>i.kind==='workout'),Fitness_Log:state.workout_log||[],Active_Tasks:state.items.filter(i=>i.kind==='task'),Meetings:state.items.filter(i=>i.kind==='meeting'),Goals:state.goals||[],Goal_Milestones:state.goal_milestones||[],settings:state.settings};}
 const quote=(v,n=4000)=>String(v||'').trim().slice(0,n);
 export function meetingBrief(event,mail={state:'not_enabled',messages:[]},projectNotes=''){
  const data=event.data||{},attendees=Array.isArray(data.attendees)?data.attendees:[],people=attendees.length?attendees.map(a=>quote(a.name||a.email,100)+(a.role?' — '+quote(a.role,100):' — role not supplied')).join('; '):'Attendees not supplied.';
@@ -45,8 +45,21 @@ export function dailyCoordinationBrief(state,local,clock=new Date()){
  const overdue=(state.items||[]).filter(i=>i.kind==='task'&&i.status==='active'&&i.due_at&&Date.parse(i.due_at)<clock.getTime()).length;
  const connected=(state.social_accounts||[]).filter(a=>['facebook','tiktok'].includes(a.platform));
  const social=connected.length?connected.map(a=>'• '+a.platform+': '+(a.integration_status==='connected'?'account marked connected; actual read scope not verified':'no verified direct inbox connection')).join('\n'):'• No direct TikTok or Facebook inbox connection is verified.';
+ const summaries=(state.goals||[]).slice(0,7).map(g=>{
+  const stages=(state.goal_milestones||[]).filter(m=>m.goal_id===g.id);
+  const finished=stages.filter(m=>m.status==='done');
+  const total=stages.reduce((a,m)=>a+(m.weight||1),0);
+  const done=finished.reduce((a,m)=>a+(m.weight||1),0);
+  const progress=total?Math.round(done/total*100):0;
+  const next=stages.filter(m=>m.status!=='done').sort((a,b)=>a.position-b.position)[0];
+  const cap=g.budget_cap_cents===null?'budget ceiling not yet set':'budget ceiling $'+(Number(g.budget_cap_cents)/100).toFixed(2)+' (not authorization)';
+  return '• '+g.title+': '+progress+'% ('+finished.length+'/'+stages.length+' stages) · '+cap+' · next: '+(next?.title||'Review evidence of completion');
+ });
+ const home=fields.house_work?'Owner-reported household work: '+quote(fields.house_work,350)+'. Spending ceiling: '+(Number.isFinite(fields.house_budget_usd)?'$'+fields.house_budget_usd:'not decided'):'Ask the owner what repair, maintenance, cleanup or improvement needs doing around the house, the urgency, and the maximum budget. A home goal and Calendar plan can be created inside Agent HQ.';
  return [daily,'Agent HQ Notes and Calendar\n• '+pending+' Notes proposal(s) awaiting approval.\n• '+overdue+' overdue task(s).',
-  'Social-account check\n'+social+'\nOnly review actual permitted pages or messages. Prepare replies as drafts; publishing requires authorization.'].join('\n\n');
+  'Household work and budgets\n'+home,
+  'Goal thermometers\n'+(summaries.length?summaries.join('\n'):'No tracked goals saved yet.')+'\nA scheduled milestone is not completed work or earnings. Review the next eligible Sunday–Friday task. Ask Alex, Avery, Riley, Maya and others to prepare efficient research and cost-aware plans. Budget-related ChatGPT help needs the owner’s approval.',
+  'Social-account check\n'+social+'\nOnly review actually authorized sources. Draft replies for the owner; publishing needs authorization.'].join('\n\n');
 }
 export function dailyBrief(state,clock=new Date()){
  const zone=state.settings.timezone,fmt=new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}),local=secretaryDate(clock,zone),dayIndex=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(new Intl.DateTimeFormat('en-US',{timeZone:zone,weekday:'short'}).format(clock));
@@ -68,6 +81,7 @@ export function reminderText(item,scheduled,followup=false){
  if(item?.kind==='reminder'&&String(item.title).toLowerCase()==='eleanor daily check-in'){
   return (followup?'Eleanor — one follow-up on today’s check-in.':'Good morning — Eleanor’s Agent HQ daily check-in.')+
    '\nHave you measured your heart rate? Have you had your multivitamin drink or apple cider vinegar, and how is your water intake? Have you gone live on TikTok, checked posts or messages, or seen a comment needing a reply?'+
+   '\nIs there any repair, maintenance, cleaning or other household work you need done? What is your maximum budget? I can put the plan in Agent HQ Goals and Calendar and ask the team for options, without spending.'+
    '\nOpen Reminders > Daily check-in inside Agent HQ. Tell me what you have done, what remains and what assistance you want. I can help with Calendar entries, Notes and drafting replies. I will not assume any completed activity or access private social inboxes without a verified connection.';
  }
 const time=new Intl.DateTimeFormat('en-US',{timeZone:item.timezone,dateStyle:'medium',timeStyle:'short'}).format(new Date(scheduled))+' ('+item.timezone+').';if(item.kind==='task')return 'Eleanor — task due\n'+item.title+'\n'+quote(item.details,1200)+'\nDue: '+time+'\nThis task stays open until you mark it complete in Tasks. Reviewing this notice does not complete the task.';return (followup?'Eleanor — one follow-up for your unacknowledged reminder.':'Eleanor — scheduled reminder')+'\n'+item.title+'\n'+quote(item.details,1200)+'\nScheduled: '+time+'\n'+(item.data?.repeat==='none'?'This is a one-time reminder and will not repeat.':'This reminder repeats on its scheduled days.')+'\nYou can mark it done, snooze, pause, or stop it. This is not confirmation that you completed the task.'+(item.data?.intake_type==='medication'?' Follow your existing medication instructions; I will not change a dose or invent missed-dose guidance.':'');}
