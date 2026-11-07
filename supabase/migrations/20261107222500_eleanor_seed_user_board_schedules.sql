@@ -3,7 +3,7 @@
 -- in RLS-protected rows; none are hardcoded in this migration.
 do $$
 declare s record; w jsonb; c jsonb; row jsonb; slot jsonb; iday integer;
-        d text; t text; part text; task text; details text; tag text; first_day date;
+        d text; t text; part text; task text; v_details text; tag text; first_day date;
         task_time time; weekly_days integer[]=array[1,2,3,4,5];
 begin
  for s in select owner_id,timezone from public.agent_secretary_settings loop
@@ -13,7 +13,7 @@ begin
   -- The late board shows reading at 7:40 PM. Preserve its earlier chosen book and cadence.
   update public.agent_secretary_items
    set local_time='19:40',next_due_at=public.next_secretary_local(now(),timezone,'19:40',array[0,1,2,3,4,5]),
-       details=left(details||' User board: weekday 7:40–8:05 PM reading, four actual pages on the selected cadence; Saturday free.',4000),
+       details=left(public.agent_secretary_items.details||' User board: weekday 7:40–8:05 PM reading, four actual pages on the selected cadence; Saturday free.',4000),
        data=data||jsonb_build_object('source_board','weekly','reference_time','19:40','reference_end','20:05'),
        version=version+1,updated_at=now()
    where owner_id=s.owner_id and kind='reminder' and status='active' and data ? 'reading_goal'
@@ -25,12 +25,12 @@ begin
    if t not in ('06:30','08:15','14:30','18:30','19:20','20:05','20:20') then continue;end if;
    tag:='rhythm-'||t;
    if exists(select 1 from public.agent_secretary_items where owner_id=s.owner_id and data->>'board_tag'=tag) then continue;end if;
-   details:=task||coalesce(' · Scheduled end: '||d,'')||'. Saved from the uploaded Weekly Organization Board.';
+   v_details:=task||coalesce(' · Scheduled end: '||d,'')||'. Saved from the uploaded Weekly Organization Board.';
    if t='18:30' then
-    details:=details||' IMPORTANT: This board lists dinner after 6:30 PM but the earlier 5 PM eating-cutoff preference remains active. Ask the owner which to follow; do not infer a clinical eating plan.';
+    v_details:=v_details||' IMPORTANT: This board lists dinner after 6:30 PM but the earlier 5 PM eating-cutoff preference remains active. Ask the owner which to follow; do not infer a clinical eating plan.';
    end if;
    if t='14:30' then
-    details:=details||' If work extends until 3 PM, keep recovery time and shorten the next business block. Do not claim the work shift ended on time.';
+    v_details:=v_details||' If work extends until 3 PM, keep recovery time and shorten the next business block. Do not claim the work shift ended on time.';
    end if;
    insert into public.agent_secretary_items(owner_id,kind,title,details,timezone,local_time,weekdays,next_due_at,data)
     values(s.owner_id,'reminder',left(task,180),left(details,4000),s.timezone,t::time,weekly_days,
@@ -56,7 +56,7 @@ begin
    if iday=6 then continue;end if;
    tag:='cleaning-'||iday::text;
    if exists(select 1 from public.agent_secretary_items where owner_id=s.owner_id and data->>'board_tag'=tag) then continue;end if;
-   details:='Daily 20-minute reset: '||(select string_agg(value#>>'{}','; ') from jsonb_array_elements(c->'daily_reset'))||
+   v_details:='Daily 20-minute reset: '||(select string_agg(value#>>'{}','; ') from jsonb_array_elements(c->'daily_reset'))||
      '. '||row->>'day'||' focus ('||row->>'title'||'): '||
      (select string_agg(value#>>'{}','; ') from jsonb_array_elements(row->'items'))||
      '. Only do what can reasonably fit; record remaining work. No Saturday cleaning.';
@@ -70,15 +70,15 @@ begin
   -- Exact five-day 5–6:30 PM workout rotation, both editable plan and a reminder.
   for row in select value from jsonb_array_elements(w->'gym_days') loop
    iday:=(row->>'dow')::integer;tag:='gym-'||iday::text;
-   details:=(row->>'details')||'. 5:00–6:30 PM LA Fitness (90 minutes). Warm up and cool down. Sauna optional 10 minutes 2–3 sessions per week. Do not infer completion, sets or performance.';
+   v_details:=(row->>'details')||'. 5:00–6:30 PM LA Fitness (90 minutes). Warm up and cool down. Sauna optional 10 minutes 2–3 sessions per week. Do not infer completion, sets or performance.';
    if not exists(select 1 from public.agent_secretary_items where owner_id=s.owner_id and data->>'board_tag'=tag||'-plan') then
     insert into public.agent_secretary_items(owner_id,kind,title,details,timezone,local_time,weekdays,data)
-     values(s.owner_id,'workout','LA Fitness · '||row->>'day',details,s.timezone,'17:00',array[iday],
+     values(s.owner_id,'workout','LA Fitness · '||row->>'day',v_details,s.timezone,'17:00',array[iday],
       jsonb_build_object('source_board','weekly','board_tag',tag||'-plan'));
    end if;
    if not exists(select 1 from public.agent_secretary_items where owner_id=s.owner_id and data->>'board_tag'=tag) then
     insert into public.agent_secretary_items(owner_id,kind,title,details,timezone,local_time,weekdays,next_due_at,data)
-     values(s.owner_id,'reminder','LA Fitness 5–6:30 · '||row->>'day',details,s.timezone,'17:00',array[iday],
+     values(s.owner_id,'reminder','LA Fitness 5–6:30 · '||row->>'day',v_details,s.timezone,'17:00',array[iday],
       public.next_secretary_local(now(),s.timezone,'17:00',array[iday]),
       jsonb_build_object('source_board','weekly','board_tag',tag,'end','18:30'));
    end if;
