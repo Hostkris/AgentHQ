@@ -13,7 +13,23 @@ async function api(action,extra={}){
  const generation=epoch,{data,error:authError}=await agentCloud.auth.getUser();if(authError||!data.user)throw Error('Sign in under Settings → Account to open Eleanor’s desk.');
  if(generation!==epoch)throw Error('The signed-in account changed.');const {data:result,error}=await agentCloud.functions.invoke('agent-secretary',{body:{action,...extra}});if(generation!==epoch)throw Error('The signed-in account changed.');let reason=result?.error;if(error?.context?.clone&&!reason)try{reason=(await error.context.clone().json())?.error}catch{}if(error||reason)throw Error(reason||error.message||'The secretary request failed.');if(['apply','act_delivery','dismiss_agent_alert','set_agent_alerts'].includes(action)){clearSecretarySnapshot(snapshotStorage,owner);window.dispatchEvent(new CustomEvent('agenthq-secretary-state-invalidated',{detail:{owner_id:owner}}));}return result;
 }
-async function load(){const generation=epoch;if(loading&&loadingEpoch===generation)return;loading=true;loadingEpoch=generation;try{const next=await api('state');if(generation===epoch){state=next;notice='';saveSecretarySnapshot(snapshotStorage,owner,next);window.dispatchEvent(new CustomEvent('agenthq-secretary-state',{detail:{owner_id:owner,state:next}}));}}catch(e){if(generation===epoch)notice=e.message;}finally{if(loadingEpoch===generation){loading=false;loadingEpoch=null;}if(generation===epoch){render();if(tab==='settings'&&!pushBusy)void refreshDeviceStatus();}}}
+let checkinProvisioning=false;
+async function ensureDailyCheckinReminder(){
+ const current=state,generation=epoch;
+ if(checkinProvisioning||!owner||!current?.settings?.brief_time||current.items.some(i=>i.kind==='reminder'&&i.title.toLowerCase()==='eleanor daily check-in'))return;
+ checkinProvisioning=true;
+ try{
+  const at=current.settings.brief_time.slice(0,5);
+  await api('apply',{request_id:crypto.randomUUID(),version:current.settings.version,operations:[{op:'save_item',item:{
+   kind:'reminder',title:'Eleanor daily check-in',
+   details:'Please report your heart rate if measured, multivitamin drink, apple cider vinegar, water intake, TikTok Live, post and message reviews, and which comments need a suggested reply. Report only actual outcomes; no dosing or water goals are assumed. Open Eleanor’s Daily check-in screen to record your answers.',
+   timezone:current.settings.timezone,local_time:at,weekdays:[0,1,2,3,4,5,6],data:{intake_type:'routine'}
+  }}]});
+  if(generation===epoch)await load();
+ }catch(error){if(generation===epoch)message('The daily check-in reminder was not confirmed: '+String(error?.message||error));}
+ finally{checkinProvisioning=false;}
+}
+async function load(){const generation=epoch;if(loading&&loadingEpoch===generation)return;loading=true;loadingEpoch=generation;try{const next=await api('state');if(generation===epoch){state=next;notice='';saveSecretarySnapshot(snapshotStorage,owner,next);window.dispatchEvent(new CustomEvent('agenthq-secretary-state',{detail:{owner_id:owner,state:next}}));}}catch(e){if(generation===epoch)notice=e.message;}finally{if(loadingEpoch===generation){loading=false;loadingEpoch=null;}if(generation===epoch){render();if(tab==='settings'&&!pushBusy)void refreshDeviceStatus();if(state)void ensureDailyCheckinReminder();}}}
 async function apply(operations,requestId=crypto.randomUUID()){
  const r=await api('apply',{operations,request_id:requestId,version:state.settings.version});await load();await window.agentHQBotStudioCloud?.refresh?.();return r;
 }
