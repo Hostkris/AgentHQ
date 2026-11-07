@@ -15,6 +15,8 @@ function verify(fields){
   throw Error('Enter water in fluid ounces or leave it blank.');
  if(fields.pages_read!==undefined&&(!Number.isInteger(fields.pages_read)||fields.pages_read<0||fields.pages_read>200))throw Error('Enter actual pages read, 0–200, or leave blank.');
  if(fields.weight_lb!==undefined&&(!Number.isFinite(fields.weight_lb)||fields.weight_lb<40||fields.weight_lb>1000))throw Error('Enter a measured body weight or leave blank.');
+ if(fields.house_work!==undefined&&(typeof fields.house_work!=='string'||fields.house_work.length>1200))throw Error('Household work description is too long.');
+ if(fields.house_budget_usd!==undefined&&(!Number.isFinite(fields.house_budget_usd)||fields.house_budget_usd<0||fields.house_budget_usd>100000000))throw Error('Enter a valid optional household budget ceiling.');
  if(JSON.stringify(fields).length>6000)throw Error('Daily check-in is too long.');
 }
 async function refresh(){
