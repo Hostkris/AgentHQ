@@ -1,7 +1,7 @@
 // Eleanor's on-device Notes review and explicit daily check-in.
 // The Home Notes widget is device-local; nothing here claims an external
 // calendar, TikTok inbox, wearable, or automatic background reading connection.
-const NOTES_KEY='agenthq-home-personal-widgets-v1';
+
 const CHECKIN_KEY='agenthq-eleanor-daily-checkin-v1:';
 const FIELDS=[
  ['multivitamin','Multivitamin drink'],
@@ -11,9 +11,9 @@ const FIELDS=[
  ['messages','Checked TikTok messages']
 ];
 const OPTIONS=[['not_yet','Not yet / not reported'],['yes','Yes / completed'],['no','No / skipped today']];
-function notes(){
+function notes(owner){
  try {
-  const list=JSON.parse(localStorage.getItem(NOTES_KEY)||'{}').notes;
+  const list=JSON.parse(localStorage.getItem('agenthq-home-notes-v1:'+owner)||'[]');
   return Array.isArray(list)?list.filter(n=>n&&typeof n.text==='string'&&n.text.trim()).slice(0,100).map(n=>({text:n.text.slice(0,2000),date:String(n.date||'')})):[];
  } catch {return [];}
 }
@@ -48,7 +48,7 @@ function statusSelect(name,selected,E){
 }
 export function renderEleanorTodaySummary(state,day,E){
  const r=todayRecord(state.settings.owner_id,day);
- const count=notes().length;
+ const count=notes(state.settings.owner_id).length;
  return '<section class="secretary-card eleanor-workflow-summary"><h3>Eleanor’s daily coordination</h3><p>'+E(r?(r.sent_at?'Today’s check-in was sent to Eleanor’s Messages.':'Today’s check-in is saved on this device, not yet sent.'):'Your morning check-in has not been reported today.')+'</p><div class="secretary-actions"><button type="button" data-secretary-tab="checkin">Daily check-in</button><button type="button" data-secretary-tab="notes">Review Notes ('+count+')</button></div><p class="secretary-subtle">Notes and draft check-ins are stored in this browser. Eleanor cannot read another device’s Notes or your live TikTok inbox automatically.</p></section>';
 }
 export function renderEleanorCoordination(tab,state,day,E){
@@ -66,7 +66,7 @@ export function renderEleanorCoordination(tab,state,day,E){
    '<button type="submit">Save and send check-in to Eleanor</button><p class="secretary-subtle">Your entry is saved on this device first. Sending uses Eleanor’s existing Messages conversation and available AI allowance.</p>'+
    '<p role="status" data-eleanor-checkin-status>'+E(record.sent_at?'Last sent: '+new Date(record.sent_at).toLocaleString():'Not sent yet')+'</p></form></section>';
  }
- const list=notes();
+ const list=notes(owner);
  return '<section class="secretary-card eleanor-workflow"><h3>Notes review and project ideas</h3><p>Eleanor can examine the Notes widget saved on this device when Agent HQ is open. Select Review to ask Eleanor for recommendations. Nothing is delegated, scheduled, posted or sent to outside accounts without your action and the required approvals.</p>'+
   (list.length?list.map((n,i)=>'<article class="eleanor-note"><small>'+E(n.date||'Saved note')+'</small><p>'+E(n.text)+'</p><p class="secretary-subtle">Possible specialists: '+E(specialists(n.text).join(', '))+'. Alex confirms project assignments.</p>'+
    '<div class="secretary-actions"><button type="button" data-eleanor-note-action="review" data-note-index="'+i+'">Ask Eleanor for ideas</button><button type="button" data-eleanor-note-action="task" data-note-index="'+i+'">Make task</button><button type="button" data-eleanor-note-action="calendar" data-note-index="'+i+'">Propose calendar entry</button><button type="button" data-eleanor-note-action="project" data-note-index="'+i+'">Start project</button></div></article>').join(''):'<p>No notes are saved in the Home Screen Notes widget on this device.</p>')+
@@ -153,7 +153,7 @@ export function bindEleanorCoordination(root,state,day,helpers,E){
   finally{submit.disabled=false;}
  });
  root.querySelectorAll('[data-eleanor-note-action]').forEach(button=>button.addEventListener('click',async()=>{
-  const note=notes()[Number(button.dataset.noteIndex)],kind=button.dataset.eleanorNoteAction;
+  const note=notes(state.settings.owner_id)[Number(button.dataset.noteIndex)],kind=button.dataset.eleanorNoteAction;
   if(!note)return helpers.message('This note changed. Reopen Notes review.');
   if(kind==='calendar'||kind==='project'){openNoteDialog(kind,note,state,helpers,E);return;}
   button.disabled=true;
