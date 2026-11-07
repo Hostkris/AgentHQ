@@ -87,3 +87,20 @@ Agent HQ Notes, Calendar, Reminders, Messages, pop-ups, agent approvals, and pro
 **Social reading:** `agent_personal_accounts` currently lists Facebook and TikTok with `integration_status = not_connected`. A stored account directory entry is not proof of permission to read private DMs, comments or posts. The check-in includes **Ask Eleanor to review authorized social activity**, which asks her to verify the actually available integration, coordinate Casey and Taylor, and prepare replies only for owner-provided or properly authorized information. If a working read capability is unavailable, she should ask for a specific approved source or pasted comment/message, not claim that she inspected the account. No posting or sending is authorized merely by the daily check-in.
 
 **Notifications and privacy:** The existing scheduled secretary Messages and optionally enabled Web Push carry these daily questions. Lock-screen pushes show generic text, not health or private-account contents. Note/calendar work and check-ins remain in Agent HQ and require a valid owner sign-in. Cloud storage is first-party Agent HQ infrastructure; it does not mean data is stored only on the phone or that no backend is used.
+
+
+## Saturday rest, reading, missed-work and Agent HQ Home improvements (2026-11-07)
+
+**Rest and autonomy:** Eleanor's previously saved recurring routine days were changed to Sunday-Friday. The 7 AM Eastern briefing retains its time, but the secretary scheduler and unattended team project runner now skip Saturday. Specialists continue bounded owner-approved internal projects autonomously on eligible days. External accounts, spending, publishing and irreversible commitments still require scoped approvals.
+
+**Automatic reminder times:** 7:45 AM multivitamin drink, 8 AM apple cider vinegar, 4:45 PM the owner's 5 PM food cutoff, 7 PM four-page reading, and 9 AM monthly body weight on the first eligible date of the month. Times remain editable in Eleanor's desk. These are owner-requested reminders, not medical recommendations, dosing instructions, proof of ingestion or a required fasting protocol. Saturday stays free. For a nonclinical recurring request without a time, Eleanor selects a deterministic default based on the type of task; she does not invent medication times.
+
+**Book and check-in:** The existing read-books reminder asks which actual title the owner wants. Daily check-in lets the owner save a book name, a four-page target, daily or alternate *eligible* days, and a reading time to the Agent HQ Calendar. It records pages actually read, optional monthly body weight and the 5 PM preference privately; no values are guessed.
+
+**Missed work:** The service-role-only database functions agent_hq_capture_unfinished_reading and agent_hq_rollover_missed_tasks convert unfinished reading sessions into remaining-page tasks and move missed flexible internal tasks to the next non-Saturday opening. Appointment and task collisions are checked. Fixed deadlines, actual meetings and outside commitments are excluded. The owner gets a private Eleanor message and a generic notification, and can edit or complete the rescheduled task.
+
+**Weather:** Open-Meteo current WMO weather codes map to clear, cloudy, fog, rain, snow and storm icons, with day/night display, wind, highs/lows and precipitation chances. Saved-city forecasts refresh when requested or stale.
+
+**Dock:** Long-press a Home Screen app to enter edit mode. Select any Agent HQ app for each of the four dock positions or move entries left/right. Selecting an app already in the dock swaps slots. These choices stay on the device and never change external permissions.
+
+**Verification:** Database migrations 20261107195242 and 20261107195657 were applied; rollback-only tests verified missed-work rescheduling. Regression tests cover alternate reading, Saturday rest, monthly weight, weather mapping and editable dock. Edge Functions and GitHub Pages need separate deployment.
