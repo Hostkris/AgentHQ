@@ -37,7 +37,7 @@ export function dailyCoordinationBrief(state,local,clock=new Date()){
  const hr=Number.isFinite(fields.heart_rate)?fields.heart_rate+' bpm (owner reported)':'not reported';
  const water=Number.isFinite(fields.water_oz)?fields.water_oz+' fluid oz (owner reported)':'not reported';
  const daily=['Daily check-in',report?.submitted_at?'Your check-in is on record.':'Your daily check-in is waiting for your answers.',
-  '• Heart rate: '+hr,'• Water: '+water,status('multivitamin','Multivitamin drink'),
+  '• Heart rate: '+hr,'• Water: '+water,'• Pages actually read: '+(Number.isFinite(fields.pages_read)?fields.pages_read:'not reported'),'• Monthly body weight: '+(Number.isFinite(fields.weight_lb)?fields.weight_lb+' lb (owner reported)':'not reported'),status('multivitamin','Multivitamin drink'),
   status('apple_cider_vinegar','Apple cider vinegar'),status('tiktok_live','TikTok Live'),
   status('posts','Checked posts'),status('messages','Checked messages'),status('reading','Read four pages'),status('eating_cutoff','Finished eating by 5 PM'),
   'What remains, and how can I help with the Calendar, Notes, TikTok posts or messages today?'].join('\n');
