@@ -6,6 +6,8 @@ import {fileURLToPath} from 'node:url';
 import {dirname} from 'node:path';
 import {routineDue,nextEligible,dow} from '../agent-reading-schedule.js';
 import {condition} from '../agent-weather-conditions.js';
+import {parseSecretaryMessage,smartReminderTime} from '../eleanor-secretary-core.js';
+import {validateSecretaryOps} from '../supabase/functions/agent-secretary/state.ts';
 
 test('Saturday is reserved for rest across all habitual tasks',()=>{
  for(const id of ['2026-11-07','2026-11-14','2026-11-21'])assert.equal(routineDue({status:'active',weekdays:[0,1,2,3,4,5,6],data:{}},id),false);
@@ -46,4 +48,18 @@ test('Agent HQ Calendar and dock expose autonomous internal controls but no exte
  assert.match(scheduler,/agent_hq_capture_unfinished_reading/);
  assert.match(scheduler,/routineDue/);
  assert.match(scheduler,/saturday_rest/);
+});
+
+test('Eleanor picks a practical non-Saturday time for routine requests but not medication schedules',()=>{
+ const state={settings:{timezone:'America/New_York'},items:[]};
+ const utterance='Remind me to read four pages daily';
+ const ops=parseSecretaryMessage(utterance,state,new Date('2026-11-08T13:00:00Z'));
+ assert.equal(ops[0].item.local_time,'19:00');
+ assert.deepEqual(ops[0].item.weekdays,[0,1,2,3,4,5]);
+ assert.equal(validateSecretaryOps(ops,state,utterance)[0].item.local_time,'19:00');
+ const unsafe=parseSecretaryMessage('Remind me to take medication daily',state);
+ assert.match(unsafe.question,/needs a time confirmed/i);
+ assert.equal(smartReminderTime('prescription antibiotics'),null);
+ const saturday=parseSecretaryMessage('Remind me to review paperwork every Saturday at 7 PM',state);
+ assert.match(saturday.question,/Saturday is your rest day/i);
 });
