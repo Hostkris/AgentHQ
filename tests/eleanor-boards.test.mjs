@@ -45,5 +45,5 @@ test('Actual schedule is sourced from private saved payloads and not a guessed t
  assert.match(migration,/gym_days/);
  assert.match(migration,/cleaning/);
  assert.match(migration,/Saturday/);
- assert.match(migration,/dinner.*conflicts/i);
+ assert.match(migration,/dinner after 6:30 PM but the earlier 5 PM eating-cutoff/i);
 });
