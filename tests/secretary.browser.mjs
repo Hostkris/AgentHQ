@@ -14,7 +14,13 @@ await page.addInitScript(()=>{
  const owner='11111111-1111-4111-8111-111111111111',bot='22222222-2222-4222-8222-222222222222',callbacks=[],profile={id:bot,name:'Eleanor',role:'Personal Executive Secretary',mission:'Keep private secretary records.',tone:'Professional',instructions:'Use the saved registers.',skills:[],anti_jobs:[],starting_message:'Your secretary desk is ready.',category:'personal',avatar_emoji:'👩🏽‍💼',template_key:'eleanor-secretary-v1',status:'active'};
  const data={settings:{owner_id:owner,bot_id:bot,timezone:'America/New_York',brief_time:'07:00:00',brief_enabled:true,email_for_meetings:false,version:1,last_scheduler_at:new Date().toISOString()},items:[],deliveries:[],workout_log:[],devices:[],gmail_connected:false,calendar_sync_connected:false};
  const mock=window.__secretaryFixture={owner,bot,profile,data,calls:[],nativeErrors:[]};window.addEventListener('error',event=>mock.nativeErrors.push({message:String(event.message||''),target:event.target?.tagName||''}),true);
- window.__secretaryCloud={auth:{getUser:async()=>({data:{user:mock.owner?{id:mock.owner}:null}}),onAuthStateChange:fn=>{callbacks.push(fn);queueMicrotask(()=>fn('INITIAL_SESSION',{user:{id:owner}}));}},functions:{async invoke(name,{body}){mock.calls.push({name,...body});if(name!=='agent-secretary')return {data:{}};
+ window.__secretaryCloud={from(table){
+   const goalId='77777777-7777-4777-8777-777777777777',stepId='88888888-8888-4888-8888-888888888888';
+   const data=table==='agent_hq_goals'?[{id:goalId,owner_id:owner,slug:'arbitrage-business-launch',kind:'arbitrage',title:'Arbitrage · launch to first profitable sale',target_outcome:'Complete a recorded profitable sale',description:'No purchases authorized',status:'active',budget_cap_cents:null,spent_cents:0}]:
+    table==='agent_hq_goal_milestones'?[{id:stepId,goal_id:goalId,owner_id:owner,position:1,title:'Choose resale model',details:'Research alternatives without spending',weight:1,status:'pending',requires_evidence:false,evidence:'',calendar_task_id:null}]:[];
+   const query={select(){return query},eq(key,value){return query},order(){return query},limit(){return Promise.resolve({data,error:null})}};
+   return query;
+  },auth:{getUser:async()=>({data:{user:mock.owner?{id:mock.owner}:null}}),onAuthStateChange:fn=>{callbacks.push(fn);queueMicrotask(()=>fn('INITIAL_SESSION',{user:{id:owner}}));}},functions:{async invoke(name,{body}){mock.calls.push({name,...body});if(name!=='agent-secretary')return {data:{}};
   if(body.action==='state'){const snapshot=structuredClone(data);if(mock.holdState)await new Promise(resolve=>mock.releaseState=resolve);return {data:snapshot};}
   if(body.action==='push_config')return {data:{public_key:'fixture-public-key'}};
   if(body.action==='apply'){
@@ -30,6 +36,11 @@ await page.addInitScript(()=>{
 });
 try{
  await page.goto(base+'/index.html');await page.getByRole('button',{name:'Open office',exact:true}).waitFor();await page.evaluate(()=>{window.agentHQBotStudioSync([__secretaryFixture.profile],'Synced',[__secretaryFixture.bot],[]);window.agentHQOpenSecretary();});await page.getByRole('heading',{name:'Eleanor',exact:true}).waitFor();await page.getByText(/07:00 daily briefing/).waitFor();
+  await page.getByRole('button',{name:'Goals',exact:true}).click();
+  await page.getByRole('heading',{name:'Arbitrage · launch to first profitable sale',exact:true}).waitFor();
+  assert.equal(await page.locator('#agent-secretary-root .hq-goal-thermometer').getAttribute('aria-valuenow'),'0');
+  assert.equal(await page.getByText('Set a ceiling before buying anything').count(),1);
+  await page.getByRole('button',{name:'Today',exact:true}).click();
  await page.getByRole('button',{name:'Daily reminders',exact:true}).click();await page.getByRole('button',{name:'Add reminder',exact:true}).click();await page.getByLabel('Name',{exact:true}).fill('Example intake');await page.getByLabel('Instructions, exercises or notes',{exact:true}).fill('Owner supplied instructions only.');await page.getByLabel('Intake type',{exact:true}).selectOption('medication');await page.getByLabel('Reminder time',{exact:true}).fill('08:00');await page.getByRole('button',{name:'Save reminder',exact:true}).click();await page.getByRole('heading',{name:'Example intake',exact:true}).waitFor();const item=await page.evaluate(()=>__secretaryFixture.data.items.find(i=>i.title==='Example intake'));assert.equal(item.weekdays.length,6);assert.ok(!item.weekdays.includes(6));assert.equal(item.local_time,'08:00');
  await page.evaluate(id=>__secretaryFixture.data.deliveries.push({id:'44444444-4444-4444-8444-444444444444',item_id:id,item_version:1,kind:'reminder',status:'saved',action_state:'open',scheduled_at:new Date().toISOString(),body:'Eleanor — scheduled reminder\nExample intake\nOnly owner supplied instructions.',push_state:'not_enabled'}),item.id);
  await page.getByRole('button',{name:'Today',exact:true}).click();await page.getByRole('button',{name:'Refresh',exact:true}).click();await page.getByRole('button',{name:'Done today',exact:true}).click();await page.getByText('This occurrence was updated. The recurring schedule is unchanged.',{exact:true}).waitFor();assert.equal(await page.evaluate(()=>__secretaryFixture.data.items.find(i=>i.title==='Example intake').status),'active');
