@@ -21,6 +21,11 @@ on:
       - 'tests/chatgpt-app*'
       - 'agent-secretary*'
       - 'agent-eleanor-workflow.js'
+      - 'agent-eleanor-goals.js'
+      - 'agent-hq-goals-cloud.js'
+      - 'agent-goal-math.js'
+      - 'agent-eleanor-goals.css'
+      - 'tests/eleanor-goals.test.mjs'
       - 'agent-hq-notes-cloud.js'
       - 'agent-weather-conditions.js'
       - 'agent-reading-schedule.js'
@@ -172,7 +177,7 @@ jobs:
       - name: Test camera, photo messages and private access
         run: node --check agent-camera-cloud.js && node --test tests/camera-messages.test.mjs
       - name: Verify Home Screen JavaScript syntax
-        run: node --check agent-home-layout.js && node --check app.js && node --check agent-secretary.js && node --check agent-eleanor-workflow.js && node --check agent-weather-conditions.js && node --check agent-reading-schedule.js && node --check agent-hq-notes-cloud.js && node --check agent-hq-checkin-cloud.js && node --test tests/eleanor-workflow.test.mjs tests/eleanor-reading-weather-dock.test.mjs
+        run: node --check agent-home-layout.js && node --check app.js && node --check agent-secretary.js && node --check agent-eleanor-goals.js && node --check agent-hq-goals-cloud.js && node --check agent-goal-math.js && node --check agent-eleanor-workflow.js && node --check agent-weather-conditions.js && node --check agent-reading-schedule.js && node --check agent-hq-notes-cloud.js && node --check agent-hq-checkin-cloud.js && node --test tests/eleanor-workflow.test.mjs tests/eleanor-reading-weather-dock.test.mjs tests/eleanor-goals.test.mjs
       - name: Test Creative Desk owner approvals and draft escaping
         run: node --test tests/creative-desk.test.mjs
       - name: Test account Settings and publishing opt-in
