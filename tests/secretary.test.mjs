@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
-import {ELEANOR_SPEC,ELEANOR_ETHICS,secretaryTime,secretaryDate,dailyBrief,meetingBrief,reminderText} from '../eleanor-secretary-core.js';
+import {ELEANOR_SPEC,ELEANOR_ETHICS,ELEANOR_INSTRUCTION_LIMIT,secretaryTime,secretaryDate,dailyBrief,meetingBrief,reminderText} from '../eleanor-secretary-core.js';
 import {secretaryState,validateSecretaryOps,applySecretaryOps} from '../supabase/functions/agent-secretary/state.ts';
 import {secretaryChat} from '../supabase/functions/agent-secretary/chat.ts';
 import {processSecretaryDue,scopedMeetingEmail} from '../supabase/functions/agent-secretary/scheduler.ts';
@@ -10,7 +10,7 @@ import {secretaryHandler} from '../supabase/functions/agent-secretary/handler.ts
 import {secretaryFixture,owner,other,bot,item,delivery} from './fixtures/secretary-db.mjs';
 const reminder=(extra={})=>({op:'save_item',title_source:'Example intake',time_source:'8 AM',item:{kind:'reminder',title:'Example intake',details:'',timezone:'America/New_York',local_time:'08:00',weekdays:[0,1,2,3,4,5,6],data:{intake_type:'medication'}},...extra});
 test('Eleanor has concrete secretary ethics, durable records and no invented health or delivery claims',()=>{
- assert.ok(ELEANOR_SPEC.instructions.length<=4500);for(const word of ['Discretion','punctuality','Daily_Reminders','Active_Tasks','Workout_Schedule','Context','Prep Assets','Objectives','missed-dose','untrusted','one later check-in'])assert.ok(ELEANOR_ETHICS.includes(word),word);assert.match(ELEANOR_ETHICS,/One-time tasks remain open/);assert.match(ELEANOR_ETHICS,/Marking a reminder done today never stops/);
+ assert.ok(Array.from(ELEANOR_SPEC.instructions).length<=ELEANOR_INSTRUCTION_LIMIT);for(const word of ['Discretion','punctuality','Daily_Reminders','Active_Tasks','Workout_Schedule','Context','Prep Assets','Objectives','missed-dose','untrusted','one later check-in'])assert.ok(ELEANOR_ETHICS.includes(word),word);assert.match(ELEANOR_ETHICS,/One-time tasks remain open/);assert.match(ELEANOR_ETHICS,/Marking a reminder done today never stops/);
 });
 test('Time parsing refuses ambiguous intake times and preserves explicit 12/24 hour intent',()=>{
  assert.equal(secretaryTime('8 AM'),'08:00');assert.equal(secretaryTime('8:15 pm'),'20:15');assert.equal(secretaryTime('00:30'),'00:30');for(const t of ['8','8:00','25:30','13 PM'])assert.equal(secretaryTime(t),null);assert.equal(secretaryDate(new Date('2026-11-02T01:00:00Z'),'America/New_York'),'2026-11-01');
@@ -46,9 +46,20 @@ test('Meeting email is never read without the secretary-specific permission or a
  assert.equal((await scopedMeetingEmail(state,{data:{attendees:[{email:'sam@example.invalid'}]},scheduled_at:'2026-12-01T15:00Z'},deps)).state,'read');assert.equal(called,1);
 });
 test('Secretary chat confirms actual saved changes instead of relaying an unexecuted model promise',async()=>{
- const db=secretaryFixture(),worker={id:bot};const response=await secretaryChat(db,owner,worker,'Remind me to take Example intake daily at 8 AM.',async()=>JSON.stringify({reply:'I have booked everything!',operations:[reminder()]}));assert.match(response.reply,/Saved: Example intake/);assert.doesNotMatch(response.reply,/booked/);assert.ok(db.calls.some(c=>c[0]==='apply_agent_secretary_ops'));
+ const db=secretaryFixture(),worker={id:bot};let modelCalls=0;
+ const response=await secretaryChat(db,owner,worker,'Remind me to take Example intake daily at 8 AM.',async()=>{modelCalls++;return JSON.stringify({reply:'I have booked everything!',operations:[reminder()]})});
+ assert.match(response.reply,/^Saved\b/);assert.match(response.reply,/recurring reminder: .*Example intake/);assert.doesNotMatch(response.reply,/booked/);assert.equal(modelCalls,0);
+ const saved=db.calls.find(c=>c[0]==='apply_agent_secretary_ops')[1];assert.equal(saved.p_owner,owner);assert.equal(saved.p_ops.length,1);
+ assert.equal(saved.p_ops[0].op,'save_item');assert.match(saved.p_ops[0].item.title,/Example intake/);assert.equal(saved.p_ops[0].item.local_time,'08:00');assert.deepEqual(saved.p_ops[0].item.weekdays,[0,1,2,3,4,5,6]);
+ assert.equal(db.tables.agent_custom_bot_messages.at(-1).body,response.reply);
  const noChange=await secretaryChat(db,owner,worker,'Hello Eleanor',async()=>JSON.stringify({reply:'I have scheduled your medication.',operations:[]}));assert.match(noChange.reply,/No records changed/);
  const refusal=secretaryFixture();refusal.rpc=async()=>({data:false});await assert.rejects(()=>secretaryChat(refusal,owner,worker,'Hello',async()=>{throw Error('must not call provider')}),/allowance/);
+});
+test('A failed reminder write never creates a saved confirmation in Eleanor’s conversation',async()=>{
+ const db=secretaryFixture(),rpc=db.rpc;
+ db.rpc=async(name,args)=>name==='apply_agent_secretary_ops'?{error:{message:'Fixture database write failed'}}:rpc(name,args);
+ await assert.rejects(()=>secretaryChat(db,owner,{id:bot},'Remind me to take Example intake daily at 8 AM.',async()=>{throw Error('Deterministic reminder must not call AI')}),/Fixture database write failed/);
+ assert.equal(db.tables.agent_custom_bot_messages.length,0);
 });
 test('The scheduler saves real notices under an owned lease and stays independent of AI calls',async()=>{
  const db=secretaryFixture();let claimed=false;db.rpc=async(name,args)=>{db.calls.push([name,args]);if(name==='claim_agent_secretary_delivery'&&!claimed){claimed=true;return {data:{id:delivery,owner_id:owner,item_id:item,item_version:1,kind:'reminder',scheduled_at:'2026-11-02T13:00Z',lease_id:bot,attempts:1}};}if(name==='claim_agent_secretary_delivery')return {data:null};if(name==='complete_agent_secretary_delivery')return {data:{state:'saved'}};return {data:true};};

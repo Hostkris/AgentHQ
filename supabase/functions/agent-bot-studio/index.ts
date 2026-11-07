@@ -1,5 +1,5 @@
 import {secretaryChat} from '../agent-secretary/chat.ts';
-import {ELEANOR_TEMPLATE} from '../../../eleanor-secretary-core.js';
+import {ELEANOR_TEMPLATE,ELEANOR_INSTRUCTION_LIMIT} from '../../../eleanor-secretary-core.js';
 import {PROJECT_AUTONOMY_POLICY} from "../../../agent-project-autonomy.js";
 import {createClient} from "npm:@supabase/supabase-js@2.79.0";
 import {PUBLIC_WEB_CAPABILITY,explicitPublicResearch,planRoleQuery,publicQueryPlanner,researchForRole} from "../_shared/role-research.ts";
@@ -36,16 +36,20 @@ function array(value:unknown,limit=12){
  return Array.isArray(value)?value.filter((x):x is string=>typeof x==="string")
   .map(x=>x.trim().slice(0,150)).filter(x=>x.length>2).slice(0,limit):[];
 }
-function botSpec(candidate:any){
+function botSpec(candidate:any,templateKey=""){
  if(!candidate||typeof candidate!=="object"||Array.isArray(candidate))throw Error("Worker design isn't valid");
  const name=safe(candidate.name,60),role=safe(candidate.role,120),mission=safe(candidate.mission,1200);
  const tone=safe(candidate.tone,200)||"Friendly, direct and clear";
- const instructions=safe(candidate.instructions,4500);
+ const instructions=typeof candidate.instructions==="string"?candidate.instructions.trim():"";
+ const instructionLimit=templateKey===ELEANOR_TEMPLATE?ELEANOR_INSTRUCTION_LIMIT:4500;
+ const instructionLength=Array.from(instructions).length;
+ if(instructionLength>instructionLimit)
+  throw Error("Worker instructions exceed "+instructionLimit+" characters. Shorten them before saving; no instruction text was saved.");
  const skills=array(candidate.skills),anti_jobs=array(candidate.anti_jobs);
  const category=CATEGORIES.has(candidate.category)?candidate.category:"personal";
  const avatarEmoji=safe(candidate.avatar_emoji,12)||"🤖";
  const startingMessage=safe(candidate.starting_message,700)||"Hi! What can I help you with?";
- if(name.length<2||role.length<3||mission.length<10||instructions.length<20)
+ if(name.length<2||role.length<3||mission.length<10||instructionLength<20)
   throw Error("Worker needs a name, role, mission, and meaningful instructions");
  if(anti_jobs.length===0)anti_jobs.push("Do not access external accounts or take outside actions without owner approval");
  return {name,role,mission,tone,instructions,skills,anti_jobs,
@@ -225,13 +229,13 @@ Only JSON, no markdown fences.`;
    }});
   }
   if(action==="save"){
-   const spec=botSpec(body.spec);
+   const templateKey=safe(body.template_key,80),spec=botSpec(body.spec,templateKey);
    const {count,error:countError}=await db.from("agent_custom_bots")
     .select("id",{head:true,count:"exact"}).eq("owner_id",owner);
    if(countError)throw Error("Couldn't check your worker limit");
    if((count||0)>=40)return result(req,{error:"Your private studio has reached 40 workers. Archive or remove one before adding another."},400);
    const {data,error}=await db.from("agent_custom_bots").insert({
-    owner_id:owner,...spec,status:"draft",template_key:safe(body.template_key,80)
+    owner_id:owner,...spec,status:"draft",template_key:templateKey
    }).select("id,name,status").single();
    if(error||!data)throw Error("Worker could not be saved in your account");
    return result(req,{worker:data,saved:true,active:false});
