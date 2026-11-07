@@ -1,3 +1,4 @@
+import {CONSULTING_POLICY,consultingRequested} from '../../../agent-consulting-policy.js';
 import {projectIntake} from '../../../agent-project-workspace-core.js';
 import {loadProjectWorkspace,routeWorkspaceUpdate,PROJECT_OPERATING_RULES} from '../_shared/project-workspace.ts';
 import {createClient} from "npm:@supabase/supabase-js@2.79.0";
@@ -82,7 +83,7 @@ Return ONLY valid JSON with {"intent":"answer|collect|task|action|research","rep
     ...(ai.name==="openrouter"?{"HTTP-Referer":ORIGIN,"X-Title":"Agent HQ"}:{})},
    body:JSON.stringify({model:ai.model,stream:false,temperature:0.35,max_tokens:850,
     ...(ai.name==="groq"&&ai.model.startsWith("openai/gpt-oss")?{reasoning_effort:"low"}:{}),
-    messages:[{role:"system",content:system+"\n"+PROJECT_OPERATING_RULES+"\n"+PUBLIC_WEB_CAPABILITY+"\n"+PROJECT_AUTONOMY_POLICY+"\nWhen the primary request is a deliverable or a team assignment (even when research is requested as part of it), classify as task so the team can research AND produce the work. When the primary request is public information that needs fresh evidence, classify as research. Alex may research management and coordination only, keeping specialist execution with the specialists."},{role:"user",content:JSON.stringify(context)}]})
+    messages:[{role:"system",content:system+"\n"+CONSULTING_POLICY+"\n"+PROJECT_OPERATING_RULES+"\n"+PUBLIC_WEB_CAPABILITY+"\n"+PROJECT_AUTONOMY_POLICY+"\nWhen the primary request is a deliverable or a team assignment (even when research is requested as part of it), classify as task so the team can research AND produce the work. When the primary request is public information that needs fresh evidence, classify as research. Alex may research management and coordination only, keeping specialist execution with the specialists."},{role:"user",content:JSON.stringify(context)}]})
   });
   if(!response.ok)throw Error("AI connection returned HTTP "+response.status);
   const raw=await response.json(),answer=raw?.choices?.[0]?.message?.content;
@@ -332,8 +333,8 @@ Deno.serve(async(req:Request)=>{
   });
   await state("idle","",assignment.id);
   startAssignment=assignment.id;
-  replyText=worker==="alex"?"I’m putting the team together. They’ll work through the project in Company HQ and ask you privately if anything is missing. I’ll text you when the finished version is ready to review.":
-   "I’ve handed the project to Alex. The team will work together in Company HQ, and I’ll ask you here if I need any details. Alex will text you when it’s ready to review.";
+  replyText=worker==="alex"?"I’m putting the team together. They’ll work through the project in Company HQ and ask you privately if anything is missing. Eleanor will bring the finished guide and work to her Messages.":
+   "I’ve handed the project to Alex. The team will work together in Company HQ, and I’ll ask you here if I need any details. Eleanor will bring the finished guide and work to her Messages for you to read.";
  };
  const currentWaiting=async()=>{
   let query=db.from("agent_task_steps").select("id,assignment_id,employee_id,status,question")
@@ -705,7 +706,7 @@ Deno.serve(async(req:Request)=>{
        .eq("conversation_id",cid).eq("owner_id",owner).order("created_at",{ascending:false}).limit(7);
      const {data:savedEvidence}=await db.from("agent_role_research").select("query,report,sources,finished_at")
       .eq("owner_id",owner).eq("conversation_id",cid).eq("employee_id",worker).eq("status","completed").order("finished_at",{ascending:false}).limit(1);
-     const result=await decide(ai,EMPLOYEES[worker as Worker],{
+     const result=consultingRequested(body)?{intent:'task',text:'I’ll prepare a practical guide with the team.',action:null}:await decide(ai,EMPLOYEES[worker as Worker],{
       shared_project_context:await loadProjectWorkspace(db,owner,typeof input.project_id==="string"?input.project_id:undefined),current_message:body,context:isCollect?"collecting_task":"new_message",
       pending_assignment_details:isCollect?old:null,
       recent_chat:(recent||[]).reverse().map(x=>({sender:x.sender,body:String(x.body).slice(0,1000)})),

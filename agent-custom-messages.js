@@ -1,6 +1,7 @@
 // One private conversation per custom worker. Worker Studio creates/configures workers;
 // this module owns their chats inside Agent HQ Messages.
 import {agentCloud} from './agent-cloud-auth.js';
+import {consultingMessageHTML} from './agent-consulting-view.js?v=20261107-consulting-1';
 const escapeHTML=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let activeId=null,ownerId=null,root=null,generation=0,loading=false,sending=false,history=[],feedback='',textDraft='',lastLoaded=0;
 const deleting=new Set();
@@ -23,7 +24,7 @@ function render(){
  root.innerHTML='<div class="custom-msg-conversation"><div class="custom-msg-scroll" data-custom-msg-scroll>'+
  (combined.length?combined.map(m=>m.type==='photo'?window.agentHQCamera?.renderPhotoItem?.(m)||'':
   '<div class="custom-msg-row '+(m.sender==='owner'?'mine':'theirs')+'"><div class="custom-msg-bubble">'+
-  (window.agentHQMessageControls?.button?.('bot',m.id)||'')+escapeHTML(m.body||'')+'</div></div>').join(''):
+  (window.agentHQMessageControls?.button?.('bot',m.id)||'')+consultingMessageHTML(m)+'</div></div>').join(''):
   (window.agentHQMessageControls?.isDeleted?.('welcome',b.id)?'':'<div class="custom-msg-welcome">'+(window.agentHQMessageControls?.button?.('welcome',b.id)||'')+escapeHTML(b.starting_message||'Send a message to '+b.name+'.')+'</div>'))+
  (window.agentHQRenderResearchForWorker?.(activeId)||'')+
  '</div><div class="agent-thread-activity" data-agent-activity-thread="'+escapeHTML(activeId)+'" data-agent-activity-name="'+escapeHTML(b.name)+'" role="status" aria-live="polite">'+(window.agentHQActivity?.render?.(activeId)||'')+'</div>'+
@@ -105,6 +106,8 @@ document.addEventListener('submit',event=>{
 // Intercept before the legacy handler, which otherwise uses a native confirm
 // and cannot show errors in custom-message bubbles.
 document.addEventListener('click',event=>{
+ const project=event.target.closest('[data-consultation-project]');
+ if(project){event.preventDefault();window.agentHQOpenProjects?.(project.dataset.consultationProject);return}
  const button=event.target.closest?.('[data-chat-dismiss]');
  if(!button||!root?.contains(button))return;
  const kind=button.dataset.chatDismiss,id=button.dataset.chatItem;

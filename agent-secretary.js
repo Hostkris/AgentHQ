@@ -1,5 +1,5 @@
 import {agentCloud} from './agent-cloud-auth.js';
-import {ELEANOR_ETHICS,secretaryDate} from './eleanor-secretary-core.js?v=20261102-eleanor-1';
+import {ELEANOR_ETHICS,secretaryDate} from './eleanor-secretary-core.js?v=20261107-consulting-1';
 import {saveSecretarySnapshot,clearSecretarySnapshot} from './agent-secretary-snapshot.js?v=20261107-instant-reminders-1';
 let snapshotStorage;try{snapshotStorage=window.localStorage;}catch{}
 const E=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

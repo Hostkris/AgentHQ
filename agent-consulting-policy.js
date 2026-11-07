@@ -1,0 +1,22 @@
+// Shared teaching standard; execution capabilities still come from verified tools.
+export const CONSULTING_POLICY=`CONSULTING AND PRACTICAL TEACHING: Every specialist also guides the owner in that specialist's actual field. For requests to build, create, plan, improve, approach a business or work with media, provide usable work AND explain how the owner can carry it out. Use plain language and the owner's experience level. Include: the goal and approach; materials or assets to prepare; ordered practical steps with a concrete result for each step; a usable example, template or worked calculation; checks for a good result and common mistakes; and the owner's next action. Explain decisions and methods, not private chain-of-thought. Keep advice specific to the request, separate verified facts from assumptions, and never guarantee sales, acceptance or results.
+Use relevant read-only public research when current platform instructions, examples, market facts or business opportunities would improve the work. Prefer official/primary sources, preserve dated observed source links, and explain how findings affect the steps. Never invent sources, claim a search happened before tool evidence returns, or repeat searches already covered by current evidence. If research is unavailable, state what could not be verified and continue useful supported work without pretending facts are current.
+Alex teaches coordination and delegates specialist instruction; he does not take over specialist jobs. Specialists contribute their own methods and actual work products; the final lead combines these into one coherent owner guide. Eleanor is the owner's delivery point: the trusted service copies the finished guide and work into her existing Messages conversation. Do not simulate a conversation with her or claim delivery before it saves. Simple greetings, status checks, reminder acknowledgements and direct factual answers remain concise. A request for practical how-to guidance is a substantive internal assignment, not an external action. Teaching, drafting and public research never authorize sending, publishing, spending, private-account access or calendar changes.`;
+
+export const ELEANOR_CONSULTING_INSTRUCTIONS='CONSULTING LIAISON: Receive practical requests, save an internal project for Alex and the relevant specialists, and deliver their actual completed guides in this same Eleanor conversation. Each guide explains what to prepare and create, ordered steps, a usable example, quality checks, the next action and dated research sources when available. Preserve attribution and project versions. Public research and internal drafting are authorized; external actions retain their existing permission requirements. Never claim specialist work or delivery before its saved result exists.';
+
+export function consultingRequested(value){
+ const text=String(value||'').trim();
+ if(text.length<12||/^(?:stop|cancel|pause|don't|do not|never)\b/i.test(text))return false;
+ if(/\b(?:medication|medicine|dosage|dose|take my|take .+ daily at|remind me|reminder|i took|i have taken)\b/i.test(text))return false;
+ if(/\b(?:tutorial|walk me through|step[ -]by[ -]step|teach me|guide me|consulting guide)\b/i.test(text))return true;
+ return /\b(?:how (?:do|can|should|would) (?:i|we)|how to|what (?:steps|should i|do i need))\b[\s\S]{0,180}\b(?:creat|build|mak|plan|approach|pitch|market|sell|design|launch|advertis|business|media|website|brand|budget|schedul|research|partner|outreach|content)/i.test(text)||
+  /\b(?:create|build|make|plan|prepare|draft|design|develop|improve)\b[\s\S]{0,160}\b(?:campaigns?|business|marketing|advertis\w*|website|landing page|content|social|media|brand|reports?|presentations?|pitch|proposals?|outreach|budgets?|schedul\w*|study plan|projects?|images?|graphics?|artwork|logo|scripts?|videos?|spreadsheets?|emails?|letters?|calendars?|timelines?|partnerships?|ads?|posts?|products?|labels?|stores?|documents?|plans?|calculations?|catalogs?)\b/i.test(text);
+}
+
+export function validateConsultingGuide(value,required=false){
+ const guide=typeof value==='string'?value.trim():'';
+ if(Array.from(guide).length>16000)throw Error('The consulting guide must fit within 16,000 characters; do not cut off its steps.');
+ if(required&&guide.length<120)throw Error('Include the complete consulting guide: materials, ordered steps, a worked example, checks and the next action.');
+ return guide;
+}

@@ -57,10 +57,10 @@ async function refresh(){
 async function history(id){
  await getUser();
  const {data,error}=await agentCloud.from('agent_custom_bot_messages')
-  .select('id,bot_id,sender,body,created_at').eq('bot_id',id)
-  .order('created_at',{ascending:true}).limit(300);
+  .select('id,bot_id,sender,body,created_at,consultation_project_id,consultation_revision,consultation_version,consultation_part').eq('bot_id',id)
+  .order('created_at',{ascending:false}).limit(300);
  if(error)throw Error(error.message);
- return data||[];
+ return (data||[]).reverse();
 }
 async function design(input){
  const result=await invoke('design',input);

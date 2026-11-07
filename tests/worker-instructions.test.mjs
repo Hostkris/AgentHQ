@@ -1,3 +1,4 @@
+import {CONSULTING_POLICY,consultingRequested} from '../agent-consulting-policy.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -17,7 +18,7 @@ function studio(){
   };return q;
  }};
  const source=stripTypeScriptTypes(readFileSync(new URL('../supabase/functions/agent-bot-studio/index.ts',import.meta.url),'utf8').replace(/^import .*;\n/gm,''));
- vm.runInNewContext(source,{ELEANOR_TEMPLATE,ELEANOR_INSTRUCTION_LIMIT,createClient:()=>db,
+ vm.runInNewContext(source,{CONSULTING_POLICY,consultingRequested,ELEANOR_TEMPLATE,ELEANOR_INSTRUCTION_LIMIT,createClient:()=>db,
   Request,Response,URL,AbortController,setTimeout,clearTimeout,
   fetch:()=>{throw Error('Saving instructions must not call an AI provider')},
   Deno:{serve:fn=>handler=fn,env:{get:key=>({SUPABASE_URL:'https://fixture.invalid',SUPABASE_SERVICE_ROLE_KEY:'fixture'})[key]}}

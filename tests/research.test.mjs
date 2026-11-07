@@ -1,3 +1,4 @@
+import {CONSULTING_POLICY,consultingRequested} from '../agent-consulting-policy.js';
 import {projectIntake} from '../agent-project-workspace-core.js';
 import {routeWorkspaceUpdate,loadProjectWorkspace,PROJECT_OPERATING_RULES} from '../supabase/functions/_shared/project-workspace.ts';
 import {researchFailureInfo} from '../agent-research-status.js';
@@ -71,7 +72,7 @@ function chatHarness(){
  }};
  const fakeFetch=async(url,request)=>{const input=JSON.parse(request.body);if(input.tools){searchCalls++;return Response.json(evidence);}return Response.json({choices:[{message:{content:JSON.stringify({kind:'research',query:'small business website public options',purpose:'Compare public sources for the owner request'})}}]});};let handler;
  const code=stripTypeScriptTypes(fs.readFileSync(new URL('../supabase/functions/agent-hq-converse/index.ts',import.meta.url),'utf8').replace(/^import .*;\n/gm,''));
- vm.runInNewContext(code,{researchFailureInfo,projectIntake,routeWorkspaceUpdate,loadProjectWorkspace,PROJECT_OPERATING_RULES,createClient:()=>db,routeProjectChat,PROJECT_AUTONOMY_POLICY,PUBLIC_WEB_CAPABILITY,explicitPublicResearch,planRoleQuery,publicQueryPlanner:key=>publicQueryPlanner(key,fakeFetch),researchForRole:args=>researchForRole({...args,fetcher:fakeFetch}),createResearchRequest,isResearchInstruction,researchApproval,researchStatus:key=>researchStatus(key,fakeFetch),runResearch:(...args)=>runResearch(...args,fakeFetch),Deno:{env:{get:k=>({SUPABASE_URL:'https://test.supabase.co',SUPABASE_SERVICE_ROLE_KEY:'test',GROQ_API_KEY:'test',AGENT_HQ_ALLOWED_OWNER_IDS:owner})[k]},serve:fn=>handler=fn},URL,Request,Response,AbortController,AbortSignal,setTimeout,clearTimeout,console});
+ vm.runInNewContext(code,{CONSULTING_POLICY,consultingRequested,researchFailureInfo,projectIntake,routeWorkspaceUpdate,loadProjectWorkspace,PROJECT_OPERATING_RULES,createClient:()=>db,routeProjectChat,PROJECT_AUTONOMY_POLICY,PUBLIC_WEB_CAPABILITY,explicitPublicResearch,planRoleQuery,publicQueryPlanner:key=>publicQueryPlanner(key,fakeFetch),researchForRole:args=>researchForRole({...args,fetcher:fakeFetch}),createResearchRequest,isResearchInstruction,researchApproval,researchStatus:key=>researchStatus(key,fakeFetch),runResearch:(...args)=>runResearch(...args,fakeFetch),Deno:{env:{get:k=>({SUPABASE_URL:'https://test.supabase.co',SUPABASE_SERVICE_ROLE_KEY:'test',GROQ_API_KEY:'test',AGENT_HQ_ALLOWED_OWNER_IDS:owner})[k]},serve:fn=>handler=fn},URL,Request,Response,AbortController,AbortSignal,setTimeout,clearTimeout,console});
  return {tables,get searchCalls(){return searchCalls},async send(text,action,token='valid'){const response=await handler(new Request('https://test.supabase.co/functions/v1/agent-hq-converse',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({employee_id:'riley',text,action})}));return {status:response.status,...await response.json()}}};
 }
 test('ordinary public research starts under standing authorization and saves one source-backed report',async()=>{
@@ -90,7 +91,7 @@ test('late research responses cannot repopulate history after sign-out',async()=
  const mock={auth:{getUser:async()=>({data:{user:{id:'owner-a'}}}),onAuthStateChange:fn=>handlers.push(fn)},from(name){const q={select(){return q},eq(){return q},order(){return q},limit(){return history},then(resolve){resolve({data:[],error:null})}};return q}};
  const window={addEventListener(){},agentHQResearchSync:(rows)=>published.push(rows)};
  const code=fs.readFileSync(new URL('../agent-messages-cloud.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
- vm.runInNewContext(code,{connectMessageControls:()=>{},agentCloud:mock,window,document:{addEventListener(){}},setInterval(){},setTimeout(){},console});
+ vm.runInNewContext(code,{CONSULTING_POLICY,consultingRequested,connectMessageControls:()=>{},agentCloud:mock,window,document:{addEventListener(){}},setInterval(){},setTimeout(){},console});
  const pending=window.agentHQResearchCloud.refresh();await Promise.resolve();await Promise.resolve();handlers.at(-1)();
  resolveHistory({data:[{id:'private-owner-a-report'}],error:null});await pending;
  assert(published.length>0);assert(published.every(rows=>rows.length===0));

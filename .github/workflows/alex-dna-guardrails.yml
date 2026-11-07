@@ -18,6 +18,9 @@ on:
       - 'agent-projects-app*'
       - 'agent-chatgpt-handoff*'
       - 'agent-secretary*'
+      - 'agent-consulting*'
+      - 'agent-custom-messages*'
+      - 'tests/consulting*'
       - 'eleanor-secretary-core.js'
       - 'tests/secretary*'
       - 'tests/worker-instructions*'
@@ -76,6 +79,9 @@ on:
       - 'agent-projects-app*'
       - 'agent-chatgpt-handoff*'
       - 'agent-secretary*'
+      - 'agent-consulting*'
+      - 'agent-custom-messages*'
+      - 'tests/consulting*'
       - 'eleanor-secretary-core.js'
       - 'tests/secretary*'
       - 'tests/worker-instructions*'
@@ -118,7 +124,7 @@ jobs:
       - name: Install pinned PDF test library
         run: npm install --no-save --package-lock=false pdf-lib@1.17.1 @modelcontextprotocol/sdk@1.32.2 web-push@3.6.7
       - name: Test saved projects, real file outputs and workspace access
-        run: node --test tests/project-workspace*.test.mjs tests/projects-app.test.mjs tests/chatgpt-handoff.test.mjs tests/secretary.test.mjs tests/secretary-snapshot.test.mjs tests/worker-instructions.test.mjs && node tests/chatgpt-handoff.protocol.mjs
+        run: node --test tests/project-workspace*.test.mjs tests/projects-app.test.mjs tests/chatgpt-handoff.test.mjs tests/secretary.test.mjs tests/secretary-snapshot.test.mjs tests/worker-instructions.test.mjs tests/consulting.test.mjs && node tests/chatgpt-handoff.protocol.mjs
       - name: Test Alex role and approval boundaries
         run: node --test tests/alex-dna.test.mjs
       - name: Test project response validation and recovery

@@ -63,3 +63,6 @@
 @media(prefers-reduced-motion:reduce){
  .ios-chat-header .eleanor-secretary-avatar-button{transition:none}
 }
+
+.custom-msg-bubble a{color:inherit;text-decoration:underline;overflow-wrap:anywhere}
+.custom-msg-project{display:block;margin-top:12px;padding:9px 12px;border:1px solid currentColor;border-radius:10px;background:transparent;color:inherit;font:inherit;cursor:pointer}

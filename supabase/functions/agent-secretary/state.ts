@@ -1,4 +1,5 @@
 import {ELEANOR_SPEC,SECRETARY_KINDS,secretaryTime,stateSummary,secretaryDate} from '../../../eleanor-secretary-core.js';
+import {consultingRequested} from '../../../agent-consulting-policy.js';
 export const uuid=(v:any)=>/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v));
 const bounded=(v:any,n:number)=>typeof v==='string'?v.trim().slice(0,n):'';
 export async function ensureSecretary(db:any,owner:string,enabled=false){const {data,error}=await db.rpc('ensure_agent_secretary',{p_owner:owner,p_spec:ELEANOR_SPEC,p_enable_brief:enabled});if(error)throw Error('Could not prepare Eleanor’s private records');return data;}
@@ -103,7 +104,7 @@ export function validateSecretaryOps(ops:any,state:any,message?:string){
   }
   if(op==='create_project'){
    if(typeof raw.brief!=='string'||raw.brief.length<5||raw.brief.length>10000||!raw.title)throw Error('Provide the project goal and title');
-   if(fromChat){source(raw.project_source);if(!/\b(project|delegate|assign|team|workers)\b/.test(body))throw Error('The owner must request an internal project handoff');}
+   if(fromChat){source(raw.project_source);if(!/\b(project|delegate|assign|team|workers)\b/.test(body)&&!consultingRequested(message))throw Error('The owner must request an internal project handoff or practical consulting guide');}
    return {op,title:bounded(raw.title,180),brief:raw.brief,metadata:{project_kind:'personal',output_format:raw.output_format==='pdf'?'pdf':'markdown'}};
   }
   throw Error('This secretary operation is not supported');
