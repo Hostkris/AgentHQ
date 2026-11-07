@@ -1,5 +1,7 @@
 # Eleanor — personal executive secretary
 
+The foreground reminder card starts from an owner-bound copy of notices previously loaded on this device, while the authenticated API refreshes in the background. It loads before the external auth SDK, has no entrance delay, and shows all pending reminder text in its scrolling list. Fresh results update the notice list without replacing a reply in progress. A first visit still needs its initial server response; already saved notices appear before overdue work finishes processing. Cached text is labelled as saved while updating. Signing out or changing accounts closes the card and invalidates that account’s preview. Reminder edits and acknowledgements clear the preview before the desk reloads it. Closing the card preserves its existing dismissal behavior and does not complete or approve the underlying work.
+
 Eleanor is an additional private worker. The original ten staff retain their roles. Her full standing instructions live in `eleanor-secretary-core.js`, are stored in her Worker Studio profile and appear under Reminders → Work ethics. She follows through on authorized internal administration while preserving the existing approval boundaries for outside actions.
 
 ## Work ethic

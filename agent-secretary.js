@@ -1,5 +1,7 @@
 import {agentCloud} from './agent-cloud-auth.js';
 import {ELEANOR_ETHICS,secretaryDate} from './eleanor-secretary-core.js?v=20261102-eleanor-1';
+import {saveSecretarySnapshot,clearSecretarySnapshot} from './agent-secretary-snapshot.js?v=20261107-instant-reminders-1';
+let snapshotStorage;try{snapshotStorage=window.localStorage;}catch{}
 const E=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const DAYS=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 let owner,epoch=0,state=null,root=null,tab=new URL(location.href).searchParams.has('agentAlerts')?'alerts':'today',notice='',busy=false,loading=false,loadingEpoch=null,publicKey=null,registration=null,pushState={code:'checking',deviceId:null},pushBusy=false,pushCheckInFlight=false,pendingOpen=new URL(location.href).searchParams.has('secretary');
@@ -8,9 +10,9 @@ const localDate=()=>secretaryDate(new Date(),state.settings.timezone);
 const dateText=value=>value?new Intl.DateTimeFormat('en-US',{timeZone:state.settings.timezone,dateStyle:'medium',timeStyle:'short'}).format(new Date(value)):'Not set';
 async function api(action,extra={}){
  const generation=epoch,{data,error:authError}=await agentCloud.auth.getUser();if(authError||!data.user)throw Error('Sign in under Settings → Account to open Eleanor’s desk.');
- if(generation!==epoch)throw Error('The signed-in account changed.');const {data:result,error}=await agentCloud.functions.invoke('agent-secretary',{body:{action,...extra}});if(generation!==epoch)throw Error('The signed-in account changed.');let reason=result?.error;if(error?.context?.clone&&!reason)try{reason=(await error.context.clone().json())?.error}catch{}if(error||reason)throw Error(reason||error.message||'The secretary request failed.');return result;
+ if(generation!==epoch)throw Error('The signed-in account changed.');const {data:result,error}=await agentCloud.functions.invoke('agent-secretary',{body:{action,...extra}});if(generation!==epoch)throw Error('The signed-in account changed.');let reason=result?.error;if(error?.context?.clone&&!reason)try{reason=(await error.context.clone().json())?.error}catch{}if(error||reason)throw Error(reason||error.message||'The secretary request failed.');if(['apply','act_delivery','dismiss_agent_alert','set_agent_alerts'].includes(action)){clearSecretarySnapshot(snapshotStorage,owner);window.dispatchEvent(new CustomEvent('agenthq-secretary-state-invalidated',{detail:{owner_id:owner}}));}return result;
 }
-async function load(){const generation=epoch;if(loading&&loadingEpoch===generation)return;loading=true;loadingEpoch=generation;try{const next=await api('state');if(generation===epoch){state=next;notice='';}}catch(e){if(generation===epoch)notice=e.message;}finally{if(loadingEpoch===generation){loading=false;loadingEpoch=null;}if(generation===epoch){render();if(tab==='settings'&&!pushBusy)void refreshDeviceStatus();}}}
+async function load(){const generation=epoch;if(loading&&loadingEpoch===generation)return;loading=true;loadingEpoch=generation;try{const next=await api('state');if(generation===epoch){state=next;notice='';saveSecretarySnapshot(snapshotStorage,owner,next);window.dispatchEvent(new CustomEvent('agenthq-secretary-state',{detail:{owner_id:owner,state:next}}));}}catch(e){if(generation===epoch)notice=e.message;}finally{if(loadingEpoch===generation){loading=false;loadingEpoch=null;}if(generation===epoch){render();if(tab==='settings'&&!pushBusy)void refreshDeviceStatus();}}}
 async function apply(operations,requestId=crypto.randomUUID()){
  const r=await api('apply',{operations,request_id:requestId,version:state.settings.version});await load();await window.agentHQBotStudioCloud?.refresh?.();return r;
 }

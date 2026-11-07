@@ -116,7 +116,7 @@ jobs:
       - name: Install pinned PDF test library
         run: npm install --no-save --package-lock=false pdf-lib@1.17.1 @modelcontextprotocol/sdk@1.32.2 web-push@3.6.7
       - name: Test saved projects, real file outputs and workspace access
-        run: node --test tests/project-workspace*.test.mjs tests/projects-app.test.mjs tests/chatgpt-handoff.test.mjs tests/secretary.test.mjs && node tests/chatgpt-handoff.protocol.mjs
+        run: node --test tests/project-workspace*.test.mjs tests/projects-app.test.mjs tests/chatgpt-handoff.test.mjs tests/secretary.test.mjs tests/secretary-snapshot.test.mjs && node tests/chatgpt-handoff.protocol.mjs
       - name: Test Alex role and approval boundaries
         run: node --test tests/alex-dna.test.mjs
       - name: Test project response validation and recovery
@@ -188,4 +188,24 @@ jobs:
           path: |
             /tmp/agenthq-projects-browser
             /tmp/agenthq-secretary-browser
+
+  secretary-startup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify saved reminder ownership and invalidation
+        run: node --test tests/secretary-snapshot.test.mjs
+      - name: Install Safari engine for startup checks
+        run: npm install --no-save --package-lock=false playwright@1.62.1 && npx playwright install --with-deps webkit
+      - name: Verify immediate reminders on iPhone and desktop
+        run: node tests/secretary-popup.browser.mjs && AGENTHQ_TEST_DEVICE=mac node tests/secretary-popup.browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: secretary-startup-previews
+          path: /tmp/agenthq-secretary-browser
 
