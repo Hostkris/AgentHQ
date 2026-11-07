@@ -57,7 +57,7 @@ begin
    tag:='cleaning-'||iday::text;
    if exists(select 1 from public.agent_secretary_items where owner_id=s.owner_id and data->>'board_tag'=tag) then continue;end if;
    v_details:='Daily 20-minute reset: '||(select string_agg(value#>>'{}','; ') from jsonb_array_elements(c->'daily_reset'))||
-     '. '||row->>'day'||' focus ('||row->>'title'||'): '||
+     '. '||(row->>'day')||' focus ('||(row->>'title')||'): '||
      (select string_agg(value#>>'{}','; ') from jsonb_array_elements(row->'items'))||
      '. Only do what can reasonably fit; record remaining work. No Saturday cleaning.';
    insert into public.agent_secretary_items(owner_id,kind,title,details,timezone,local_time,weekdays,next_due_at,data)
@@ -73,12 +73,12 @@ begin
    v_details:=(row->>'details')||'. 5:00–6:30 PM LA Fitness (90 minutes). Warm up and cool down. Sauna optional 10 minutes 2–3 sessions per week. Do not infer completion, sets or performance.';
    if not exists(select 1 from public.agent_secretary_items where owner_id=s.owner_id and data->>'board_tag'=tag||'-plan') then
     insert into public.agent_secretary_items(owner_id,kind,title,details,timezone,local_time,weekdays,data)
-     values(s.owner_id,'workout','LA Fitness · '||row->>'day',v_details,s.timezone,'17:00',array[iday],
+     values(s.owner_id,'workout','LA Fitness · '||(row->>'day'),v_details,s.timezone,'17:00',array[iday],
       jsonb_build_object('source_board','weekly','board_tag',tag||'-plan'));
    end if;
    if not exists(select 1 from public.agent_secretary_items where owner_id=s.owner_id and data->>'board_tag'=tag) then
     insert into public.agent_secretary_items(owner_id,kind,title,details,timezone,local_time,weekdays,next_due_at,data)
-     values(s.owner_id,'reminder','LA Fitness 5–6:30 · '||row->>'day',v_details,s.timezone,'17:00',array[iday],
+     values(s.owner_id,'reminder','LA Fitness 5–6:30 · '||(row->>'day'),v_details,s.timezone,'17:00',array[iday],
       public.next_secretary_local(now(),s.timezone,'17:00',array[iday]),
       jsonb_build_object('source_board','weekly','board_tag',tag,'end','18:30'));
    end if;
