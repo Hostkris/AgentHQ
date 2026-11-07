@@ -71,6 +71,19 @@ export function reminderText(item,scheduled,followup=false){
    '\nOpen Reminders > Daily check-in inside Agent HQ. Tell me what you have done, what remains and what assistance you want. I can help with Calendar entries, Notes and drafting replies. I will not assume any completed activity or access private social inboxes without a verified connection.';
  }
 const time=new Intl.DateTimeFormat('en-US',{timeZone:item.timezone,dateStyle:'medium',timeStyle:'short'}).format(new Date(scheduled))+' ('+item.timezone+').';if(item.kind==='task')return 'Eleanor — task due\n'+item.title+'\n'+quote(item.details,1200)+'\nDue: '+time+'\nThis task stays open until you mark it complete in Tasks. Reviewing this notice does not complete the task.';return (followup?'Eleanor — one follow-up for your unacknowledged reminder.':'Eleanor — scheduled reminder')+'\n'+item.title+'\n'+quote(item.details,1200)+'\nScheduled: '+time+'\n'+(item.data?.repeat==='none'?'This is a one-time reminder and will not repeat.':'This reminder repeats on its scheduled days.')+'\nYou can mark it done, snooze, pause, or stop it. This is not confirmation that you completed the task.'+(item.data?.intake_type==='medication'?' Follow your existing medication instructions; I will not change a dose or invent missed-dose guidance.':'');}
+// Convenience times for nonclinical recurring habits. Never infer a medication schedule.
+export function smartReminderTime(label){
+ const text=String(label||'').toLowerCase();
+ if(/\b(?:medicine|medication|prescription|insulin|antibiotic|pill|dose|milligrams?|mg)\b/.test(text))return null;
+ if(/(?:multivitamin|vitamin drink)/.test(text))return '07:45';
+ if(/apple cider vinegar/.test(text))return '08:00';
+ if(/(?:eating cutoff|stop eating|no food|before 5|past 5)/.test(text))return '16:45';
+ if(/(?:weigh|weight check)/.test(text))return '09:00';
+ if(/(?:read|book|pages)/.test(text))return '19:00';
+ if(/(?:tiktok|go live|social post|check messages)/.test(text))return '15:30';
+ if(/\b(?:take|swallow|drink)\b/.test(text))return null;
+ return '15:30';
+}
 export function parseSecretaryMessage(message,state,clock=new Date()){
  const text=String(message||'').trim().replace(/^(?:eleanor|hey eleanor)\s*[,!:.]?\s*/i,'');
  const simple=text.replace(/[.!]+$/,'').trim(), zone=state.settings.timezone;
@@ -85,12 +98,15 @@ export function parseSecretaryMessage(message,state,clock=new Date()){
  const reminderIntent=/\bremind me\b/i.test(simple)||/^(?:please\s+)?i need to\b.+\b(?:daily|every day|each day)\b/i.test(simple);
  if(!reminderIntent)return null;
  const tm=simple.match(/\bat\s+((?:[01]?\d|2[0-3])(?::[0-5]\d)?\s*(?:(?:a|p)\.?\s*m\.?)?)(?=\s|[,.!?]|$)/i);
- if(!tm)return {question:'What time should I remind you? Please include AM or PM.'};
- let timeText=tm[1].trim(), time=secretaryTime(timeText);
+ const autoTime=!tm;
+ const habitual=/\b(?:daily|every day|each day|everyday|weekdays|every (?:sunday|monday|tuesday|wednesday|thursday|friday|saturday))\b/i.test(simple);
+ const guessed=autoTime&&habitual?smartReminderTime(simple):null;
+ if(autoTime&&!guessed)return {question:habitual?'This routine needs a time confirmed before it can be scheduled. What time works for you?':'Is this a one-time reminder or a repeating routine? I can choose a suggested time for routine work.'};
+ let timeText=autoTime?'':tm[1].trim(), time=autoTime?guessed:secretaryTime(timeText);
  const tonight=/\btonight\b/i.test(simple), tomorrow=/\btomorrow\b/i.test(simple),today=/\btoday\b/i.test(simple);
  // A bare 10:13 tonight means 10:13 PM, not 10:13 AM.
  const hasMeridiem=/[ap]\.?\s*m\.?$/i.test(timeText), hour=Number(timeText.split(':')[0]);
- if(!hasMeridiem&&hour>=1&&hour<=12){
+ if(!autoTime&&!hasMeridiem&&hour>=1&&hour<=12){
   if(tonight)time=secretaryTime(timeText+' pm');
   else if(!/^0\d/.test(timeText))return {question:'Is that AM or PM?'};
  }
@@ -114,10 +130,11 @@ export function parseSecretaryMessage(message,state,clock=new Date()){
  const named=dayNames.flatMap((day,index)=>new RegExp('\\bevery\\s+'+day+'\\b','i').test(simple)?[index]:[]);
  const recurring=everyday||weekdays||named.length>0;
  if(recurring&&(today||tonight||tomorrow))return {question:'Should this reminder repeat, or happen just once?'};
- const days=everyday?[0,1,2,3,4,5,6]:weekdays?[1,2,3,4,5]:named;
- const op={op:'save_item',title_source:label,time_source:timeText,
+ if(named.includes(6))return {question:'Saturday is your rest day. Choose Sunday through Friday instead.'};
+ const days=everyday?(autoTime?[0,1,2,3,4,5]:[0,1,2,3,4,5,6]):weekdays?[1,2,3,4,5]:named;
+ const op={op:'save_item',title_source:label,time_source:timeText,...(autoTime?{auto_time_selected:true}:{}),
   item:{kind:'reminder',title:label,details,timezone:zone,local_time:time,
-   weekdays:recurring?days:[0,1,2,3,4,5,6],data:{intake_type:'routine'}}};
+   weekdays:recurring?days:[0,1,2,3,4,5,6],data:{intake_type:'routine',...(autoTime?{auto_time_selected:true}: {})}}};
  if(recurring)return [op];
  const nowParts=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:zone,hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(clock).map(x=>[x.type,x.value]));
  const nowMinutes=Number(nowParts.hour)*60+Number(nowParts.minute),timeMinutes=Number(time.slice(0,2))*60+Number(time.slice(3,5));
