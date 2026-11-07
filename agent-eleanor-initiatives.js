@@ -1,7 +1,7 @@
 import {WORKERS,WORKER_ROLES} from './agent-initiative-core.js?v=20261107-initiative-1';
 const labels={working:'Research and drafting underway',review:'Ready for your review',blocked:'Needs an owner decision',paused:'Paused in initiative list',dismissed:'Dismissed'};
 const kinds={standing_goal:'Saved ongoing goal',repeated_work:'Observed across multiple records',scheduled_routine:'Recurring scheduled work',prior_project:'Earlier saved project'};
-const fmt=(v,zone)=>{try{return v?new Intl.DateTimeFormat('en-US',{timeZone:zone,dateStyle:'medium',timeStyle:'short'}).format(new Date(v)):'Not yet': 'Not yet'}catch{return 'Not yet'}};
+const fmt=(v,zone)=>{try{return v?new Intl.DateTimeFormat('en-US',{timeZone:zone,dateStyle:'medium',timeStyle:'short'}).format(new Date(v)):'Not yet'}catch{return 'Not yet'}};
 function info(){
  const state=window.agentHQInitiatives;
  return {ready:!!state?.loaded?.(),setting:state?.setting?.(),ideas:state?.ideas?.()||[],
