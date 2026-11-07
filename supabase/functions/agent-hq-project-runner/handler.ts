@@ -1,4 +1,5 @@
 import {runProjectTurn} from '../_shared/project-engine.ts';
+import {considerWorkerInitiative} from './initiative.ts';
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const response=(body:any,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}});
 
@@ -38,5 +39,11 @@ export async function handleProjectRunner(req:Request,deps:any){
    return response({error:'Project service unavailable; saved work remains queued'},503);
   }
  }
- return response({state:results.length?'processed':'idle',processed:results.length,results});
+ let initiative:any=null;
+ if(deps.proactiveInitiatives===true){
+  try{initiative=await (deps.considerInitiative||considerWorkerInitiative)(deps.db,owners,deps);}
+  catch{initiative={state:'unavailable'};}
+ }
+ return response({state:results.length?'processed':'idle',processed:results.length,results,
+  initiative:initiative?.state||'disabled'});
 }

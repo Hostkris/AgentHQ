@@ -74,12 +74,18 @@ export function dailyCoordinationBrief(state,local,clock=new Date()){
  const cashBoard=(state.board_snapshots||[]).find(x=>x.board_key==='financial')?.payload;
  const boardMoney=cashBoard?('Owner-provided financial snapshot: $'+Number(cashBoard.monthly_income).toFixed(2)+' monthly estimated income, $'+Number(cashBoard.bills_total).toFixed(2)+' in bills; protect the $1,000 liquidity floor. Flip and investing alternatives reuse the same overflow. No cash or sales are verified.'):'No financial snapshot loaded.';
  const checkedToday=(state.board_checks||[]).filter(x=>x.local_date===local&&x.checked).length;
+ const autonomy=state.autonomy_settings||null,workIdeas=(state.autonomous_ideas||[]).filter(i=>i.status!=='dismissed');
+ const initiativeReport=autonomy?.enabled?
+  'Active within existing limits: '+(autonomy.max_new_projects_week??2)+' new internal projects per week; rotating specialist evaluation on eligible days. Last evaluated: '+(autonomy.last_evaluated_on||'not yet recorded')+' by '+(autonomy.last_worker||'no specialist')+' ('+(autonomy.last_outcome||'unknown')+').':
+  'New self-directed worker initiatives are paused. Previously saved projects are controlled separately.';
+ const ideaReport=workIdeas.slice(0,4).map(i=>'• '+i.worker+': '+quote(i.title,100)+' (saved initiative '+i.status+'; verify live project phase before calling it finished)').join('\n');
  const restConflicts=currentDow===0?'The weekly screenshot includes Friday gym, while an earlier schedule said Mon–Thu only. Ask the owner about Friday gym; the eating cutoff is already confirmed and needs no further decision.':'';
 
  return [daily,'Agent HQ Notes and Calendar\n• '+pending+' Notes proposal(s) awaiting approval.\n• '+overdue+' overdue task(s).',
   'Household work and budgets\n'+home,
   'Board schedule today\n'+schedule+'\nConfirmed personal eating rule: finish all food before 5 PM. Weekday dinner 4:20–4:50 PM, 4:45 PM cutoff reminder, then gym at 5 PM. After-gym evening time is for recovery, not dinner.\n'+restConflicts+'\nOwner marked '+checkedToday+' board checklist items complete today.',
   'Finance, flipping and investing reference\n'+boardMoney,
+  'Autonomous worker initiatives\n'+initiativeReport+'\n'+(ideaReport||'No recorded independent work proposals yet; this does not mean a worker has researched anything.'),
   'Goal thermometers\n'+(summaries.length?summaries.join('\n'):'No tracked goals saved yet.')+'\nA scheduled milestone is not completed work or earnings. Review the next eligible Sunday–Friday task. Ask Alex, Avery, Riley, Maya and others to prepare efficient research and cost-aware plans. Budget-related ChatGPT help needs the owner’s approval.',
   'Social-account check\n'+social+'\nOnly review actually authorized sources. Draft replies for the owner; publishing needs authorization.'].join('\n\n');
 }
