@@ -1,6 +1,5 @@
-// Eleanor's on-device Notes review and explicit daily check-in.
-// The Home Notes widget is device-local; nothing here claims an external
-// calendar, TikTok inbox, wearable, or automatic background reading connection.
+// Eleanor reads first-party, owner-private Agent HQ Notes; no external Notes or calendar.
+// Heart rate, water and social check-ins remain owner-reported unless a separate capability is verified.
 
 const CHECKIN_KEY='agenthq-eleanor-daily-checkin-v1:';
 const FIELDS=[
@@ -12,10 +11,12 @@ const FIELDS=[
 ];
 const OPTIONS=[['not_yet','Not yet / not reported'],['yes','Yes / completed'],['no','No / skipped today']];
 function notes(owner){
- try {
-  const list=JSON.parse(localStorage.getItem('agenthq-home-notes-v1:'+owner)||'[]');
-  return Array.isArray(list)?list.filter(n=>n&&typeof n.text==='string'&&n.text.trim()).slice(0,100).map(n=>({text:n.text.slice(0,2000),date:String(n.date||'')})):[];
- } catch {return [];}
+ const cloud=window.agentHQNotesCloud;
+ if(cloud?.owner?.()===owner&&cloud.loaded?.())return cloud.list();
+ // Unmigrated device Notes remain visible until the first confirmed server sync.
+ try{const rows=JSON.parse(localStorage.getItem('agenthq-home-notes-v1:'+owner)||'[]');
+  return Array.isArray(rows)?rows.filter(n=>typeof n?.text==='string'&&n.text.trim()).slice(0,100):[];
+ }catch{return []}
 }
 function readCheckins(owner){
  try {
@@ -49,7 +50,7 @@ function statusSelect(name,selected,E){
 export function renderEleanorTodaySummary(state,day,E){
  const r=todayRecord(state.settings.owner_id,day);
  const count=notes(state.settings.owner_id).length;
- return '<section class="secretary-card eleanor-workflow-summary"><h3>Eleanor’s daily coordination</h3><p>'+E(r?(r.sent_at?'Today’s check-in was sent to Eleanor’s Messages.':'Today’s check-in is saved on this device, not yet sent.'):'Your morning check-in has not been reported today.')+'</p><div class="secretary-actions"><button type="button" data-secretary-tab="checkin">Daily check-in</button><button type="button" data-secretary-tab="notes">Review Notes ('+count+')</button></div><p class="secretary-subtle">Notes and draft check-ins are stored in this browser. Eleanor cannot read another device’s Notes or your live TikTok inbox automatically.</p></section>';
+ return '<section class="secretary-card eleanor-workflow-summary"><h3>Eleanor’s daily coordination</h3><p>'+E(r?(r.sent_at?'Today’s check-in was sent to Eleanor’s Messages.':'Today’s check-in is saved on this device, not yet sent.'):'Your morning check-in has not been reported today.')+'</p><div class="secretary-actions"><button type="button" data-secretary-tab="checkin">Daily check-in</button><button type="button" data-secretary-tab="notes">Review Notes ('+count+')</button></div><p class="secretary-subtle">Agent HQ Notes sync privately inside your account, including Eleanor’s review proposals. Daily check-in drafts are local until sent to Messages. TikTok inbox access remains separately permission-gated.</p></section>';
 }
 export function renderEleanorCoordination(tab,state,day,E){
  const owner=state.settings.owner_id;
@@ -67,9 +68,14 @@ export function renderEleanorCoordination(tab,state,day,E){
    '<p role="status" data-eleanor-checkin-status>'+E(record.sent_at?'Last sent: '+new Date(record.sent_at).toLocaleString():'Not sent yet')+'</p></form></section>';
  }
  const list=notes(owner);
- return '<section class="secretary-card eleanor-workflow"><h3>Notes review and project ideas</h3><p>Eleanor can examine the Notes widget saved on this device when Agent HQ is open. Select Review to ask Eleanor for recommendations. Nothing is delegated, scheduled, posted or sent to outside accounts without your action and the required approvals.</p>'+
-  (list.length?list.map((n,i)=>'<article class="eleanor-note"><small>'+E(n.date||'Saved note')+'</small><p>'+E(n.text)+'</p><p class="secretary-subtle">Possible specialists: '+E(specialists(n.text).join(', '))+'. Alex confirms project assignments.</p>'+
-   '<div class="secretary-actions"><button type="button" data-eleanor-note-action="review" data-note-index="'+i+'">Ask Eleanor for ideas</button><button type="button" data-eleanor-note-action="task" data-note-index="'+i+'">Make task</button><button type="button" data-eleanor-note-action="calendar" data-note-index="'+i+'">Propose calendar entry</button><button type="button" data-eleanor-note-action="project" data-note-index="'+i+'">Start project</button></div></article>').join(''):'<p>No notes are saved in the Home Screen Notes widget on this device.</p>')+
+ return '<section class="secretary-card eleanor-workflow"><h3>Notes review and project ideas</h3><p>Eleanor checks Notes saved inside Agent HQ and flags possible work for your yes/no approval. Select Ask Eleanor for ideas when you want a fuller discussion. Unapproved proposals never create calendar events, projects, outside posts or purchases.</p>'+
+  (list.length?list.map((n,i)=>'<article class="eleanor-note"><small>'+E(n.date||'Saved note')+'</small><p>'+E(n.text)+'</p>'+
+   (n.review_status==='pending'?'<p><strong>Eleanor suggests:</strong> '+E(n.review_summary)+'</p>'+
+    '<div class="secretary-actions"><button type="button" data-eleanor-note-decision="approve" data-note-id="'+E(n.id)+'">Approve '+E(n.review_kind==='calendar'?'calendar entry':n.review_kind==='project'?'project':'task')+'</button><button type="button" data-eleanor-note-decision="decline" data-note-id="'+E(n.id)+'">No, leave it as a note</button></div>':
+    n.review_status==='approved'?'<p class="secretary-subtle">Proposal approved and recorded.</p>':
+    n.review_status==='declined'?'<p class="secretary-subtle">Proposal declined. The note remains available.</p>':'')+
+   '<p class="secretary-subtle">Suggested agents: '+E(specialists(n.text).join(', '))+'. Alex assigns the project team.</p>'+
+   '<div class="secretary-actions"><button type="button" data-eleanor-note-action="review" data-note-index="'+i+'">Ask Eleanor for ideas</button><button type="button" data-eleanor-note-action="task" data-note-index="'+i+'">Make task</button><button type="button" data-eleanor-note-action="calendar" data-note-index="'+i+'">Add to Calendar</button><button type="button" data-eleanor-note-action="project" data-note-index="'+i+'">Start project</button></div></article>').join(''):'<p>No Notes have been saved in Agent HQ yet.</p>')+
   '<p class="secretary-subtle">Internal calendar entries use Eleanor’s saved Meetings register, not Apple or iCloud Calendar. Exact dates and times must be confirmed before saving.</p></section>';
 }
 async function sendToEleanor(state,text){
@@ -91,7 +97,7 @@ function dialog(title,content,onSubmit){
  };
  document.body.append(d);d.showModal();
 }
-function openNoteDialog(kind,note,state,{apply,load,message},E){
+function openNoteDialog(kind,note,state,{apply,load,message},E,onSaved=null){
  const title=titleFromNote(note);
  if(kind==='calendar'){
   dialog('Propose Agent HQ calendar entry',
@@ -106,7 +112,7 @@ function openNoteDialog(kind,note,state,{apply,load,message},E){
     if(!Number.isFinite(start.getTime())||start.getTime()<Date.now()-60000)throw Error('Choose a future date and time.');
     const name=String(f.get('title')||'').trim(),details=String(f.get('notes')||'');
     await apply([{op:'save_item',item:{kind:'meeting',title:name,details,timezone:state.settings.timezone,local_start:chosen,weekdays:[0,1,2,3,4,5,6],data:{attendees:[],purpose:name,notes:details,objectives:''}}}]);
-    await load();message('Saved to Eleanor’s internal calendar. No external calendar was changed.');
+    if(onSaved)await onSaved();await load();message('Saved to the Agent HQ Calendar. No outside calendar was changed.');
    });
  }else{
   const workers=specialists(note.text).join(', ');
@@ -118,7 +124,7 @@ function openNoteDialog(kind,note,state,{apply,load,message},E){
     const name=String(f.get('title')||'').trim(),brief=String(f.get('brief')||'').trim();
     if(!name||brief.length<5)throw Error('Add a title and project requirements.');
     await apply([{op:'create_project',title:name,brief,output_format:'markdown'}]);
-    await load();message('Project saved for Alex and appropriate specialists. Review its progress in Projects.');
+    if(onSaved)await onSaved();await load();message('Project saved for Alex and appropriate specialists. Review its progress in Projects.');
    });
  }
 }
@@ -152,6 +158,26 @@ export function bindEleanorCoordination(root,state,day,helpers,E){
   }catch(error){status.textContent='Saved on this device, but not sent to Eleanor: '+String(error?.message||error);}
   finally{submit.disabled=false;}
  });
+ root.querySelectorAll('[data-eleanor-note-decision]').forEach(button=>button.addEventListener('click',async()=>{
+  const note=notes(state.settings.owner_id).find(n=>n.id===button.dataset.noteId);
+  if(!note||note.review_status!=='pending')return helpers.message('This proposal has changed. Refresh Notes review.');
+  const cloud=window.agentHQNotesCloud,decision=button.dataset.eleanorNoteDecision;
+  if(!cloud?.decide)return helpers.message('The private Notes service is not ready.');
+  button.disabled=true;
+  try{
+   if(decision==='decline'){
+    await cloud.decide(note.id,note.revision,'declined');
+    helpers.message('Eleanor’s proposal declined. Your original note is still saved.');
+   }else if(note.review_kind==='calendar'||note.review_kind==='project'){
+    openNoteDialog(note.review_kind,note,state,helpers,E,()=>cloud.decide(note.id,note.revision,'approved'));
+   }else if(note.review_kind==='task'){
+    await helpers.apply([{op:'save_item',item:{kind:'task',title:titleFromNote(note),details:note.text,timezone:state.settings.timezone,weekdays:[0,1,2,3,4,5,6],data:{source:'agent-hq-notes',source_note_id:note.id}}}]);
+    await cloud.decide(note.id,note.revision,'approved');
+    await helpers.load();helpers.message('Approved. Eleanor saved the task inside Agent HQ.');
+   }
+  }catch(error){helpers.message('Could not confirm the note decision: '+String(error?.message||error));}
+  finally{button.disabled=false;}
+ }));
  root.querySelectorAll('[data-eleanor-note-action]').forEach(button=>button.addEventListener('click',async()=>{
   const note=notes(state.settings.owner_id)[Number(button.dataset.noteIndex)],kind=button.dataset.eleanorNoteAction;
   if(!note)return helpers.message('This note changed. Reopen Notes review.');

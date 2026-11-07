@@ -8,6 +8,7 @@ const here=dirname(fileURLToPath(import.meta.url));
 const source=readFileSync(resolve(here,'../agent-eleanor-workflow.js'),'utf8');
 const workflow=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
 const store=new Map();
+globalThis.window={};
 globalThis.localStorage={
  getItem:key=>store.get(key)||null,
  setItem:(key,value)=>store.set(key,String(value)),
@@ -30,7 +31,7 @@ test('Notes review never reads another owner or legacy unscoped Notes',()=>{
 });
 test('Notes must be explicitly reviewed, scheduled, tasked or delegated',()=>{
  const text=workflow.renderEleanorCoordination('notes',state('owner-one'),today,escape);
- for(const label of ['Ask Eleanor for ideas','Make task','Propose calendar entry','Start project'])
+ for(const label of ['Ask Eleanor for ideas','Make task','Add to Calendar','Start project'])
   assert.ok(text.includes(label),label);
  assert.match(text,/not Apple or iCloud Calendar/);
 });
@@ -52,7 +53,20 @@ test('Morning screen has useful entry points but does not claim auto-reading',()
  const text=workflow.renderEleanorTodaySummary(state('owner-one'),today,escape);
  assert.match(text,/Daily check-in/);
  assert.match(text,/Review Notes/);
- assert.match(text,/cannot read another device/);
+ assert.match(text,/sync privately inside your account/);
+});
+test('Eleanor proposes internal actions and keeps owner yes/no approval explicit',()=>{
+ const current=globalThis.window.agentHQNotesCloud;
+ globalThis.window.agentHQNotesCloud={owner:()=> 'owner-one',loaded:()=>true,list:()=>[
+  {id:'33333333-3333-4333-8333-333333333333',text:'Schedule a planning meeting',date:'Nov 7',review_status:'pending',review_kind:'calendar',review_summary:'Would you like me to add this inside Agent HQ?'}
+ ]};
+ try{
+  const text=workflow.renderEleanorCoordination('notes',state('owner-one'),today,escape);
+  assert.match(text,/Eleanor suggests/);
+  assert.match(text,/Approve calendar entry/);
+  assert.match(text,/No, leave it as a note/);
+  assert.match(text,/data-note-id="33333333-3333-4333-8333-333333333333"/);
+ }finally{globalThis.window.agentHQNotesCloud=current;}
 });
 test('Authenticated load provisions one repeating reminder, respecting stopped records',()=>{
  const source=readFileSync(resolve(here,'../agent-secretary.js'),'utf8');
