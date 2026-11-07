@@ -189,7 +189,7 @@ begin
  insert into public.agent_secretary_items(owner_id,kind,title,details,status,timezone,weekdays,
     due_at,next_due_at,data)
  values(p_owner,'task',left('Review '||initcap(p_worker)||'''s new research initiative',180),
-   'Eleanor: '||left(p_title||'. The specialist and team are researching/drafting internally. Check their real project status and review work when available; no spending or outside action is approved.',
+   'Eleanor: '||left(p_title||'. The specialist and team are researching/drafting internally. Check their real project status and review work when available; no spending or outside action is approved.',1800),
    'active',settings.timezone,array[0,1,2,3,4,5],due,due,
    jsonb_build_object('auto_rollover',true,'proactive_idea_id',idea_id,'project_id',linked,
       'review_only',true))
