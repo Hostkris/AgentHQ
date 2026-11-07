@@ -26,7 +26,7 @@ test('The five private boards render within Eleanor and do not expose owner fina
  for(const part of ['data-hq-board-select','data-hq-board-check','hq-board-sheet-financial','hq-board-sheet-home'])assert.ok((js+styles).includes(part),part);
  assert.match(server,/agent_hq_board_snapshots/);
  assert.match(server,/agent_hq_board_checks/);
- for(const sensitive of ['1345.42','1745.42','1501.49','1557.56'])assert.ok(!js.includes(sensitive),'Never compile sensitive owner snapshot amount into shipped public script: '+sensitive);
+ assert.doesNotMatch(file('agent-eleanor-boards-data.js'),/\b[0-9]{4,6}\.\d{2}\b/,'Private savings, bills and income figures must not be hardcoded in public board definitions.');
 });
 test('Dated cleaning and weekly checklist checkmarks require owner action; Sabbath is protected',()=>{
  const ui=file('agent-eleanor-boards.js');
