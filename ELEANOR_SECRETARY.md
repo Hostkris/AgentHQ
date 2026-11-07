@@ -143,3 +143,20 @@ Agent HQ Notes, Calendar, Reminders, Messages, pop-ups, agent approvals, and pro
 ### Confirmed owner correction: no eating after 5:00 PM
 
 The owner explicitly confirmed the personal schedule: **no food after 5:00 PM**. The private Weekly Organization Board and cleaning guidance now place dinner at 4:20–4:50 PM, preserve the existing 4:45 PM eating-cutoff reminder, keep 5:00–6:30 PM gym, and reserve 6:30–7:20 PM for shower/optional sauna/recovery without food. Do not keep asking about a resolved dinner conflict. If work runs late, help adjust flexible blocks while preserving the confirmed cutoff. This is an owner-chosen routine, not clinical nutrition guidance. The revised snapshot is available via the owner-scoped `agent_hq_board_snapshots` table and day reminders; Saturday remains off.
+
+
+## Autonomous specialist initiatives and grounded memory (November 7, 2026)
+
+User-approved independent initiative: ten specialists (Alex, Maya, Jordan, Riley, Taylor, Casey, Morgan, Avery, Jamie, Quinn) rotate through one eligible Sunday–Friday worker assessment per day. Saturday is excluded. No invented twenty-four-hour thought process: a real configured AI provider must successfully respond and any outage is logged as a failed assessment.
+
+Context is restricted to owner-scoped saved goals/stages, recent project titles and statuses, actual Calendar tasks and recurring routines, business/cleaning boards and earlier source-grounded observations. Medication and sensitive health task labels are not used. No blanket access to unseen ChatGPT history, private inboxes, connected finances, sensor data or accounts is inferred.
+
+Each proposed project must cite a valid goal, project, task or board reference from actual saved context. A single planned task does not prove repeated behavior. Public-research questions are only questions: the existing role-specific project engine must actually execute read-only web research and preserve dated source evidence. The idea generator cannot claim a research result or completed work.
+
+The service-role-only initiative launch creates one genuine bounded internal Alex-coordinated project, one owner-private worker observation, an Eleanor Messages notice and a flexible Sunday–Friday 8:05 PM review task in the internal Calendar. Work continues through the existing saved project workflow, specialist drafts, genuine review, source-grounded research and documented blockers. The review reminder is not proof the project finished.
+
+The user can inspect the AI Initiatives tab for every specialist, source-grounded observations, actual project phase, saved public research questions and blockers. Autonomy defaults to two new projects per week, at most two active self-started projects, with duplicate focus suppression for 30 days. Owner controls change the weekly cap (0–3), active cap (0–3), enable/disable *new* ideas, dismiss entries and exclude an observation from later worker memory. Pause new ideas does not pause already-created projects; control them from Projects.
+
+All projects remain protected by existing usage limits, owner-only private registers with forced RLS, financial and external-action approval gates and Saturday rest. No unauthorized purchases, billings, paid ads, publishing, messaging, account changes or private-source access. Only actual saved work can be credited as complete.
+
+Database: agent_hq_autonomy_settings, agent_hq_autonomy_ideas, agent_hq_worker_patterns, agent_hq_claim_autonomy, agent_hq_launch_autonomy and agent_hq_owner_autonomy_idea_control. Never put service keys into browser files. Saturday and creation tests were verified using a database rollback transaction. Separately verify both Edge Function deployment and published GitHub Pages files.
