@@ -24,7 +24,7 @@ export function routineDue(item,day){
  const allowed=item?.weekdays;
  if(Array.isArray(allowed)&&!allowed.includes(dow(day)))return false;
  const info=item?.data||{};
- if(info.monthly_weight===true||info.monthly_weight==='true'){
+ if(info.monthly_weight===true||info.monthly_weight==='true'||info.monthly_review===true||info.monthly_review==='true'){
   const firstDow=dow(day.slice(0,7)+'-01');
   return Number(day.slice(8))===(firstDow===6?2:1);
  }
