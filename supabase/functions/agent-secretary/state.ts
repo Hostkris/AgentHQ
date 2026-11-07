@@ -4,7 +4,7 @@ export const uuid=(v:any)=>/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-
 const bounded=(v:any,n:number)=>typeof v==='string'?v.trim().slice(0,n):'';
 export async function ensureSecretary(db:any,owner:string,enabled=false){const {data,error}=await db.rpc('ensure_agent_secretary',{p_owner:owner,p_spec:ELEANOR_SPEC,p_enable_brief:enabled});if(error)throw Error('Could not prepare Eleanor’s private records');return data;}
 export async function secretaryState(db:any,owner:string){
- const [s,i,d,w,p,g,a,c,checkins,noteProposals,socialAccounts,goalRows,goalStages,boardSnapshots,boardChecks]=await Promise.all([
+ const [s,i,d,w,p,g,a,c,checkins,noteProposals,socialAccounts,goalRows,goalStages,boardSnapshots,boardChecks,initiativeSettings,initiativeRows]=await Promise.all([
   db.from('agent_secretary_settings').select('*').eq('owner_id',owner).maybeSingle(),
   db.from('agent_secretary_items').select('*').eq('owner_id',owner).order('status').order('updated_at',{ascending:false}).limit(300),
   db.from('agent_secretary_deliveries').select('id,item_id,item_version,kind,scheduled_at,status,action_state,body,push_state,last_error,saved_at').eq('owner_id',owner).order('scheduled_at',{ascending:false}).limit(100),
@@ -19,9 +19,11 @@ export async function secretaryState(db:any,owner:string){
   db.from('agent_hq_goals').select('id,kind,title,target_outcome,budget_cap_cents,spent_cents,status,project_id').eq('owner_id',owner).eq('status','active').order('updated_at',{ascending:false}).limit(40),
   db.from('agent_hq_goal_milestones').select('id,goal_id,position,title,weight,status,due_at,calendar_task_id').eq('owner_id',owner).order('position',{ascending:true}).limit(400),
   db.from('agent_hq_board_snapshots').select('board_key,payload,source_label,updated_at').eq('owner_id',owner).limit(10),
-  db.from('agent_hq_board_checks').select('board_key,local_date,checklist_key,checked').eq('owner_id',owner).order('local_date',{ascending:false}).limit(800)
- ]);if([s,i,d,w,p,g,a,c,checkins,noteProposals,socialAccounts,goalRows,goalStages,boardSnapshots,boardChecks].some(x=>x.error)||!s.data)throw Error('Could not load the secretary registers');
- const state={settings:s.data,items:i.data||[],deliveries:d.data||[],workout_log:w.data||[],devices:p.data||[],agent_alerts:a.data||[],chatgpt_requests:c.data||[],gmail_connected:g.data?.status==='active'&&(g.data.scopes||[]).some((x:string)=>['https://www.googleapis.com/auth/gmail.readonly','https://www.googleapis.com/auth/gmail.modify','https://mail.google.com/'].includes(x)),calendar_sync_connected:false,daily_checkins:checkins.data||[],pending_note_proposals:noteProposals.data||[],social_accounts:socialAccounts.data||[],goals:goalRows.data||[],goal_milestones:goalStages.data||[],board_snapshots:boardSnapshots.data||[],board_checks:boardChecks.data||[]};
+  db.from('agent_hq_board_checks').select('board_key,local_date,checklist_key,checked').eq('owner_id',owner).order('local_date',{ascending:false}).limit(800),
+  db.from('agent_hq_autonomy_settings').select('enabled,last_worker,last_evaluated_on,last_outcome,max_new_projects_week').eq('owner_id',owner).maybeSingle(),
+  db.from('agent_hq_autonomy_ideas').select('worker,title,project_id,status,created_at').eq('owner_id',owner).order('created_at',{ascending:false}).limit(25)
+ ]);if([s,i,d,w,p,g,a,c,checkins,noteProposals,socialAccounts,goalRows,goalStages,boardSnapshots,boardChecks,initiativeSettings,initiativeRows].some(x=>x.error)||!s.data)throw Error('Could not load the secretary registers');
+ const state={settings:s.data,items:i.data||[],deliveries:d.data||[],workout_log:w.data||[],devices:p.data||[],agent_alerts:a.data||[],chatgpt_requests:c.data||[],gmail_connected:g.data?.status==='active'&&(g.data.scopes||[]).some((x:string)=>['https://www.googleapis.com/auth/gmail.readonly','https://www.googleapis.com/auth/gmail.modify','https://mail.google.com/'].includes(x)),calendar_sync_connected:false,daily_checkins:checkins.data||[],pending_note_proposals:noteProposals.data||[],social_accounts:socialAccounts.data||[],goals:goalRows.data||[],goal_milestones:goalStages.data||[],board_snapshots:boardSnapshots.data||[],board_checks:boardChecks.data||[],autonomy_settings:initiativeSettings.data||null,autonomous_ideas:initiativeRows.data||[]};
  return {...state,registries:stateSummary(state)};
 }
 function dateSource(source:string,localToday:string){if(/^\d{4}-\d{2}-\d{2}$/.test(source))return source;if(['today','tonight'].includes(source.toLowerCase()))return localToday;if(source.toLowerCase()==='tomorrow'){const d=new Date(localToday+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+1);return d.toISOString().slice(0,10);}return null;}
