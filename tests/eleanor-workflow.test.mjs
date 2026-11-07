@@ -6,7 +6,7 @@ import {dirname,resolve} from 'node:path';
 
 const here=dirname(fileURLToPath(import.meta.url));
 const source=readFileSync(resolve(here,'../agent-eleanor-workflow.js'),'utf8');
-const workflow=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+const workflow=await import(new URL('../agent-eleanor-workflow.js',import.meta.url));
 const store=new Map();
 globalThis.window={};
 globalThis.localStorage={
