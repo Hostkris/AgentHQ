@@ -25,7 +25,7 @@ export function secretaryTime(value){
  if(/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(t))return t;return null;
 }
 export function secretaryDate(clock,zone){const p=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(clock).map(x=>[x.type,x.value]));return p.year+'-'+p.month+'-'+p.day;}
-export function stateSummary(state){return {Daily_Reminders:state.items.filter(i=>i.kind==='reminder'),Workout_Schedule:state.items.filter(i=>i.kind==='workout'),Fitness_Log:state.workout_log||[],Active_Tasks:state.items.filter(i=>i.kind==='task'),Meetings:state.items.filter(i=>i.kind==='meeting'),Goals:state.goals||[],Goal_Milestones:state.goal_milestones||[],settings:state.settings};}
+export function stateSummary(state){return {Daily_Reminders:state.items.filter(i=>i.kind==='reminder'),Workout_Schedule:state.items.filter(i=>i.kind==='workout'),Fitness_Log:state.workout_log||[],Active_Tasks:state.items.filter(i=>i.kind==='task'),Meetings:state.items.filter(i=>i.kind==='meeting'),Goals:state.goals||[],Goal_Milestones:state.goal_milestones||[],Personal_Boards:(state.board_snapshots||[]).map(b=>({board_key:b.board_key,title:b.payload?.title})),Board_Checks:state.board_checks||[],settings:state.settings};}
 const quote=(v,n=4000)=>String(v||'').trim().slice(0,n);
 export function meetingBrief(event,mail={state:'not_enabled',messages:[]},projectNotes=''){
  const data=event.data||{},attendees=Array.isArray(data.attendees)?data.attendees:[],people=attendees.length?attendees.map(a=>quote(a.name||a.email,100)+(a.role?' — '+quote(a.role,100):' — role not supplied')).join('; '):'Attendees not supplied.';
@@ -70,11 +70,15 @@ export function dailyCoordinationBrief(state,local,clock=new Date()){
    business?'3–4 PM business focus ('+business.day+'): '+business.title+' — '+quote(business.description,130):'',
    gym?'5–6:30 PM LA Fitness: '+quote(gym.details,100):'',
    cleaning?'Cleaning day ('+cleaning.day+'): '+cleaning.title+'; use the saved daily reset and specific tasks.':''].filter(Boolean).join('\n');
+ const cashBoard=(state.board_snapshots||[]).find(x=>x.board_key==='financial')?.payload;
+ const boardMoney=cashBoard?('Owner-provided financial snapshot: $'+Number(cashBoard.monthly_income).toFixed(2)+' monthly estimated income, $'+Number(cashBoard.bills_total).toFixed(2)+' in bills; protect the $1,000 liquidity floor. Flip and investing alternatives reuse the same overflow. No cash or sales are verified.'):'No financial snapshot loaded.';
+ const checkedToday=(state.board_checks||[]).filter(x=>x.local_date===local&&x.checked).length;
  const restConflicts=currentDow===0?'Please clarify the conflict between the weekly-board dinner after 6:30 PM and the existing 5 PM eating-cutoff reminder before changing either one. The weekly screenshot also includes Friday gym, while an earlier schedule said Mon–Thu only; preserve the board plan until the owner decides.':'';
 
  return [daily,'Agent HQ Notes and Calendar\n• '+pending+' Notes proposal(s) awaiting approval.\n• '+overdue+' overdue task(s).',
   'Household work and budgets\n'+home,
-  'Board schedule today\n'+schedule+'\n'+restConflicts,
+  'Board schedule today\n'+schedule+'\n'+restConflicts+'\nOwner marked '+checkedToday+' board checklist items complete today.',
+  'Finance, flipping and investing reference\n'+boardMoney,
   'Goal thermometers\n'+(summaries.length?summaries.join('\n'):'No tracked goals saved yet.')+'\nA scheduled milestone is not completed work or earnings. Review the next eligible Sunday–Friday task. Ask Alex, Avery, Riley, Maya and others to prepare efficient research and cost-aware plans. Budget-related ChatGPT help needs the owner’s approval.',
   'Social-account check\n'+social+'\nOnly review actually authorized sources. Draft replies for the owner; publishing needs authorization.'].join('\n\n');
 }
