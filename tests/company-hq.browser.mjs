@@ -13,7 +13,7 @@ const browser=await engine.launch({headless:true,...(engine===chromium?{executab
 const context=await browser.newContext({viewport:mac?{width:1440,height:900}:{width:390,height:844},deviceScaleFactor:1,isMobile:!mac,hasTouch:!mac});
 const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
 page.on('dialog',dialog=>dialog.accept());
-const core=new Set(['agent-research-status.js','app.js','agent-home-layout.js','agent-weather-conditions.js','agent-reading-schedule.js','agent-message-controls.js','agent-project-view.js','agent-project-recovery.js','agent-project-autonomy.js','agent-projects-cloud.js','agent-activity-cloud.js','agent-activity-view.js','icons.js']);
+const core=new Set(['agent-research-status.js','app.js','agent-home-layout.js','agent-goal-math.js','agent-hq-goals-cloud.js','agent-weather-conditions.js','agent-reading-schedule.js','agent-message-controls.js','agent-project-view.js','agent-project-recovery.js','agent-project-autonomy.js','agent-projects-cloud.js','agent-activity-cloud.js','agent-activity-view.js','icons.js']);
 await page.route('**/*',async route=>{const u=new URL(route.request().url()),name=u.pathname.split('/').at(-1);
  if(u.origin!==base){await route.abort();return;}
  if(name==='agent-cloud-auth.js'){await route.fulfill({contentType:'text/javascript',body:'export const agentCloud=window.__cloud;'});return;}
