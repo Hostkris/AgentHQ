@@ -222,6 +222,8 @@ function bind(){
 }
 window.addEventListener('agenthq-home-notes-changed',()=>{if(root&&state&&(tab==='notes'||tab==='today'))render()});
 window.addEventListener('agenthq-secretary-show-alerts',()=>{tab='alerts';render();});
+window.addEventListener('agenthq-secretary-show-notes',()=>{tab='notes';render();});
+window.addEventListener('agenthq-secretary-show-meetings',()=>{tab='meetings';render();});
 function mount(){if(pendingOpen&&window.agentHQOpenSecretary){pendingOpen=false;window.agentHQOpenSecretary();}const next=host();if(next===root)return;root=next;if(root){render();if(owner)void load();}}
 new MutationObserver(mount).observe(document.getElementById('app')||document.body,{childList:true,subtree:true});
 agentCloud.auth.onAuthStateChange((_event,session)=>{const next=session?.user?.id||null;if(next!==owner){owner=next;epoch++;state=null;publicKey=null;pushState={code:'checking',deviceId:null};notice=next?'Loading your private registers…':'Sign in under Settings → Account to open Eleanor’s desk.';document.querySelectorAll('dialog.secretary-dialog').forEach(d=>d.close());render();if(!next&&typeof Notification!=='undefined'&&Notification.permission==='granted'&&'PushManager' in window&&navigator.serviceWorker?.getRegistration)void navigator.serviceWorker.getRegistration('./').then(r=>r?.pushManager?.getSubscription()).then(s=>s?.unsubscribe()).catch(()=>{});if(next)void load();}if(next&&'serviceWorker' in navigator){registration??=navigator.serviceWorker.register('./agent-secretary-sw.js?v=20261102-agent-work-notifications-1',{scope:'./'}).catch(()=>null);void api('push_config').then(r=>publicKey=r.public_key).catch(()=>{});}});
