@@ -63,7 +63,8 @@ async function decide(noteId,revision,decision){
   .eq('owner_id',id).eq('id',noteId).eq('revision',revision).eq('review_status','pending')
   .select('id').maybeSingle();
  if(error||!data)throw Error('Eleanor’s proposal changed. Refresh Notes and review the current version.');
- await refresh();return true;
+ window.dispatchEvent(new CustomEvent('agenthq-secretary-state-invalidated',{detail:{owner_id:id}}));
+ await refresh();window.dispatchEvent(new Event('agenthq-notes-decision'));return true;
 }
 async function migrateDeviceNotes(id){
  const key=KEY+id;let old;
