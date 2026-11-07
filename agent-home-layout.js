@@ -44,6 +44,8 @@ const noteKey=owner=>'agenthq-home-notes-v1:'+owner;
 let homeNoteOwner=null;
 function savedHomeNotes(){
  if(!homeNoteOwner)return [];
+ const cloud=window.agentHQNotesCloud;
+ if(cloud?.owner?.()===homeNoteOwner&&cloud.loaded?.())return cloud.list();
  try{const list=JSON.parse(localStorage.getItem(noteKey(homeNoteOwner))||'[]');return Array.isArray(list)?list.slice(0,100):[]}catch{return []}
 }
 function personal(){
@@ -156,7 +158,7 @@ export function renderHomeScreen(renderButton,values={}){
 function widgetPanel(){if(!activeWidget)return '';
  const p=personal(),kind=activeWidget,heading=esc(kind[0].toUpperCase()+kind.slice(1));let body='';
  if(kind==='notes')body=`<form data-widget-note-form><label for="home-note">New note</label><textarea id="home-note" maxlength="2000" required placeholder="Something to remember or ask later"></textarea><button type="submit">Save note</button></form><div class="widget-note-list">${(p.notes||[]).map((n,i)=>`<div class="widget-note"><p>${esc(n.text)}</p><small>${esc(n.date)}</small><button type="button" data-widget-delete-note="${i}" aria-label="Delete note">×</button></div>`).join('')}</div>`;
- if(kind==='calendar')body=`<div class="widget-date">Today: ${esc(new Intl.DateTimeFormat(undefined,{weekday:'long',month:'long',day:'numeric'}).format(new Date()))}</div>${monthView()}${calendarEntries()}<button type="button" data-home-widget-nav="assignments">View assignments (${Number(lastValues.assignments||0)})</button><button type="button" data-home-widget-nav="reminders">Open Eleanor’s calendar and reminders</button>`;
+ if(kind==='calendar')body=`<div class="widget-date">Today: ${esc(new Intl.DateTimeFormat(undefined,{weekday:'long',month:'long',day:'numeric'}).format(new Date()))}</div>${monthView()}${calendarEntries()}<button type="button" data-home-widget-nav="assignments">View assignments (${Number(lastValues.assignments||0)})</button><button type="button" data-home-internal-calendar>Open Agent HQ Calendar</button>`;
  if(kind==='weather')body=`<form data-widget-weather-form><label for="home-weather-city">City or ZIP code</label><input id="home-weather-city" name="city" autocomplete="address-level2" required value="${esc(p.city||'')}" placeholder="Columbus, Ohio"><button type="submit">Get weather</button></form><button type="button" data-widget-location>Use my location</button><p data-weather-result>${esc(weatherLabel())}</p><div class="widget-forecast">${(p.weather?.days||[]).map(d=>`<div><span>${esc(d.day)}</span><strong>${Math.round(d.high)}°</strong><small>${Math.round(d.low)}° low</small></div>`).join('')}</div><small>Forecast by Open-Meteo · updates when you ask.</small>`;
  if(kind==='clock')body=`<div class="widget-clock-face" data-widget-clock-face>${p.analog?clockFace():timeLabel()}</div><button type="button" data-widget-clock-toggle>Switch to ${p.analog?'digital':'analog'}</button>`;
  if(kind==='status')body=`<p>${Number(lastValues.assignments||0)} assignments need attention</p><p>${Number(lastValues.messages||0)} unread messages</p><p>${Number(lastValues.approvals||0)} approvals waiting</p><button type="button" data-home-widget-nav="operations">Open Operations</button>`;
@@ -206,10 +208,20 @@ function action(target){
  const openWidget=target.closest('[data-home-widget-open]');
  if(openWidget){if(!editing){activeWidget=openWidget.dataset.homeWidgetOpen;change();if(activeWidget==='calendar')void refreshSecretaryCalendar()}return true}
  if(target.matches('[data-widget-close]')){activeWidget=null;change();return true}
- if(target.closest('[data-widget-delete-note]')){const p=personal(),i=Number(target.closest('[data-widget-delete-note]').dataset.widgetDeleteNote);p.notes=(p.notes||[]).filter((_,n)=>n!==i);putPersonal({notes:p.notes});change();return true}
+ if(target.closest('[data-widget-delete-note]')){
+  const i=Number(target.closest('[data-widget-delete-note]').dataset.widgetDeleteNote),note=personal().notes?.[i];
+  if(!note?.id){window.alert('This note is still syncing. Try again after it has saved to Agent HQ.');return true}
+  window.agentHQNotesCloud?.remove(note.id).catch(error=>window.alert(String(error?.message||error)));
+  return true;
+ }
  if(target.closest('[data-widget-clock-toggle]')){putPersonal({analog:!personal().analog});change();return true}
  if(target.closest('[data-widget-month]')){calendarOffset+=Number(target.closest('[data-widget-month]').dataset.widgetMonth);change();return true}
  if(target.closest('[data-widget-location]')){navigator.geolocation?.getCurrentPosition(pos=>fetchWeather(pos.coords.latitude,pos.coords.longitude,'Current location'),()=>{const el=root()?.querySelector('[data-weather-result]');if(el)el.textContent='Location unavailable. Enter a city instead.'},{timeout:10000});return true}
+ if(target.closest('[data-home-internal-calendar]')){
+  if(!editing){activeWidget=null;window.dispatchEvent(new Event('agenthq-secretary-show-meetings'));
+   const button=document.createElement('button');button.dataset.nav='reminders';document.querySelector('#app')?.append(button);button.click();button.remove()}
+  return true;
+ }
  const widgetLink=target.closest('[data-home-widget-nav]');
  if(widgetLink){if(!editing){activeWidget=null;const button=document.createElement('button');button.dataset.nav=widgetLink.dataset.homeWidgetNav;document.querySelector('#app')?.append(button);button.click();button.remove()}return true}
  return Boolean(editing&&target.closest('[data-home-tile]'));
@@ -369,7 +381,17 @@ let connected=false;
 function init(){
  if(connected)return;connected=true;
  document.addEventListener('submit',event=>{
-  if(event.target.matches('[data-widget-note-form]')){event.preventDefault();const text=event.target.querySelector('textarea')?.value.trim();if(!text)return;const notes=personal().notes||[];putPersonal({notes:[{text,date:dateLabel()},...notes].slice(0,100)});change()}
+  if(event.target.matches('[data-widget-note-form]')){
+  event.preventDefault();const form=event.target,field=form.querySelector('textarea'),text=field?.value.trim();
+  if(!text)return;const button=form.querySelector('[type=submit]');
+  if(button.disabled)return;button.disabled=true;
+  try{
+   if(!window.agentHQNotesCloud?.create)throw Error('Agent HQ Notes service has not loaded.');
+   await window.agentHQNotesCloud.create(text);
+   change();
+  }catch(error){let status=form.querySelector('[data-note-error]');if(!status){status=document.createElement('p');status.dataset.noteError='';form.append(status)}status.textContent=String(error?.message||error);}
+  finally{button.disabled=false}
+ }
   if(event.target.matches('[data-widget-weather-form]')){event.preventDefault();const city=event.target.querySelector('input')?.value.trim();if(city)findWeather(city)}
  },true);
  setInterval(()=>{if(!root())return;const p=personal();for(const el of root().querySelectorAll('[data-widget-summary="clock"], [data-widget-clock-face]')){if(p.analog)el.innerHTML=clockFace();else el.textContent=timeLabel()}for(const el of root().querySelectorAll('[data-widget-summary="calendar"]'))el.textContent=dateLabel()},30000);
@@ -426,6 +448,7 @@ function init(){
  });
  document.addEventListener('visibilitychange',()=>{if(document.hidden){finishDrag();swipe=null}});
 }
+window.addEventListener('agenthq-home-notes-changed',()=>{if(root())change()});
 export function connectHomeScreen(onChange){change=onChange;init()}
 
 
