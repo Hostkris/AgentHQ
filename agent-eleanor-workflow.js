@@ -24,7 +24,12 @@ function readCheckins(owner){
   return d&&typeof d==='object'&&!Array.isArray(d)?d:{};
  } catch{return {};}
 }
-function todayRecord(owner,day){return readCheckins(owner)[day]||null;}
+function todayRecord(owner,day){
+ const cloud=window.agentHQCheckins;
+ const c=cloud?.owner?.()===owner&&cloud.loaded?.()?cloud.record(day):null;
+ if(c)return {fields:c.fields||{},sent_at:c.submitted_at,sent_signature:c.sent_signature,saved_at:c.updated_at};
+ return readCheckins(owner)[day]||null;
+}
 function saveRecord(owner,day,record){
  const all=readCheckins(owner);
  all[day]=record;
@@ -49,22 +54,31 @@ function statusSelect(name,selected,E){
 }
 export function renderEleanorTodaySummary(state,day,E){
  const r=todayRecord(state.settings.owner_id,day);
- const count=notes(state.settings.owner_id).length;
- return '<section class="secretary-card eleanor-workflow-summary"><h3>Eleanor’s daily coordination</h3><p>'+E(r?(r.sent_at?'Today’s check-in was sent to Eleanor’s Messages.':'Today’s check-in is saved on this device, not yet sent.'):'Your morning check-in has not been reported today.')+'</p><div class="secretary-actions"><button type="button" data-secretary-tab="checkin">Daily check-in</button><button type="button" data-secretary-tab="notes">Review Notes ('+count+')</button></div><p class="secretary-subtle">Agent HQ Notes sync privately inside your account, including Eleanor’s review proposals. Daily check-in drafts are local until sent to Messages. TikTok inbox access remains separately permission-gated.</p></section>';
+ const list=notes(state.settings.owner_id),count=list.length,pending=list.filter(n=>n.review_status==='pending').length;
+ const active=state.items.filter(i=>i.status==='active');
+ const tasks=active.filter(i=>i.kind==='task');
+ const meetings=active.filter(i=>i.kind==='meeting'&&i.scheduled_at&&new Date(i.scheduled_at).getTime()>=Date.now()-3600000).sort((a,b)=>new Date(a.scheduled_at)-new Date(b.scheduled_at)).slice(0,4);
+ const fmt=v=>new Intl.DateTimeFormat('en-US',{timeZone:state.settings.timezone||'America/New_York',weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}).format(new Date(v));
+ const agenda=meetings.map(i=>'<li>'+E(fmt(i.scheduled_at)+' · '+i.title)+'</li>').join('')||'<li>No upcoming appointments saved.</li>';
+ return '<section class="secretary-card eleanor-workflow-summary"><h3>Eleanor’s daily coordination</h3><p>'+E(r?(r.sent_at?'Today’s check-in is saved in Agent HQ and sent to Eleanor.':'Today’s check-in is saved as a draft; Eleanor is waiting for your report.'):'Eleanor is ready for today’s check-in. Nothing is marked complete without your report.')+'</p>'+
+  '<p><strong>Agent HQ Calendar:</strong> '+meetings.length+' upcoming appointment(s) · '+tasks.length+' active task(s) · '+pending+' Note proposal(s) awaiting your decision.</p>'+
+  '<ul class="eleanor-agenda-list">'+agenda+'</ul>'+
+  '<div class="secretary-actions"><button type="button" data-secretary-tab="checkin">Answer today’s check-in</button><button type="button" data-secretary-tab="meetings">Open Calendar</button><button type="button" data-secretary-tab="tasks">Open Tasks</button><button type="button" data-secretary-tab="notes">Review Notes ('+count+')</button></div>'+
+  '<p class="secretary-subtle">The Calendar and Notes are inside Agent HQ. Daily reports sync privately; reports about your body and social activity are never guessed. Notifications require your device alert permission.</p></section>';
 }
 export function renderEleanorCoordination(tab,state,day,E){
  const owner=state.settings.owner_id;
  if(tab==='checkin'){
   const record=todayRecord(owner,day)||{},f=record.fields||{};
-  return '<section class="secretary-card eleanor-workflow"><h3>Morning and daily check-in · '+E(day)+'</h3>'+
-   '<p>Report only what actually happened. Heart rate is entered manually; no device or Apple Health connection is implied. No doses or water targets are assumed.</p>'+
+  return '<section class="secretary-card eleanor-workflow"><h3>Eleanor’s daily check-in · '+E(day)+'</h3>'+
+   '<p>Eleanor is checking in about your morning routine, hydration, TikTok Live and any outstanding posts or messages. Report only what happened. Heart rate must be measured or entered by you; no outside health connection or target is assumed.</p>'+
    '<form data-eleanor-checkin-form>'+
    '<label>Heart rate, beats per minute (if measured)<input type="number" name="heart_rate" min="20" max="250" step="1" inputmode="numeric" value="'+E(f.heart_rate??'')+'" placeholder="Not measured"></label>'+
    '<label>Water consumed today, fluid ounces (if tracked)<input type="number" name="water_oz" min="0" max="500" step="0.5" inputmode="decimal" value="'+E(f.water_oz??'')+'" placeholder="Not reported"></label>'+
    FIELDS.map(([key,label])=>'<label>'+E(label)+statusSelect(key,f[key]||'not_yet',E)+'</label>').join('')+
    '<label>Posts, comments or messages that need a reply (paste only what you choose to share)<textarea name="reply_context" rows="4" maxlength="2000" placeholder="Paste the message and context. Eleanor can suggest a reply but will not post it.">'+E(f.reply_context||'')+'</textarea></label>'+
    '<label>What would you like Eleanor to help with today?<textarea name="request" rows="3" maxlength="1000" placeholder="Planning, follow-ups, replies, reminders, projects...">'+E(f.request||'')+'</textarea></label>'+
-   '<button type="submit">Save and send check-in to Eleanor</button><p class="secretary-subtle">Your entry is saved on this device first. Sending uses Eleanor’s existing Messages conversation and available AI allowance.</p>'+
+   '<button type="submit">Save in Agent HQ and report to Eleanor</button><button type="button" data-eleanor-social-review>Ask Eleanor to review authorized social activity</button><p class="secretary-subtle">Your answers sync privately inside Agent HQ before Eleanor receives your report. She can suggest replies but cannot assume TikTok inbox access or publish messages without permission.</p>'+
    '<p role="status" data-eleanor-checkin-status>'+E(record.sent_at?'Last sent: '+new Date(record.sent_at).toLocaleString():'Not sent yet')+'</p></form></section>';
  }
  const list=notes(owner);
@@ -143,8 +157,13 @@ export function bindEleanorCoordination(root,state,day,helpers,E){
   const signature=JSON.stringify(fields);
   const record={fields,saved_at:new Date().toISOString(),sent_at:prior?.sent_signature===signature?prior.sent_at:null,sent_signature:prior?.sent_signature===signature?signature:null};
   try{
-   saveRecord(owner,day,record);
-   if(record.sent_at){status.textContent='This exact check-in was already sent. Saved without sending a duplicate.';return;}
+   saveRecord(owner,day,record); // Retain an on-device draft if the network is lost.
+   const cloud=window.agentHQCheckins;
+   if(!cloud?.save||cloud.owner?.()!==owner)throw Error('Private Agent HQ daily register is not available. The draft remains on this device.');
+   const remote=await cloud.save(day,fields);
+   if(remote.sent_signature===signature&&remote.submitted_at){
+    status.textContent='This check-in is already saved and reported. No duplicate was sent.';return;
+   }
    const summary=['Daily check-in for '+day+' (owner-reported; no automatic measurement):',
     'Heart rate: '+(fields.heart_rate===undefined?'not measured/reported':fields.heart_rate+' bpm'),
     'Water: '+(fields.water_oz===undefined?'not measured/reported':fields.water_oz+' fluid oz'),
@@ -152,11 +171,20 @@ export function bindEleanorCoordination(root,state,day,helpers,E){
     'Messages needing a drafted reply (not permission to send): '+(fields.reply_context||'none supplied'),
     'My requested assistance: '+(fields.request||'Please ask what I need help with.')];
    await sendToEleanor(state,summary.join('\n'));
+   await cloud.markSent(day,fields);
    record.sent_at=new Date().toISOString();record.sent_signature=signature;saveRecord(owner,day,record);
-   status.textContent='Saved and sent to Eleanor’s Messages. No external posts or replies were sent.';
+   status.textContent='Saved inside Agent HQ and sent to Eleanor’s Messages. No external posts or replies were sent.';
    helpers.message('Check-in recorded in Eleanor’s conversation. Open Messages to continue step by step.');
-  }catch(error){status.textContent='Saved on this device, but not sent to Eleanor: '+String(error?.message||error);}
+  }catch(error){status.textContent='Check-in not fully confirmed: '+String(error?.message||error)+' Your device keeps a draft; verify Eleanor’s Messages before resending.';}
   finally{submit.disabled=false;}
+ });
+ root.querySelector('[data-eleanor-social-review]')?.addEventListener('click',async event=>{
+  const button=event.currentTarget;button.disabled=true;
+  try{
+   await sendToEleanor(state,'Eleanor, please check what social-account read permissions are actually active in Agent HQ. If a permitted connector can read any posts, comments or messages, review only what I have authorized and prepare draft reply suggestions for my approval. Do not claim TikTok DMs are accessible merely because the account is listed. If there is no working connection, tell me clearly and ask for a specific approved page review or pasted message. Coordinate Casey and Taylor for social replies; do not publish, reply or spend.');
+   helpers.message('Asked Eleanor to verify authorized social access and recommend replies inside her Messages.');
+  }catch(error){helpers.message('Could not ask Eleanor: '+String(error?.message||error));}
+  finally{button.disabled=false;}
  });
  root.querySelectorAll('[data-eleanor-note-decision]').forEach(button=>button.addEventListener('click',async()=>{
   const note=notes(state.settings.owner_id).find(n=>n.id===button.dataset.noteId);

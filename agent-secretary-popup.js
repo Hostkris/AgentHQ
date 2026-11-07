@@ -31,6 +31,7 @@ function alertGroup(snapshot){
 }
 function heading(alert){
  if(alert.total&&alert.notices.every(n=>n.chatgpt))return alert.total===1?'A ChatGPT update from Eleanor':'ChatGPT requests and results';
+ if(alert.total===1&&alert.notices.some(n=>/Eleanor daily check-in/i.test(n.body||'')))return 'Eleanor’s daily check-in';
  return alert.total===1?'A reminder from Eleanor':alert.total>1?'Eleanor has '+alert.total+' items for you':'You’re up to date';
 }
 function alertHTML(alert){
@@ -51,7 +52,7 @@ function paintPopup(alert){
  }
  panel.querySelector('[data-eleanor-pop-heading]').textContent=heading(alert);
  panel.querySelector('[data-eleanor-pop-source]').textContent=sourceText();
- panel.querySelector('[data-eleanor-pop-desk]').textContent=alert.notices.some(n=>n.chatgpt)?'Open ChatGPT requests':alert.notices.some(n=>n.agent)?'Review agent alerts':'Open secretary desk';
+ panel.querySelector('[data-eleanor-pop-desk]').textContent=alert.notices.some(n=>n.chatgpt)?'Open ChatGPT requests':alert.notices.some(n=>/Eleanor daily check-in/i.test(n.body||''))?'Answer daily check-in':alert.notices.some(n=>n.agent)?'Review agent alerts':'Open secretary desk';
  activeKey=alert.total?alert.key:null;
 }
 async function appAction(getAction,account,panel){
@@ -91,8 +92,9 @@ function popup(alert){
    const chatgpt=latestSnapshot?.notices.some(n=>n.chatgpt);
    const open=await appAction(()=>chatgpt?window.agentHQOpenChatGPT:window.agentHQOpenSecretary,account,el);
    if(account!==owner||!el.isConnected)return;
-   const agent=latestSnapshot?.notices.some(n=>n.agent),notes=latestSnapshot?.notices.some(n=>/Eleanor reviewed an Agent HQ Note/.test(n.body||''));closePopup();open();
-   if(notes&&!chatgpt)window.dispatchEvent(new Event('agenthq-secretary-show-notes'));
+   const agent=latestSnapshot?.notices.some(n=>n.agent),notes=latestSnapshot?.notices.some(n=>/Eleanor reviewed an Agent HQ Note/.test(n.body||'')),checkin=latestSnapshot?.notices.some(n=>/Eleanor daily check-in/i.test(n.body||''));closePopup();open();
+   if(checkin&&!chatgpt)window.dispatchEvent(new Event('agenthq-secretary-show-checkin'));
+   else if(notes&&!chatgpt)window.dispatchEvent(new Event('agenthq-secretary-show-notes'));
    else if(agent&&!chatgpt)window.dispatchEvent(new Event('agenthq-secretary-show-alerts'));
   }catch(error){if(account===owner&&el.isConnected)status.textContent=String(error?.message||error);}
   finally{if(el.isConnected)button.disabled=false;}
