@@ -1,4 +1,4 @@
-import {ELEANOR_SPEC,SECRETARY_KINDS,secretaryTime,stateSummary,secretaryDate} from '../../../eleanor-secretary-core.js';
+import {ELEANOR_SPEC,SECRETARY_KINDS,secretaryTime,stateSummary,secretaryDate,smartReminderTime} from '../../../eleanor-secretary-core.js';
 import {consultingRequested} from '../../../agent-consulting-policy.js';
 export const uuid=(v:any)=>/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v));
 const bounded=(v:any,n:number)=>typeof v==='string'?v.trim().slice(0,n):'';
@@ -55,11 +55,14 @@ export function validateSecretaryOps(ops:any,state:any,message?:string){
     if(i.details&&!body.includes(i.details.toLowerCase()))throw Error('Do not invent or expand intake instructions or workout targets');
     if(i.kind==='reminder'){
      if(/\b(?:until|through|starting|beginning|for \d+ days)\b/.test(body))throw Error('Confirm the reminder start and end boundaries before making it permanent');
-     const statedTime=source(raw.time_source),directTime=secretaryTime(statedTime);
+     const autoTime=raw.auto_time_selected===true&&i.data?.auto_time_selected===true;
+     if(autoTime&&(!/\b(?:daily|every day|each day|everyday|weekdays|every (?:sunday|monday|tuesday|wednesday|thursday|friday))\b/.test(body)||smartReminderTime(i.title)!==result.item.local_time||/\bat\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?\b/.test(body)))
+      throw Error('Only safe recurring routines can receive an automatically chosen time.');
+     const statedTime=autoTime?'':source(raw.time_source),directTime=autoTime?result.item.local_time:secretaryTime(statedTime);
      const inferredTonight=raw.date_source==='tonight'&&!/[ap]\.?\s*m\.?$/i.test(statedTime)&&secretaryTime(statedTime+' pm')===result.item.local_time;
      if(directTime!==result.item.local_time&&!inferredTonight)throw Error('The reminder time does not match the owner’s words');
      const everyday=/\b(daily|every day|each day|everyday)\b/.test(body),weekdays=/\bweekdays\b/.test(body),names=['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
-     const selected=everyday?[0,1,2,3,4,5,6]:weekdays?[1,2,3,4,5]:names.flatMap((n,index)=>new RegExp('\\bevery\\s+'+n+'\\b','i').test(body)?[index]:[]);
+     const selected=everyday?(autoTime?[0,1,2,3,4,5]:[0,1,2,3,4,5,6]):weekdays?[1,2,3,4,5]:names.flatMap((n,index)=>new RegExp('\\bevery\\s+'+n+'\\b','i').test(body)?[index]:[]);
      if(result.item.once_at){
       if(selected.length)throw Error('A one-time reminder must not repeat');
       const fromSource=raw.date_source==='implicit'?'implicit':source(raw.date_source);
