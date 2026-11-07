@@ -2,6 +2,7 @@
 (()=>{
  const glyphs={
   chatgpt:'<path d="M4 4h16v12H9l-5 4V4Z"/><path d="m12 6 1.5 3.5L17 11l-3.5 1.5L12 16l-1.5-3.5L7 11l3.5-1.5L12 6Z"/>',
+  ventureflow:'<rect x="3" y="3" width="18" height="18" rx="4"/><path d="M6 16l4-4 3 2 5-6"/><path d="M15 8h3v3"/>',
   office:'<path d="M4 21V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v15M2 21h20M9 21v-5h6v5M8 8h1m6 0h1M8 12h1m6 0h1"/>',
   messages:'<path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H7l-5 2 1.6-5A8.5 8.5 0 1 1 21 11.5Z"/><path d="M7 11h.01M12 11h.01M17 11h.01" stroke-width="3"/>',
   email:'<rect x="2.5" y="4.5" width="19" height="15" rx="3"/><path d="m3.5 6 8.5 7 8.5-7"/>',
