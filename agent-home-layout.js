@@ -82,7 +82,7 @@ const dateLabel=()=>new Intl.DateTimeFormat(undefined,{weekday:'short',month:'sh
 const timeLabel=()=>new Intl.DateTimeFormat(undefined,{hour:'numeric',minute:'2-digit'}).format(new Date());
 function clockFace(){const now=new Date(),hour=(now.getHours()%12+now.getMinutes()/60)*30,minute=now.getMinutes()*6;return `<span class="widget-analog" role="img" aria-label="${esc(timeLabel())}"><i class="widget-hour" style="transform:translateX(-50%) rotate(${hour}deg)"></i><i class="widget-minute" style="transform:translateX(-50%) rotate(${minute}deg)"></i><b></b></span>`}
 let activeWidget=null,editingNoteId=null,weatherPending=false,calendarOffset=0;
-let secretaryCalendarItems=[],secretaryCalendarZone='America/New_York',secretaryCalendarNote='Open Calendar to load Eleanor’s saved appointments.';
+let secretaryCalendarItems=[],secretaryReminders=[],secretaryCalendarZone='America/New_York',secretaryCalendarNote='Open Calendar to load Eleanor’s saved appointments.';
 function calendarWhen(item){
  const v=item.kind==='meeting'?item.scheduled_at:item.due_at;
  return v?new Date(v).getTime():Infinity;
@@ -91,6 +91,9 @@ function calendarEntries(){
  const now=Date.now()-3600000;
  const upcoming=secretaryCalendarItems.filter(i=>Number.isFinite(calendarWhen(i))&&calendarWhen(i)>=now).slice(0,12);
  const tasks=secretaryCalendarItems.filter(i=>i.kind==='task').slice(0,12);
+ const weekday=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(new Intl.DateTimeFormat('en-US',{timeZone:secretaryCalendarZone,weekday:'short'}).format(new Date()));
+ const today=new Intl.DateTimeFormat('en-CA',{timeZone:secretaryCalendarZone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+ const routines=secretaryReminders.filter(i=>i.data?.repeat==='none'?Boolean(i.next_due_at)&&new Intl.DateTimeFormat('en-CA',{timeZone:secretaryCalendarZone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(i.next_due_at))===today:Array.isArray(i.weekdays)&&i.weekdays.includes(weekday)).slice(0,12);
  const proposals=window.agentHQNotesCloud?.list?.().filter(n=>n.review_status==='pending').length||0;
  const fmt=when=>new Intl.DateTimeFormat('en-US',{timeZone:secretaryCalendarZone,month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}).format(new Date(when));
  const appointments=upcoming.length?'<div class="widget-secretary-events"><h3>Upcoming on Agent HQ Calendar</h3>'+
@@ -98,7 +101,8 @@ function calendarEntries(){
    '<p class="widget-secretary-events">'+esc(secretaryCalendarNote)+'</p>';
  const actionList='<div class="widget-secretary-events"><h3>Open work Eleanor can track</h3>'+
    (tasks.length?tasks.map(i=>'<p><strong>'+esc(i.title)+'</strong><small>'+esc(i.due_at?'Due '+fmt(calendarWhen(i)):'No deadline specified')+'</small><button type="button" data-calendar-task-complete="'+esc(i.id)+'">Mark completed</button></p>').join(''):'<p>No open internal tasks.</p>')+'</div>';
- return appointments+actionList+(proposals?'<p>'+proposals+' Note proposal(s) need your decision. <button type="button" data-home-internal-notes-review>Review with Eleanor</button></p>':'')+
+ const daily='<div class="widget-secretary-events"><h3>Today’s Agent HQ reminders</h3>'+(routines.length?routines.map(i=>'<p><strong>'+esc(i.title)+'</strong><small>'+esc(String(i.local_time||'').slice(0,5))+' · '+esc(i.timezone||secretaryCalendarZone)+'</small>'+(i.title.toLowerCase()==='eleanor daily check-in'?'<button type="button" data-home-internal-checkin>Answer Eleanor’s check-in</button>':'')+'</p>').join(''):'<p>No scheduled reminders today.</p>')+'</div>';
+ return appointments+daily+actionList+(proposals?'<p>'+proposals+' Note proposal(s) need your decision. <button type="button" data-home-internal-notes-review>Review with Eleanor</button></p>':'')+
  '<p class="personal-muted">These are saved Agent HQ appointments and tasks. Marking completed updates Eleanor’s internal register, not an outside calendar.</p>';
 }
 async function completeCalendarTask(id){
@@ -121,6 +125,8 @@ async function refreshSecretaryCalendar(){
   const {data,error}=await agentCloud.functions.invoke('agent-secretary',{body:{action:'state'}});
   if(error||data?.error||!data?.settings||data.settings.owner_id!==auth.user.id)throw Error('Could not verify Eleanor’s saved calendar.');
   secretaryCalendarZone=data.settings.timezone||'America/New_York';
+ secretaryReminders=(data.items||[]).filter(i=>i.status==='active'&&i.kind==='reminder').sort((a,b)=>String(a.local_time||'').localeCompare(String(b.local_time||'')));
+  secretaryReminders=(data.items||[]).filter(i=>i.status==='active'&&i.kind==='reminder').sort((a,b)=>String(a.local_time||'').localeCompare(String(b.local_time||'')));
   secretaryCalendarItems=(data.items||[]).filter(i=>i.status==='active'&&(i.kind==='meeting'||i.kind==='task')).sort((a,b)=>calendarWhen(a)-calendarWhen(b)).slice(0,40);
   secretaryCalendarNote='No upcoming saved appointments or task deadlines.';
  }catch(error){secretaryCalendarItems=[];secretaryCalendarNote=String(error?.message||'Calendar could not load.');}
@@ -134,7 +140,7 @@ window.addEventListener('agenthq-secretary-state',event=>{
  secretaryCalendarNote='No upcoming saved appointments or task deadlines.';
  if(activeWidget==='calendar')change();
 });
-agentCloud.auth.onAuthStateChange(()=>{secretaryCalendarItems=[];secretaryCalendarNote='Open Calendar to load Eleanor’s saved appointments.';if(activeWidget==='calendar')change();});
+agentCloud.auth.onAuthStateChange(()=>{secretaryCalendarItems=[];secretaryReminders=[];secretaryCalendarNote='Open Calendar to load Eleanor’s saved appointments.';if(activeWidget==='calendar')change();});
 function monthView(){const today=new Date(),first=new Date(today.getFullYear(),today.getMonth()+calendarOffset,1),offset=first.getDay(),days=new Date(first.getFullYear(),first.getMonth()+1,0).getDate();return `<div class="widget-month-head"><button type="button" data-widget-month="-1" aria-label="Previous month">‹</button><strong>${esc(new Intl.DateTimeFormat(undefined,{month:'long',year:'numeric'}).format(first))}</strong><button type="button" data-widget-month="1" aria-label="Next month">›</button></div><div class="widget-month-grid">${['S','M','T','W','T','F','S'].map(d=>`<small>${d}</small>`).join('')}${Array.from({length:offset},()=>'<span></span>').join('')}${Array.from({length:days},(_,i)=>`<span class="${calendarOffset===0&&i+1===today.getDate()?'today':''}">${i+1}</span>`).join('')}</div>`}
 function weatherLabel(){const w=personal().weather;return w?.temperature!==undefined?`${Math.round(w.temperature)}° · ${w.city}`:'Choose a city';}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(state))}catch{}};
@@ -249,6 +255,11 @@ function action(target){
  if(target.closest('[data-widget-location]')){navigator.geolocation?.getCurrentPosition(pos=>fetchWeather(pos.coords.latitude,pos.coords.longitude,'Current location'),()=>{const el=root()?.querySelector('[data-weather-result]');if(el)el.textContent='Location unavailable. Enter a city instead.'},{timeout:10000});return true}
  if(target.closest('[data-home-internal-notes-review]')){
   if(!editing){activeWidget=null;window.dispatchEvent(new Event('agenthq-secretary-show-notes'));
+   const button=document.createElement('button');button.dataset.nav='reminders';document.querySelector('#app')?.append(button);button.click();button.remove()}
+  return true;
+ }
+ if(target.closest('[data-home-internal-checkin]')){
+  if(!editing){activeWidget=null;window.dispatchEvent(new Event('agenthq-secretary-show-checkin'));
    const button=document.createElement('button');button.dataset.nav='reminders';document.querySelector('#app')?.append(button);button.click();button.remove()}
   return true;
  }
