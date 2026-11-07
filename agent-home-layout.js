@@ -125,17 +125,17 @@ async function refreshSecretaryCalendar(){
   const {data,error}=await agentCloud.functions.invoke('agent-secretary',{body:{action:'state'}});
   if(error||data?.error||!data?.settings||data.settings.owner_id!==auth.user.id)throw Error('Could not verify Eleanor’s saved calendar.');
   secretaryCalendarZone=data.settings.timezone||'America/New_York';
- secretaryReminders=(data.items||[]).filter(i=>i.status==='active'&&i.kind==='reminder').sort((a,b)=>String(a.local_time||'').localeCompare(String(b.local_time||'')));
   secretaryReminders=(data.items||[]).filter(i=>i.status==='active'&&i.kind==='reminder').sort((a,b)=>String(a.local_time||'').localeCompare(String(b.local_time||'')));
   secretaryCalendarItems=(data.items||[]).filter(i=>i.status==='active'&&(i.kind==='meeting'||i.kind==='task')).sort((a,b)=>calendarWhen(a)-calendarWhen(b)).slice(0,40);
   secretaryCalendarNote='No upcoming saved appointments or task deadlines.';
- }catch(error){secretaryCalendarItems=[];secretaryCalendarNote=String(error?.message||'Calendar could not load.');}
+ }catch(error){secretaryCalendarItems=[];secretaryReminders=[];secretaryCalendarNote=String(error?.message||'Calendar could not load.');}
  if(activeWidget==='calendar')change();
 }
 window.addEventListener('agenthq-secretary-state',event=>{
  const data=event.detail?.state;
  if(!data?.settings?.owner_id)return;
  secretaryCalendarZone=data.settings.timezone||'America/New_York';
+ secretaryReminders=(data.items||[]).filter(i=>i.status==='active'&&i.kind==='reminder').sort((a,b)=>String(a.local_time||'').localeCompare(String(b.local_time||'')));
  secretaryCalendarItems=(data.items||[]).filter(i=>i.status==='active'&&(i.kind==='meeting'||i.kind==='task')).sort((a,b)=>calendarWhen(a)-calendarWhen(b)).slice(0,40);
  secretaryCalendarNote='No upcoming saved appointments or task deadlines.';
  if(activeWidget==='calendar')change();
