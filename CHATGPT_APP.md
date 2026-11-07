@@ -1,0 +1,13 @@
+# ChatGPT inside Agent HQ
+
+The Home Screen ChatGPT app is a private request desk for all ten staff, Eleanor and active custom workers. Workers can ask from Messages or a saved project; the owner can create a request in the app. Every request records its real requester, question, reason, project, revision, Eleanor/owner decision and handoff status.
+
+Eleanor automatically clears nonfinancial requests only while the owner’s saved delegation preference is enabled. Financial specialists and money, billing, payments, prices, budgets, earnings or related work need the owner’s scoped approval. The server enforces this before creating or exposing a handoff. Request approval permits internal advice and file creation only. It grants no sending, publishing, payment or account-change tools. Final results require a separate exact-version owner review.
+
+The existing, authenticated Agent HQ MCP connection is the transport. Eleanor prepares the handoff automatically; an authorized ChatGPT session must open it. The app provides the exact prompt, Copy request, Open ChatGPT and connection setup. It accurately distinguishes approved-but-not-started from an actual ChatGPT claim, a blocker, returned work and owner approval. It never represents Groq/OpenRouter as ChatGPT and enables no paid OpenAI API requests.
+
+ChatGPT reads only the approved handoff’s project, relevant handbook and references. For questions, the handoff asks for a real Markdown answer file and a readable answer in the return summary. Actual files are downloaded, validated, stored and hashed through the existing connector. The answer is relayed into Eleanor’s existing Messages, with the matching project available for files and review. Financial requests and financial revisions awaiting owner approval are excluded from connector discovery and cannot be opened.
+
+Eleanor’s pop-ups show each agent, reason, task and real status. Saved owner-bound notices still restore before the auth SDK; cached notices cannot approve anything. The private Realtime subscription refreshes new request events while the app is open, with the existing background/foreground polling as a fallback. Phone notifications outside the app retain their existing device permission and delivery requirements.
+
+Validation covers 328 Node tests, actual database request/financial approval/handoff/return/final review within a rollback-only fixture, and Safari phone/desktop checks for the new app, pop-ups, exact request/result decisions and sign-out rejecting late private responses. Existing project, startup and collaboration checks remain in the workflow.

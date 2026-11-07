@@ -1,0 +1,53 @@
+// Actual Home, ChatGPT desk and Eleanor popup; all accounts and requests are synthetic.
+import {createRequire} from 'node:module';
+import {createServer} from 'node:http';
+import {readFile,mkdir} from 'node:fs/promises';
+import {resolve,extname} from 'node:path';
+import assert from 'node:assert/strict';
+const require=createRequire(import.meta.url),{webkit}=require('playwright'),wide=process.env.AGENTHQ_TEST_DEVICE==='mac';
+const root=resolve(new URL('..',import.meta.url).pathname),out='/tmp/agenthq-chatgpt-app';await mkdir(out,{recursive:true});
+const deadline=setTimeout(()=>{console.error('ChatGPT app browser deadline exceeded');process.exit(1)},60000);deadline.unref();
+const server=createServer(async(req,res)=>{try{const path=resolve(root,'.'+new URL(req.url,'http://local').pathname);if(!path.startsWith(root+'/'))throw Error();res.setHeader('Content-Type',extname(path)==='.js'?'text/javascript':extname(path)==='.css'?'text/css':'text/html');res.end(await readFile(path));}catch{res.statusCode=404;res.end();}});
+await new Promise(r=>server.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+server.address().port;
+const browser=await webkit.launch({headless:true}),context=await browser.newContext({viewport:wide?{width:1180,height:900}:{width:390,height:844},isMobile:!wide,hasTouch:!wide,serviceWorkers:'block'}),page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
+const allowed=new Set(['app.js','icons.js','agent-home-layout.js','agent-message-controls.js','agent-research-status.js','agent-project-view.js','agent-project-recovery.js','agent-project-autonomy.js','agent-chatgpt-app.js','agent-chatgpt-app-core.js','agent-chatgpt-handoff.js','agent-projects-app-core.js','agent-secretary-popup.js','agent-secretary-snapshot.js','agent-cloud-config.js']);
+await context.route('**/*',async route=>{const u=new URL(route.request().url()),name=u.pathname.split('/').at(-1);if(u.origin!==base){await route.abort();return;}if(name==='agent-cloud-auth.js'){await route.fulfill({body:'export const agentCloud=window.__chatgptCloud;',contentType:'text/javascript'});return;}if(name.endsWith('.js')&&!allowed.has(name)){await route.fulfill({body:'',contentType:'text/javascript'});return;}await route.continue();});
+await page.addInitScript(()=>{
+ const owner='11111111-1111-4111-8111-111111111111',bot='22222222-2222-4222-8222-222222222222',project='33333333-3333-4333-8333-333333333333',callbacks=[];
+ const workers=['alex','maya','jordan','riley','taylor','casey','morgan','avery','jamie','quinn','eleanor'].map(id=>({id,name:id[0].toUpperCase()+id.slice(1)}));
+ const make=(id,key,money)=>({id,worker_key:key,requester_label:key[0].toUpperCase()+key.slice(1),question:money?'Review the advertising budget.':'Create the requested media kit.',reason:money?'Financial analysis is needed.':'Image creation tools are needed.',money_related:money,approved_by:money?null:'eleanor',status:money?'owner_required':'ready',project_id:project,project_revision:2,handoff_id:money?null:'44444444-4444-4444-8444-444444444444',response_summary:'',output_version:null,blocker:''});
+ const data={settings:{chatgpt_delegate_nonfinancial:true,chatgpt_notifications_enabled:true},workers,projects:[{id:project,title:'Fixture media kit',revision:2}],requests:[make('55555555-5555-4555-8555-555555555555','casey',false),make('66666666-6666-4666-8666-666666666666','avery',true)]};
+ const mock=window.__chatgptFixture={owner,bot,data,calls:[],callbacks,hold:false};
+ const secretary=()=>({settings:{owner_id:owner,bot_id:bot,version:1,...data.settings},items:[],deliveries:[],agent_alerts:[],chatgpt_requests:data.requests.filter(r=>['owner_required','ready','in_progress','blocked','review'].includes(r.status))});
+ window.__chatgptCloud={auth:{getUser:async()=>({data:{user:mock.owner?{id:mock.owner}:null}}),onAuthStateChange:fn=>{callbacks.push(fn);queueMicrotask(()=>fn('INITIAL_SESSION',{user:{id:owner}}));}},functions:{async invoke(name,{body}){
+  mock.calls.push({name,...body});if(name==='agent-secretary')return {data:secretary()};
+  if(name!=='agent-chatgpt-bridge')return {data:{}};
+  if(body.action==='status')return {data:{connections:[{id:'fixture',last_used_at:new Date().toISOString(),refresh_expires_at:new Date(Date.now()+3600000).toISOString()}]}};
+  if(body.action==='chatgpt_desk'){const snapshot=structuredClone(data);if(mock.hold)await new Promise(resolve=>mock.release=resolve);return {data:snapshot};}
+  if(body.action==='chatgpt_preferences'){Object.assign(data.settings,{chatgpt_delegate_nonfinancial:body.delegate,chatgpt_notifications_enabled:body.notifications});return {data:{saved:true}};}
+  if(body.action==='request_chatgpt'){const r=make('77777777-7777-4777-8777-777777777777',body.worker,false);r.question=body.question;r.reason=body.reason;data.requests.push(r);return {data:r};}
+  const r=data.requests.find(r=>r.id===body.request_id);
+  if(body.action==='decide_chatgpt_request'){if(body.revision!==r.project_revision)return {data:{error:'Stale request'}};r.status=body.decision==='approve'?'ready':'cancelled';r.approved_by='owner';r.handoff_id='44444444-4444-4444-8444-444444444444';return {data:r};}
+  if(body.action==='review_chatgpt_result'){if(body.output_version!==r.output_version)return {data:{error:'Stale result'}};r.status=body.decision==='approve'?'approved':'ready';return {data:{state:r.status}};}
+  return {data:{}};
+ }}};
+ mock.signOut=()=>{mock.owner=null;callbacks.forEach(fn=>fn('SIGNED_OUT',null));};
+});
+try{
+ await page.goto(base+'/index.html');await page.getByRole('button',{name:'Open office',exact:true}).waitFor();assert.equal(await page.locator('[data-home-tile="chatgpt"]').count(),1);
+ const popup=page.locator('#agenthq-eleanor-popup');await popup.getByText(/Casey needs ChatGPT/).waitFor();assert.match(await popup.innerText(),/Image creation tools are needed/);assert.match(await popup.innerText(),/Avery/);
+ await popup.getByRole('button',{name:'Open ChatGPT requests',exact:true}).click();await page.locator('#agent-chatgpt-app-root h2').getByText('ChatGPT',{exact:true}).waitFor();
+ await page.getByLabel('Show agent names and reasons in Eleanor’s pop-ups',{exact:true}).uncheck();await page.getByRole('button',{name:'Save preferences',exact:true}).click();await page.getByText('Saved. Eleanor’s ChatGPT records are up to date.',{exact:true}).waitFor();
+ console.log('PASS: Home has a ChatGPT app and Eleanor’s real popup shows who needs it and why');
+ await page.getByText('Ask ChatGPT for a worker',{exact:true}).click();await page.getByLabel('Worker',{exact:true}).selectOption('maya');await page.getByLabel('What should ChatGPT answer or create?',{exact:true}).fill('Create a visual media kit for my brand.');await page.getByLabel('Why is ChatGPT needed?',{exact:true}).fill('Specialist creation tools are needed.');await page.getByRole('button',{name:'Send request to Eleanor',exact:true}).click();
+ const maya=page.locator('[data-chatgpt-card]').filter({has:page.getByRole('heading',{name:'Maya',exact:true})});await maya.getByText('Eleanor approved · Open ChatGPT to start',{exact:true}).waitFor();assert.equal(await maya.getByRole('button',{name:'Approve final result',exact:true}).count(),0);
+ const sent=await page.evaluate(()=>__chatgptFixture.calls.find(c=>c.action==='request_chatgpt'));assert.equal(sent.worker,'maya');assert.equal(sent.reason,'Specialist creation tools are needed.');assert.match(sent.request_id,/^[a-f0-9-]{36}$/i);
+ const avery=page.locator('[data-chatgpt-card]').filter({has:page.getByRole('heading',{name:'Avery',exact:true})});assert.equal(await avery.getByRole('link',{name:'Open ChatGPT ↗',exact:true}).count(),0);await avery.getByRole('button',{name:'Approve ChatGPT request',exact:true}).click();await avery.getByText('You approved · Open ChatGPT to start',{exact:true}).waitFor();
+ assert.equal(await page.evaluate(()=>__chatgptFixture.calls.filter(c=>c.action==='decide_chatgpt_request').at(-1).request_id),'66666666-6666-4666-8666-666666666666');console.log('PASS: requests record exact worker/reason; financial requests need a separate scoped owner decision');
+ await maya.getByText('Start this request in ChatGPT',{exact:true}).click();assert.match(await maya.getByRole('textbox',{name:'Prompt for Maya',exact:true}).inputValue(),/real Markdown answer file/);assert.equal(await maya.getByRole('link',{name:'Open ChatGPT ↗',exact:true}).getAttribute('href'),'https://chatgpt.com/');
+ await page.evaluate(()=>{const r=__chatgptFixture.data.requests.find(r=>r.worker_key==='maya');r.status='review';r.response_summary='The actual returned answer: prepare the service sheet, select two examples, and assemble your media kit.';r.output_version='88888888-8888-4888-8888-888888888888';});await page.getByRole('button',{name:'Refresh',exact:true}).click();await maya.getByText(/The actual returned answer:/).waitFor();assert.equal(await page.evaluate(()=>__chatgptFixture.data.requests.find(r=>r.worker_key==='maya').status),'review');
+ await page.screenshot({path:out+'/chatgpt-'+(wide?'desktop':'iphone')+'.png'});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+2),false);
+ await maya.getByRole('button',{name:'Approve final result',exact:true}).click();await page.getByText('Saved. Eleanor’s ChatGPT records are up to date.',{exact:true}).waitFor();const review=await page.evaluate(()=>__chatgptFixture.calls.filter(c=>c.action==='review_chatgpt_result').at(-1));assert.equal(review.output_version,'88888888-8888-4888-8888-888888888888');assert.equal(review.decision,'approve');console.log('PASS: ChatGPT returns a readable answer and the exact final version stays unapproved until the owner clicks');
+ await page.evaluate(()=>__chatgptFixture.hold=true);await page.getByRole('button',{name:'Refresh',exact:true}).click();await page.waitForFunction(()=>typeof __chatgptFixture.release==='function');await page.evaluate(()=>__chatgptFixture.signOut());assert.doesNotMatch(await page.locator('#agent-chatgpt-app-root').textContent(),/media kit|Financial analysis/);await page.evaluate(async()=>{__chatgptFixture.hold=false;__chatgptFixture.release();await new Promise(r=>setTimeout(r,0))});assert.match(await page.locator('#agent-chatgpt-app-root').innerText(),/Sign in under Settings/);assert.deepEqual(errors,[]);console.log('PASS: sign-out clears the private queue and a late response cannot restore it');
+}catch(e){console.error('ChatGPT app failure:',await page.locator('body').innerText().catch(()=>''));console.error('Page errors:',errors);await page.screenshot({path:out+'/failure-'+(wide?'desktop':'iphone')+'.png'}).catch(()=>{});throw e;}
+finally{await browser.close();await new Promise(r=>server.close(r));clearTimeout(deadline);}

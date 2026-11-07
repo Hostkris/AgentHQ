@@ -1,7 +1,7 @@
 // Eleanor's owner-private foreground contact window.
 // Restoring saved notices never completes, stops or approves their underlying work.
 import {AGENT_HQ_SUPABASE_URL} from './agent-cloud-config.js';
-import {savedSecretaryOwner,readSecretarySnapshot,saveSecretarySnapshot,clearSecretarySnapshot} from './agent-secretary-snapshot.js?v=20261107-instant-reminders-1';
+import {savedSecretaryOwner,readSecretarySnapshot,saveSecretarySnapshot,clearSecretarySnapshot} from './agent-secretary-snapshot.js?v=20261107-chatgpt-desk-1';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const POPUP_ID='agenthq-eleanor-popup',MAX_DISMISSED=80;
 const AUTH_KEY='sb-'+new URL(AGENT_HQ_SUPABASE_URL).hostname.split('.')[0]+'-auth-token';
@@ -30,6 +30,7 @@ function alertGroup(snapshot){
  return {key:'notices:'+snapshot.notices.map(n=>n.id).sort().join(':'),notices:snapshot.notices,total:snapshot.notices.length};
 }
 function heading(alert){
+ if(alert.total&&alert.notices.every(n=>n.chatgpt))return alert.total===1?'A ChatGPT update from Eleanor':'ChatGPT requests and results';
  return alert.total===1?'A reminder from Eleanor':alert.total>1?'Eleanor has '+alert.total+' items for you':'You’re up to date';
 }
 function alertHTML(alert){
@@ -50,7 +51,7 @@ function paintPopup(alert){
  }
  panel.querySelector('[data-eleanor-pop-heading]').textContent=heading(alert);
  panel.querySelector('[data-eleanor-pop-source]').textContent=sourceText();
- panel.querySelector('[data-eleanor-pop-desk]').textContent=alert.notices.some(n=>n.agent)?'Review agent alerts':'Open secretary desk';
+ panel.querySelector('[data-eleanor-pop-desk]').textContent=alert.notices.some(n=>n.chatgpt)?'Open ChatGPT requests':alert.notices.some(n=>n.agent)?'Review agent alerts':'Open secretary desk';
  activeKey=alert.total?alert.key:null;
 }
 async function appAction(getAction,account,panel){
@@ -87,10 +88,11 @@ function popup(alert){
   const account=owner,button=event.currentTarget,status=el.querySelector('.eleanor-pop-status');
   button.disabled=true;status.textContent='Opening your secretary desk…';
   try{
-   const open=await appAction(()=>window.agentHQOpenSecretary,account,el);
+   const chatgpt=latestSnapshot?.notices.some(n=>n.chatgpt);
+   const open=await appAction(()=>chatgpt?window.agentHQOpenChatGPT:window.agentHQOpenSecretary,account,el);
    if(account!==owner||!el.isConnected)return;
    const agent=latestSnapshot?.notices.some(n=>n.agent);closePopup();open();
-   if(agent)window.dispatchEvent(new Event('agenthq-secretary-show-alerts'));
+   if(agent&&!chatgpt)window.dispatchEvent(new Event('agenthq-secretary-show-alerts'));
   }catch(error){if(account===owner&&el.isConnected)status.textContent=String(error?.message||error);}
   finally{if(el.isConnected)button.disabled=false;}
  };
@@ -211,3 +213,5 @@ cloudReady=import('./agent-cloud-auth.js').then(({agentCloud})=>{
  return agentCloud;
 });
 void cloudReady.then(()=>check(true)).catch(()=>offline());
+
+window.addEventListener('agenthq-chatgpt-requests-updated',event=>{if(event.detail?.owner_id===owner){invalidate();void check(true);}});

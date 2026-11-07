@@ -1,5 +1,6 @@
 import {APP_URL,BRIDGE_URL,MCP_URL,SCOPES,authorizationMetadata,resourceMetadata,smallJSON,startAuthorization,registerClient,authorizationRequest,decideAuthorization,exchangeTokens,authenticateConnection,hash,uuid} from './oauth.ts';
 import {TOOLS,callProjectTool} from './projects.ts';
+import {chatGPTDeskAction} from './desk.ts';
 const ORIGIN=new URL(APP_URL).origin;
 const headers={'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Access-Control-Allow-Origin':ORIGIN,'Access-Control-Allow-Headers':'authorization,apikey,content-type,x-client-info,mcp-protocol-version,mcp-session-id','Access-Control-Allow-Methods':'GET,POST,OPTIONS,DELETE','Access-Control-Expose-Headers':'WWW-Authenticate','Vary':'Origin','X-Content-Type-Options':'nosniff'};
 const json=(body:any,status=200,extra:any={})=>new Response(JSON.stringify(body),{status,headers:{...headers,...extra}});
@@ -8,6 +9,7 @@ const errorText=(e:any)=>typeof e?.message==='string'?e.message.slice(0,250):'Th
 const rpcError=(id:any,code:number,message:string,status=200)=>json({jsonrpc:'2.0',id,error:{code,message}},status);
 const challenge=()=>json({error:'Authorize the Agent HQ connector in ChatGPT before reading projects or returning files.'},401,{'WWW-Authenticate':'Bearer resource_metadata="'+BRIDGE_URL+'/.well-known/oauth-protected-resource", scope="'+SCOPES.join(' ')+'"'});
 async function ownerAction(db:any,owner:string,input:any){
+ const desk=await chatGPTDeskAction(db,owner,input);if(desk!==null)return desk;
  const action=input.action;
  if(action==='status'){
   const {data,error}=await db.from('agent_chatgpt_connections').select('id,created_at,revoked_at,last_used_at,last_return_at,refresh_expires_at').eq('owner_id',owner).is('revoked_at',null).order('created_at',{ascending:false}).limit(20);if(error)throw Error('Could not check the ChatGPT connection');return {server_url:MCP_URL,connections:data||[],configured:true};

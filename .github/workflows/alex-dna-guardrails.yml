@@ -17,6 +17,8 @@ on:
       - 'agent-project-*.js'
       - 'agent-projects-app*'
       - 'agent-chatgpt-handoff*'
+      - 'agent-chatgpt-app*'
+      - 'tests/chatgpt-app*'
       - 'agent-secretary*'
       - 'agent-consulting*'
       - 'agent-custom-messages*'
@@ -78,6 +80,8 @@ on:
       - 'agent-project-*.js'
       - 'agent-projects-app*'
       - 'agent-chatgpt-handoff*'
+      - 'agent-chatgpt-app*'
+      - 'tests/chatgpt-app*'
       - 'agent-secretary*'
       - 'agent-consulting*'
       - 'agent-custom-messages*'
@@ -124,7 +128,7 @@ jobs:
       - name: Install pinned PDF test library
         run: npm install --no-save --package-lock=false pdf-lib@1.17.1 @modelcontextprotocol/sdk@1.32.2 web-push@3.6.7
       - name: Test saved projects, real file outputs and workspace access
-        run: node --test tests/project-workspace*.test.mjs tests/projects-app.test.mjs tests/chatgpt-handoff.test.mjs tests/secretary.test.mjs tests/secretary-snapshot.test.mjs tests/worker-instructions.test.mjs tests/consulting.test.mjs && node tests/chatgpt-handoff.protocol.mjs
+        run: node --test tests/project-workspace*.test.mjs tests/projects-app.test.mjs tests/chatgpt-handoff.test.mjs tests/chatgpt-app.test.mjs tests/secretary.test.mjs tests/secretary-snapshot.test.mjs tests/worker-instructions.test.mjs tests/consulting.test.mjs && node tests/chatgpt-handoff.protocol.mjs
       - name: Test Alex role and approval boundaries
         run: node --test tests/alex-dna.test.mjs
       - name: Test project response validation and recovery
@@ -179,7 +183,7 @@ jobs:
       - name: Install Safari engine for browser validation
         run: npm install --no-save --package-lock=false playwright@1.62.1 pdf-lib@1.17.1 pdfjs-dist@6.4.299 && npx playwright install --with-deps webkit
       - name: Verify Eleanor desk and privacy on iPhone and Mac
-        run: node tests/secretary.browser.mjs && AGENTHQ_TEST_DEVICE=mac node tests/secretary.browser.mjs
+        run: node tests/secretary.browser.mjs && AGENTHQ_TEST_DEVICE=mac node tests/secretary.browser.mjs && node tests/chatgpt-app.browser.mjs && AGENTHQ_TEST_DEVICE=mac node tests/chatgpt-app.browser.mjs
       - name: Verify iPhone activity and collaboration
         env:
           AGENTHQ_TEST_BROWSER: webkit
@@ -196,6 +200,7 @@ jobs:
           path: |
             /tmp/agenthq-projects-browser
             /tmp/agenthq-secretary-browser
+            /tmp/agenthq-chatgpt-app
 
   secretary-startup:
     runs-on: ubuntu-latest

@@ -1,3 +1,4 @@
+import {chatGPTNotice} from './agent-chatgpt-app-core.js';
 // A small, owner-bound copy of notices already returned by Eleanor's authenticated API.
 // It is a reading aid while the app refreshes, never authority for completing a task.
 const PREFIX='agenthq-eleanor-pending-v1:';
@@ -18,13 +19,14 @@ export function secretaryPendingNotices(state){
   .map(d=>({id:d.id,kind:d.kind,body:d.body,agent:false}));
  const work=state.settings?.agent_alerts_enabled?(state.agent_alerts||[]).filter(a=>a.status==='open')
   .map(a=>({id:a.id,kind:'Agent '+a.alert_kind,body:a.actor+': '+a.title+'. '+a.body,agent:true})):[];
- return [...work,...reminders];
+ const chatgpt=state.settings?.chatgpt_notifications_enabled!==false?(state.chatgpt_requests||[]).filter(r=>['owner_required','ready','in_progress','blocked','review'].includes(r.status)).map(chatGPTNotice):[];
+ return [...chatgpt,...work,...reminders];
 }
 
 function validSnapshot(value,owner,now){
  return UUID.test(owner||'')&&value?.owner_id===owner&&UUID.test(value.bot_id||'')&&
   Number.isSafeInteger(value.version)&&value.version>0&&Number.isFinite(value.saved_at)&&value.saved_at<=now+60000&&now-value.saved_at<=MAX_AGE&&
-  Array.isArray(value.notices)&&value.notices.length<=200&&value.notices.every(n=>
+  Array.isArray(value.notices)&&value.notices.length<=300&&value.notices.every(n=>
    typeof n.id==='string'&&n.id.length>0&&n.id.length<=100&&typeof n.kind==='string'&&n.kind.length<=100&&
    typeof n.body==='string'&&n.body.length<=6000&&typeof n.agent==='boolean');
 }
@@ -42,7 +44,7 @@ export function readSecretarySnapshot(storage,owner,now=Date.now()){
 export function saveSecretarySnapshot(storage,owner,state,now=Date.now()){
  if(!UUID.test(owner||'')||state?.settings?.owner_id!==owner||!UUID.test(state.settings.bot_id||''))return null;
  const value={owner_id:owner,bot_id:state.settings.bot_id,version:state.settings.version,saved_at:now,notices:secretaryPendingNotices(state)
-  .map(n=>({id:String(n.id||''),kind:String(n.kind||'Reminder'),body:String(n.body||''),agent:n.agent===true}))};
+  .map(n=>({id:String(n.id||''),kind:String(n.kind||'Reminder'),body:String(n.body||''),agent:n.agent===true,...(n.chatgpt?{chatgpt:true}:{})}))};
  if(!validSnapshot(value,owner,now))return null;
  try{storage?.setItem(PREFIX+owner,JSON.stringify(value));}catch{}
  return value;

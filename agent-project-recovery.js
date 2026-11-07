@@ -10,8 +10,8 @@ export function projectResponseContract(s){
  const worker=s.active_worker||s.next_worker;
  const recipients=(s.team_order||[]).filter(id=>id!==worker);
  const primary=s.peer_target?'answer':kinds[s.phase];
- const allowed=s.phase==='planning'?['plan','research']:s.peer_target?['answer','ask_owner','permission','research']:
-  [primary,'ask_owner','permission','research',...(s.peer_exchanges<3&&recipients.length?['ask_team']:[])];
+ const allowed=s.phase==='planning'?['plan','research','chatgpt']:s.peer_target?['answer','ask_owner','permission','research','chatgpt']:
+  [primary,'ask_owner','permission','research','chatgpt',...(s.peer_exchanges<3&&recipients.length?['ask_team']:[])];
  return {worker,phase:s.phase,stage:phases[s.phase]||'this project stage',primary,allowed,recipients};
 }
 export function projectResponseFailure(error,s){

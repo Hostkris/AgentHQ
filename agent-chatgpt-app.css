@@ -1,0 +1,20 @@
+.app-icon--chatgpt{background:#123e35;color:#fff}
+.chatgpt-desk{max-width:1000px;margin:auto;padding:12px;overflow-wrap:anywhere}
+.chatgpt-desk-heading,.chatgpt-request header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.chatgpt-desk h2,.chatgpt-request h3{margin:0 0 6px}
+.chatgpt-desk-heading p{margin:0;color:var(--muted,#696970)}
+.chatgpt-desk-actions{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.chatgpt-desk button,.chatgpt-desk-actions a{border:1px solid #b5beb9;background:var(--card,#fff);color:var(--text,#202023);border-radius:11px;padding:10px 13px;font:inherit;text-decoration:none;cursor:pointer}
+.chatgpt-desk button:disabled{opacity:.55;cursor:wait}
+.chatgpt-request,.chatgpt-new-request,.chatgpt-desk form[data-chatgpt-preferences]{border:1px solid #b9c2bd;border-radius:17px;padding:16px;margin:15px 0;background:var(--card,#fff)}
+.chatgpt-transport{border-left:3px solid #23705a;padding:10px 14px;background:rgba(65,130,100,.08);line-height:1.5}
+.chatgpt-request-status{font-size:13px;color:var(--muted,#51595a)}
+.chatgpt-desk pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;line-height:1.5}
+.chatgpt-desk label{display:block;margin:12px 0;line-height:1.5}
+.chatgpt-desk input[type=checkbox]{width:18px;height:18px;vertical-align:middle;margin-right:7px}
+.chatgpt-desk textarea,.chatgpt-desk select{display:block;width:100%;max-width:100%;box-sizing:border-box;border:1px solid #a9b6af;border-radius:10px;padding:10px;margin-top:6px;background:var(--card,#fff);color:inherit;font:inherit}
+.chatgpt-desk textarea{min-height:95px;resize:vertical}
+.chatgpt-desk summary{cursor:pointer;font-weight:600;padding:5px 0}
+.chatgpt-money-note{border-left:3px solid #a76a1f;padding:8px 12px;background:rgba(180,130,30,.1)}
+@media(prefers-color-scheme:dark){.chatgpt-desk{--card:#242627;--text:#f3f3f4;--muted:#c2c4c8}}
+@media(max-width:500px){.chatgpt-desk{padding:6px}.chatgpt-request,.chatgpt-new-request{padding:13px}.chatgpt-desk-actions>*{font-size:14px}}

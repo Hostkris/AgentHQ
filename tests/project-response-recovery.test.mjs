@@ -34,7 +34,7 @@ test('every stage states its exact response kinds and excludes the sender from r
   const prompt=projectTurnPrompt(s,{jordan:'Writing',casey:'Social'});assert.match(prompt,new RegExp('stage='+phase));assert.match(prompt,/allowed kind values=/);
  }
  const peer={...initial,peer_target:'casey',peer_return_worker:'jordan',active_worker:'casey'};
- assert.deepEqual(projectResponseContract(peer).allowed,['answer','ask_owner','permission','research']);
+ assert.deepEqual(projectResponseContract(peer).allowed,['answer','ask_owner','permission','research','chatgpt']);
  assert(!projectResponseContract({...initial,peer_exchanges:3}).allowed.includes('ask_team'));
 });
 test('wrong-stage finals and self-addressed questions have distinct recoverable codes',()=>{

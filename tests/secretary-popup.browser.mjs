@@ -57,7 +57,7 @@ async function fixture({saved=state(),sessionOwner=owner,fresh=state(owner,2,'Fr
    await route.fulfill({body:'window.__popupSdkReady=true; export const agentCloud=window.__popupCloud;',contentType:'text/javascript',headers:{'Cache-Control':'no-store'}}).catch(()=>{});return;
   }
   if(name==='agent-activity-cloud.js'){await route.fulfill({body:"import './agent-cloud-auth.js';",contentType:'text/javascript'});return;}
-  if(name.endsWith('.js')&&!['agent-secretary-popup.js','agent-secretary-snapshot.js','agent-cloud-config.js','icons.js'].includes(name)){
+  if(name.endsWith('.js')&&!['agent-secretary-popup.js','agent-secretary-snapshot.js','agent-chatgpt-app-core.js','agent-cloud-config.js','icons.js'].includes(name)){
    await route.fulfill({body:'',contentType:'text/javascript'});return;
   }
   await route.continue();

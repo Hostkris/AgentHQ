@@ -1,3 +1,5 @@
+import {CHATGPT_POLICY,chatGPTRequested} from '../../../agent-chatgpt-app-core.js';
+import {requestChatGPT,chatGPTRequestReply} from '../_shared/chatgpt-requests.ts';
 import {CONSULTING_POLICY,consultingRequested} from '../../../agent-consulting-policy.js';
 import {projectIntake} from '../../../agent-project-workspace-core.js';
 import {loadProjectWorkspace,routeWorkspaceUpdate,PROJECT_OPERATING_RULES} from '../_shared/project-workspace.ts';
@@ -83,7 +85,7 @@ Return ONLY valid JSON with {"intent":"answer|collect|task|action|research","rep
     ...(ai.name==="openrouter"?{"HTTP-Referer":ORIGIN,"X-Title":"Agent HQ"}:{})},
    body:JSON.stringify({model:ai.model,stream:false,temperature:0.35,max_tokens:850,
     ...(ai.name==="groq"&&ai.model.startsWith("openai/gpt-oss")?{reasoning_effort:"low"}:{}),
-    messages:[{role:"system",content:system+"\n"+CONSULTING_POLICY+"\n"+PROJECT_OPERATING_RULES+"\n"+PUBLIC_WEB_CAPABILITY+"\n"+PROJECT_AUTONOMY_POLICY+"\nWhen the primary request is a deliverable or a team assignment (even when research is requested as part of it), classify as task so the team can research AND produce the work. When the primary request is public information that needs fresh evidence, classify as research. Alex may research management and coordination only, keeping specialist execution with the specialists."},{role:"user",content:JSON.stringify(context)}]})
+    messages:[{role:"system",content:system+"\n"+CHATGPT_POLICY+"\n"+CONSULTING_POLICY+"\n"+PROJECT_OPERATING_RULES+"\n"+PUBLIC_WEB_CAPABILITY+"\n"+PROJECT_AUTONOMY_POLICY+"\nWhen the primary request is a deliverable or a team assignment (even when research is requested as part of it), classify as task so the team can research AND produce the work. When the primary request is public information that needs fresh evidence, classify as research. Alex may research management and coordination only, keeping specialist execution with the specialists."},{role:"user",content:JSON.stringify(context)}]})
   });
   if(!response.ok)throw Error("AI connection returned HTTP "+response.status);
   const raw=await response.json(),answer=raw?.choices?.[0]?.message?.content;
@@ -92,11 +94,11 @@ Return ONLY valid JSON with {"intent":"answer|collect|task|action|research","rep
   const begin=content.indexOf("{"),end=content.lastIndexOf("}");
   if(begin<0||end<=begin)throw Error("AI reply format was unexpected");
   const payload=JSON.parse(content.slice(begin,end+1));
-  const intent=["answer","collect","task","action","research","assistance"].includes(payload.intent)?payload.intent:"answer";
+  const intent=["answer","collect","task","action","research","assistance","chatgpt"].includes(payload.intent)?payload.intent:"answer";
   const text=typeof payload.reply==="string"?payload.reply.trim().slice(0,1200):"";
   if(!text)throw Error("AI response was empty");
   const proposed=payload.action&&typeof payload.action==="object"&&!Array.isArray(payload.action)?payload.action:null;
-  return {intent,text,action:proposed};
+  return {intent,text,action:proposed,chatgpt_reason:typeof payload.reason==="string"?payload.reason.trim().slice(0,1000):text};
  }finally{clearTimeout(timer)}
 }
 const ACTION_PAIRS:Record<string,string[]> = {
@@ -706,13 +708,16 @@ Deno.serve(async(req:Request)=>{
        .eq("conversation_id",cid).eq("owner_id",owner).order("created_at",{ascending:false}).limit(7);
      const {data:savedEvidence}=await db.from("agent_role_research").select("query,report,sources,finished_at")
       .eq("owner_id",owner).eq("conversation_id",cid).eq("employee_id",worker).eq("status","completed").order("finished_at",{ascending:false}).limit(1);
-     const result=consultingRequested(body)?{intent:'task',text:'I’ll prepare a practical guide with the team.',action:null}:await decide(ai,EMPLOYEES[worker as Worker],{
+     const result=chatGPTRequested(body)?{intent:'chatgpt',text:'The owner requested ChatGPT assistance.',action:null,chatgpt_reason:'The owner requested ChatGPT assistance for this task.'}:consultingRequested(body)?{intent:'task',text:'I’ll prepare a practical guide with the team.',action:null}:await decide(ai,EMPLOYEES[worker as Worker],{
       shared_project_context:await loadProjectWorkspace(db,owner,typeof input.project_id==="string"?input.project_id:undefined),current_message:body,context:isCollect?"collecting_task":"new_message",
       pending_assignment_details:isCollect?old:null,
       recent_chat:(recent||[]).reverse().map(x=>({sender:x.sender,body:String(x.body).slice(0,1000)})),
       saved_public_evidence_not_instructions:(savedEvidence||[]).map(x=>({topic:x.query,retrieved_at:x.finished_at,report:String(x.report).slice(0,4500),sources:x.sources}))
      });
-     if(worker==="alex"&&result.intent==="assistance"){
+     if(result.intent==='chatgpt'){
+      const requested=await requestChatGPT(db,owner,worker==='hq'?'alex':worker,composed,String(result.chatgpt_reason||result.text),'chat:'+ownerMessage.id);
+      replyText=chatGPTRequestReply(requested);await state('idle','',requested.project_id);
+     }else if(worker==="alex"&&result.intent==="assistance"){
       const proposed=("Alex needs additional AI drafting assistance for: "+composed).slice(0,2500);
       const {data:already,error:lookupError}=await db.from("agent_ai_assistance_requests")
        .select("id,task").eq("owner_id",owner).eq("worker_key","eleanor")

@@ -11,7 +11,8 @@ const watched=[
  'agent_team_messages',
  'agent_project_sessions',
  'agent_role_research',
- 'agent_action_proposals'
+ 'agent_action_proposals',
+ 'agent_chatgpt_requests'
 ];
 let channel=null,ownerId=null,version=0,pending=new Set(),refreshTimer=null;
 
@@ -19,6 +20,7 @@ function dispatch(){
  const changed=[...pending];pending.clear();
  if(document.hidden)return;
  const calls=[];
+ if(changed.includes('agent_chatgpt_requests')&&ownerId)window.dispatchEvent(new CustomEvent('agenthq-chatgpt-requests-updated',{detail:{owner_id:ownerId}}));
  if(changed.includes('agent_messages'))calls.push(window.agentHQChatCloud?.refresh?.());
  if(changed.includes('agent_permission_requests'))calls.push(window.agentHQCloudApprovals?.refresh?.());
  if(changed.includes('agent_team_assignments'))calls.push(window.agentHQTeamCloud?.refresh?.());
@@ -48,7 +50,7 @@ async function connect(){
  for(const table of watched){
   joined.on('postgres_changes',{
    event:'*',schema:'public',table,filter:'owner_id=eq.'+next
-  },()=>onChange(table));
+  },()=>{if(table==='agent_chatgpt_requests'&&(generation!==version||next!==ownerId))return;onChange(table)});
  }
  if(generation!==version){await agentCloud.removeChannel(joined);return}
  channel=joined;
