@@ -70,7 +70,7 @@ export function dailyCoordinationBrief(state,local,clock=new Date()){
    business?'3–4 PM business focus ('+business.day+'): '+business.title+' — '+quote(business.description,130):'',
    gym?'5–6:30 PM LA Fitness: '+quote(gym.details,100):'',
    cleaning?'Cleaning day ('+cleaning.day+'): '+cleaning.title+'; use the saved daily reset and specific tasks.':''].filter(Boolean).join('\n');
- const restConflicts='Please clarify the conflict between the weekly-board dinner after 6:30 PM and the existing 5 PM eating-cutoff reminder before changing either one. The weekly screenshot also includes Friday gym, while an earlier schedule said Mon–Thu only; preserve the board plan until the owner decides.';
+ const restConflicts=currentDow===0?'Please clarify the conflict between the weekly-board dinner after 6:30 PM and the existing 5 PM eating-cutoff reminder before changing either one. The weekly screenshot also includes Friday gym, while an earlier schedule said Mon–Thu only; preserve the board plan until the owner decides.':'';
 
  return [daily,'Agent HQ Notes and Calendar\n• '+pending+' Notes proposal(s) awaiting approval.\n• '+overdue+' overdue task(s).',
   'Household work and budgets\n'+home,
