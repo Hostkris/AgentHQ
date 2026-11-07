@@ -39,6 +39,15 @@ async function create(text,clientKey=crypto.randomUUID()){
  if(error||!data)throw Error('Note was not saved in Agent HQ: '+(error?.message||'unknown error'));
  await refresh();return data.id;
 }
+async function update(noteId,text){
+ const id=owned(),body=String(text||'').trim();
+ if(!body||body.length>2000)throw Error('A note must be 1–2,000 characters.');
+ const existing=items.find(n=>n.id===noteId);if(!existing)throw Error('Refresh Notes before editing.');
+ const {data,error}=await agentCloud.from('agent_hq_notes').update({content:body})
+  .eq('owner_id',id).eq('id',noteId).eq('revision',existing.revision).select('id').maybeSingle();
+ if(error||!data)throw Error('This note has changed or could not be saved; refresh Notes.');
+ await refresh();return true;
+}
 async function remove(noteId){
  const id=owned();const note=items.find(n=>n.id===noteId);
  if(!note)throw Error('Refresh Notes before deleting this entry.');
@@ -80,7 +89,7 @@ async function authenticate(next){
   if(ticket===epoch)window.dispatchEvent(new CustomEvent('agenthq-notes-error',{detail:{message:String(error?.message||error)}}));
  }
 }
-window.agentHQNotesCloud={list:()=>items.slice(),loaded:()=>loaded,owner:()=>owner,refresh,create,remove,decide};
+window.agentHQNotesCloud={list:()=>items.slice(),loaded:()=>loaded,owner:()=>owner,refresh,create,update,remove,decide};
 agentCloud.auth.onAuthStateChange((_event,session)=>{void authenticate(session?.user?.id||null)});
 agentCloud.auth.getUser().then(({data})=>authenticate(data?.user?.id||null)).catch(()=>{});
 window.addEventListener('focus',()=>{if(owner)void refresh().catch(()=>{})});
