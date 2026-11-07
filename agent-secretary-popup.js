@@ -91,8 +91,9 @@ function popup(alert){
    const chatgpt=latestSnapshot?.notices.some(n=>n.chatgpt);
    const open=await appAction(()=>chatgpt?window.agentHQOpenChatGPT:window.agentHQOpenSecretary,account,el);
    if(account!==owner||!el.isConnected)return;
-   const agent=latestSnapshot?.notices.some(n=>n.agent);closePopup();open();
-   if(agent&&!chatgpt)window.dispatchEvent(new Event('agenthq-secretary-show-alerts'));
+   const agent=latestSnapshot?.notices.some(n=>n.agent),notes=latestSnapshot?.notices.some(n=>/Eleanor reviewed an Agent HQ Note/.test(n.body||''));closePopup();open();
+   if(notes&&!chatgpt)window.dispatchEvent(new Event('agenthq-secretary-show-notes'));
+   else if(agent&&!chatgpt)window.dispatchEvent(new Event('agenthq-secretary-show-alerts'));
   }catch(error){if(account===owner&&el.isConnected)status.textContent=String(error?.message||error);}
   finally{if(el.isConnected)button.disabled=false;}
  };
