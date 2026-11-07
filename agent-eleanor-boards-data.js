@@ -13,8 +13,9 @@ export const BOARD_COLOR={
  cleaning:'home',weekly:'home'
 };
 export const BOARD_CONFLICT_LABELS=[
- 'The weekly board places dinner after 6:30 PM but an earlier 5 PM eating-cutoff reminder remains active. Eleanor should seek a decision instead of changing either silently.',
  'The cleaning board suggests an optional 2:30–3 PM reset, while the weekly board assigns that time to rest and 4–4:20 PM to cleaning. Keep 4–4:20 PM primary.',
  'The flip and investment allocations are alternative uses of the same savings above $1,000, not two simultaneously spendable amounts.',
  'The uploaded weekly gym rotation includes Friday. The owner can adjust or skip it.'
 ];
+
+export const BOARD_CONFIRMED_EATING_RULE='Confirmed by owner: do not eat after 5:00 PM. Weekday dinner is 4:20–4:50 PM before LA Fitness; the 6:30 PM block is for shower, optional sauna and recovery, not food.';
