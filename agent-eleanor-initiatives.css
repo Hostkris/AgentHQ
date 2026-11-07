@@ -1,0 +1,29 @@
+
+/* Owner-private, reviewable worker autonomy rather than an opaque activity badge. */
+.hq-initiative-desk{display:grid;gap:14px;min-width:0}
+.hq-initiative-desk .secretary-card{min-width:0}
+.hq-initiative-desk p{line-height:1.55}
+.hq-initiative-desk form{display:flex;flex-wrap:wrap;gap:12px;align-items:end}
+.hq-initiative-desk form>label{min-width:145px;display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:600}
+.hq-initiative-desk form>label.secretary-check{flex:1 0 100%;flex-direction:row;align-items:center;gap:10px}
+.hq-initiative-desk form select{min-height:39px;width:100%;border-radius:9px;padding:7px 9px;font:inherit;background:var(--card,#fff);color:inherit;border:1px solid var(--border,#ccd2d8)}
+.hq-initiative-desk form button{min-height:39px}
+.hq-initiative-workers{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,215px),1fr));gap:9px;margin-top:10px}
+.hq-initiative-workers>div{border:1px solid var(--border,#d6dade);border-radius:12px;padding:11px;display:grid;gap:4px}
+.hq-initiative-workers small{font-size:11px;line-height:1.4;color:var(--muted,#66717d)}
+.hq-initiative-workers span{font-size:11px;font-variant-numeric:tabular-nums;font-weight:600}
+.hq-initiative-entry{margin:12px 0;padding:13px;border:1px solid var(--border,#d6dade);border-radius:14px;overflow-wrap:anywhere}
+.hq-initiative-heading{display:flex;flex-direction:column;gap:6px}
+.hq-initiative-heading strong{font-size:15px}
+.hq-initiative-heading small,.hq-initiative-entry small{font-size:11px;color:var(--muted,#66717d)}
+.hq-initiative-entry p{font-size:12px;margin:9px 0}
+.hq-initiative-entry ul{font-size:12px;margin:5px 0;padding-left:19px}
+.hq-initiative-entry .secretary-actions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.hq-initiative-memory{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:10px}
+.hq-initiative-memory article{border:1px solid var(--border,#d6dade);border-radius:12px;padding:12px;display:grid;align-content:start;gap:6px}
+.hq-initiative-memory strong{font-size:12px}
+.hq-initiative-memory p{font-size:12px;margin:0}
+.hq-initiative-memory small{font-size:11px;color:var(--muted,#66717d)}
+.hq-initiative-memory button{margin-top:6px}
+.hq-initiative-compact button{margin-top:8px}
+@media(prefers-color-scheme:dark){.hq-initiative-workers>div,.hq-initiative-entry,.hq-initiative-memory article{border-color:#3b4654}.hq-initiative-desk select{background:#1d2430;color:#f3f5f9;border-color:#475465}}
