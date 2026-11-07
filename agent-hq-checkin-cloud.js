@@ -7,12 +7,14 @@ const signal=()=>window.dispatchEvent(new CustomEvent('agenthq-checkins-changed'
 function ensureOwner(){if(!owner)throw Error('Sign in to Agent HQ for private daily check-ins.');return owner;}
 function verify(fields){
  if(!fields||typeof fields!=='object'||Array.isArray(fields))throw Error('Provide a daily check-in record.');
- for(const key of ['multivitamin','apple_cider_vinegar','tiktok_live','posts','messages'])
+ for(const key of ['multivitamin','apple_cider_vinegar','tiktok_live','posts','messages','reading','eating_cutoff'])
   if(fields[key]!==undefined&&!['yes','no','not_yet'].includes(fields[key]))throw Error('Choose a valid '+key+' status.');
  if(fields.heart_rate!==undefined&&(!Number.isInteger(fields.heart_rate)||fields.heart_rate<20||fields.heart_rate>250))
   throw Error('Enter a measured heart rate between 20 and 250 bpm or leave it blank.');
  if(fields.water_oz!==undefined&&(!Number.isFinite(fields.water_oz)||fields.water_oz<0||fields.water_oz>500))
   throw Error('Enter water in fluid ounces or leave it blank.');
+ if(fields.pages_read!==undefined&&(!Number.isInteger(fields.pages_read)||fields.pages_read<0||fields.pages_read>200))throw Error('Enter actual pages read, 0–200, or leave blank.');
+ if(fields.weight_lb!==undefined&&(!Number.isFinite(fields.weight_lb)||fields.weight_lb<40||fields.weight_lb>1000))throw Error('Enter a measured body weight or leave blank.');
  if(JSON.stringify(fields).length>6000)throw Error('Daily check-in is too long.');
 }
 async function refresh(){
