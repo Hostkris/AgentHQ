@@ -15,7 +15,7 @@ globalThis.localStorage={
  removeItem:key=>store.delete(key)
 };
 const escape=value=>String(value).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const state=owner=>({settings:{owner_id:owner,timezone:'America/New_York',brief_time:'07:00:00'}});
+const state=owner=>({settings:{owner_id:owner,timezone:'America/New_York',brief_time:'07:00:00'},items:[]});
 const today='2026-11-07';
 
 test('Notes review never reads another owner or legacy unscoped Notes',()=>{
@@ -46,14 +46,16 @@ test('Daily check-in asks for manually reported data, including reply drafting',
  const text=workflow.renderEleanorCoordination('checkin',state('owner-one'),today,escape);
  for(const label of ['Heart rate','Water consumed','Multivitamin drink','Apple cider vinegar','TikTok Live','Checked TikTok posts','Checked TikTok messages','need a reply'])
   assert.ok(text.includes(label),label);
- assert.match(text,/no device or Apple Health connection/i);
+ assert.match(text,/no outside health connection/i);
+ assert.match(text,/Save in Agent HQ and report to Eleanor/);
+ assert.match(text,/Ask Eleanor to review authorized social activity/);
  assert.match(text,/will not post it/i);
 });
 test('Morning screen has useful entry points but does not claim auto-reading',()=>{
  const text=workflow.renderEleanorTodaySummary(state('owner-one'),today,escape);
- assert.match(text,/Daily check-in/);
+ assert.match(text,/Answer today’s check-in/);
  assert.match(text,/Review Notes/);
- assert.match(text,/sync privately inside your account/);
+ assert.match(text,/The Calendar and Notes are inside Agent HQ/);
 });
 test('Eleanor proposes internal actions and keeps owner yes/no approval explicit',()=>{
  const current=globalThis.window.agentHQNotesCloud;
@@ -67,6 +69,19 @@ test('Eleanor proposes internal actions and keeps owner yes/no approval explicit
   assert.match(text,/No, leave it as a note/);
   assert.match(text,/data-note-id="33333333-3333-4333-8333-333333333333"/);
  }finally{globalThis.window.agentHQNotesCloud=current;}
+});
+test('Cloud-confirmed reports and internal calendar agenda are reflected in today’s screen',()=>{
+ const existing=globalThis.window.agentHQCheckins;
+ globalThis.window.agentHQCheckins={owner:()=> 'owner-one',loaded:()=>true,record:()=>({fields:{water_oz:32,multivitamin:'yes'},submitted_at:'2026-11-07T12:30:00Z',sent_signature:'saved'})};
+ try{
+  const stateWithAgenda=state('owner-one');
+  stateWithAgenda.items=[{id:'a',title:'Review video draft',kind:'task',status:'active'},{id:'b',title:'Team meeting',kind:'meeting',scheduled_at:'2030-12-01T12:00:00Z',status:'active'}];
+  const text=workflow.renderEleanorTodaySummary(stateWithAgenda,today,escape);
+  assert.match(text,/check-in is saved in Agent HQ and sent/);
+  assert.match(text,/1 active task/);
+  assert.match(text,/Team meeting/);
+  assert.match(text,/Open Calendar/);
+ }finally{globalThis.window.agentHQCheckins=existing;}
 });
 test('Authenticated load provisions one repeating reminder, respecting stopped records',()=>{
  const source=readFileSync(resolve(here,'../agent-secretary.js'),'utf8');
