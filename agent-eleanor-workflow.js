@@ -1,4 +1,5 @@
-// Eleanor reads first-party, owner-private Agent HQ Notes; no external Notes or calendar.
+// Eleanor manages owner-private Agent HQ Notes, habits, book reading and internal Calendar; Saturday remains a rest day.
+import {routineDue,nextEligible} from './agent-reading-schedule.js?v=20261107-eligible-days-1';
 // Heart rate, water and social check-ins remain owner-reported unless a separate capability is verified.
 
 const CHECKIN_KEY='agenthq-eleanor-daily-checkin-v1:';
@@ -7,7 +8,9 @@ const FIELDS=[
  ['apple_cider_vinegar','Apple cider vinegar'],
  ['tiktok_live','TikTok Live'],
  ['posts','Checked TikTok posts'],
- ['messages','Checked TikTok messages']
+ ['messages','Checked TikTok messages'],
+ ['reading','Read four pages'],
+ ['eating_cutoff','Finished eating by 5 PM (personal choice)']
 ];
 const OPTIONS=[['not_yet','Not yet / not reported'],['yes','Yes / completed'],['no','No / skipped today']];
 function notes(owner){
@@ -70,16 +73,28 @@ export function renderEleanorCoordination(tab,state,day,E){
  const owner=state.settings.owner_id;
  if(tab==='checkin'){
   const record=todayRecord(owner,day)||{},f=record.fields||{};
+  const reading=(state.items||[]).find(i=>i.kind==='reminder'&&i.data?.reading_goal&&i.status==='active');
+  const savedBook=String(reading?.data?.book_title||'');
+  const readMode=reading?.data?.reading_mode==='daily'?'daily':'alternate';
+  const readingToday=reading?routineDue(reading,day):false;
   return '<section class="secretary-card eleanor-workflow"><h3>Eleanor’s daily check-in · '+E(day)+'</h3>'+
    '<p>Eleanor is checking in about your morning routine, hydration, TikTok Live and any outstanding posts or messages. Report only what happened. Heart rate must be measured or entered by you; no outside health connection or target is assumed.</p>'+
    '<form data-eleanor-checkin-form>'+
    '<label>Heart rate, beats per minute (if measured)<input type="number" name="heart_rate" min="20" max="250" step="1" inputmode="numeric" value="'+E(f.heart_rate??'')+'" placeholder="Not measured"></label>'+
    '<label>Water consumed today, fluid ounces (if tracked)<input type="number" name="water_oz" min="0" max="500" step="0.5" inputmode="decimal" value="'+E(f.water_oz??'')+'" placeholder="Not reported"></label>'+
    FIELDS.map(([key,label])=>'<label>'+E(label)+statusSelect(key,f[key]||'not_yet',E)+'</label>').join('')+
+   '<label>Pages actually read today (if any)<input type="number" name="pages_read" min="0" max="200" step="1" value="'+E(f.pages_read??'')+'" placeholder="0 if none"></label>'+
+   '<label>Body weight, pounds (monthly, if measured)<input type="number" name="weight_lb" min="40" max="1000" step="0.1" inputmode="decimal" value="'+E(f.weight_lb??'')+'" placeholder="Only enter a real measurement"></label>'+
+   '<p><strong>Book:</strong> '+E(savedBook||'Not selected yet')+' · '+(readingToday?'Four pages scheduled today.':'No new reading session scheduled today.')+' Saturday is protected as your rest day.</p>'+
    '<label>Posts, comments or messages that need a reply (paste only what you choose to share)<textarea name="reply_context" rows="4" maxlength="2000" placeholder="Paste the message and context. Eleanor can suggest a reply but will not post it.">'+E(f.reply_context||'')+'</textarea></label>'+
    '<label>What would you like Eleanor to help with today?<textarea name="request" rows="3" maxlength="1000" placeholder="Planning, follow-ups, replies, reminders, projects...">'+E(f.request||'')+'</textarea></label>'+
    '<button type="submit">Save in Agent HQ and report to Eleanor</button><button type="button" data-eleanor-social-review>Ask Eleanor to review authorized social activity</button><p class="secretary-subtle">Your answers sync privately inside Agent HQ before Eleanor receives your report. She can suggest replies but cannot assume TikTok inbox access or publish messages without permission.</p>'+
-   '<p role="status" data-eleanor-checkin-status>'+E(record.sent_at?'Last sent: '+new Date(record.sent_at).toLocaleString():'Not sent yet')+'</p></form></section>';
+   '<p role="status" data-eleanor-checkin-status>'+E(record.sent_at?'Last sent: '+new Date(record.sent_at).toLocaleString():'Not sent yet')+'</p></form>'+
+   '<form data-eleanor-reading-plan-form><h3>Your reading plan</h3><p>Which book have you chosen? Eleanor will put four-page sessions on the Agent HQ Calendar without Saturday reminders.</p>'+
+   '<label>Book title<input name="book_title" maxlength="180" required value="'+E(savedBook)+'" placeholder="Type the actual book title"></label>'+
+   '<label>Reading frequency<select name="reading_mode"><option value="alternate"'+(readMode==='alternate'?' selected':'')+'>Every other available day (skip Saturday)</option><option value="daily"'+(readMode==='daily'?' selected':'')+'>Every day except Saturday</option></select></label>'+
+   '<label>Reading reminder time<input type="time" name="reading_time" required value="'+E(String(reading?.local_time||'19:00').slice(0,5))+'"></label>'+
+   '<button type="submit">Save book and reading schedule in Agent HQ</button><p role="status" data-eleanor-reading-status></p></form></section>';
  }
  const list=notes(owner);
  return '<section class="secretary-card eleanor-workflow"><h3>Notes review and project ideas</h3><p>Eleanor checks Notes saved inside Agent HQ and flags possible work for your yes/no approval. Select Ask Eleanor for ideas when you want a fuller discussion. Unapproved proposals never create calendar events, projects, outside posts or purchases.</p>'+
@@ -151,6 +166,9 @@ export function bindEleanorCoordination(root,state,day,helpers,E){
   const rate=String(f.get('heart_rate')||'').trim(),water=String(f.get('water_oz')||'').trim();
   if(rate)fields.heart_rate=Number(rate);
   if(water)fields.water_oz=Number(water);
+  const pages=String(f.get('pages_read')||'').trim(),weight=String(f.get('weight_lb')||'').trim();
+  if(pages)fields.pages_read=Number(pages);
+  if(weight)fields.weight_lb=Number(weight);
   fields.reply_context=String(f.get('reply_context')||'').trim().slice(0,2000);
   fields.request=String(f.get('request')||'').trim().slice(0,1000);
   const owner=state.settings.owner_id,prior=todayRecord(owner,day);
@@ -164,7 +182,11 @@ export function bindEleanorCoordination(root,state,day,helpers,E){
    if(remote.sent_signature===signature&&remote.submitted_at){
     status.textContent='This check-in is already saved and reported. No duplicate was sent.';return;
    }
+   const reading=(state.items||[]).find(i=>i.kind==='reminder'&&i.data?.reading_goal&&i.status==='active');
    const summary=['Daily check-in for '+day+' (owner-reported; no automatic measurement):',
+    'Selected book: '+(reading?.data?.book_title||'not chosen'),
+    'Reading pages completed: '+(fields.pages_read??'not reported'),
+    'Monthly body weight: '+(fields.weight_lb===undefined?'not measured':fields.weight_lb+' lb'),
     'Heart rate: '+(fields.heart_rate===undefined?'not measured/reported':fields.heart_rate+' bpm'),
     'Water: '+(fields.water_oz===undefined?'not measured/reported':fields.water_oz+' fluid oz'),
     ...FIELDS.map(([key,label])=>label+': '+(OPTIONS.find(x=>x[0]===fields[key])?.[1]||'Not reported')),
@@ -176,6 +198,28 @@ export function bindEleanorCoordination(root,state,day,helpers,E){
    status.textContent='Saved inside Agent HQ and sent to Eleanor’s Messages. No external posts or replies were sent.';
    helpers.message('Check-in recorded in Eleanor’s conversation. Open Messages to continue step by step.');
   }catch(error){status.textContent='Check-in not fully confirmed: '+String(error?.message||error)+' Your device keeps a draft; verify Eleanor’s Messages before resending.';}
+  finally{submit.disabled=false;}
+ });
+ root.querySelector('[data-eleanor-reading-plan-form]')?.addEventListener('submit',async event=>{
+  event.preventDefault();
+  const form=event.currentTarget,submit=form.querySelector('[type=submit]'),status=form.querySelector('[data-eleanor-reading-status]');
+  if(submit.disabled)return;submit.disabled=true;
+  const fields=new FormData(form),book=String(fields.get('book_title')||'').trim(),
+   mode=String(fields.get('reading_mode')||'alternate'),time=String(fields.get('reading_time')||'19:00');
+  try{
+   if(!book||book.length>180||!['daily','alternate'].includes(mode)||!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time))
+    throw Error('Choose a book title, reading frequency and valid time.');
+   const previous=(state.items||[]).find(i=>i.kind==='reminder'&&i.data?.reading_goal&&i.status==='active');
+   const today=day,anchor=nextEligible(today,0);
+   const meta={...(previous?.data||{}),reading_goal:4,book_title:book,reading_mode:mode,anchor_date:mode===previous?.data?.reading_mode?previous.data.anchor_date||anchor:anchor};
+   await helpers.apply([{op:'save_item',...(previous?{id:previous.id}:{}),item:{
+    kind:'reminder',title:'Read four pages · '+book.slice(0,120),
+    details:'Read four pages of '+book+' on scheduled days. Report pages actually read and ask Eleanor to move unfinished work to the next opening; no Saturday sessions.',
+    timezone:state.settings.timezone,local_time:time,weekdays:[0,1,2,3,4,5],data:meta
+   }}]);
+   status.textContent='Saved '+book+' and your four-page '+(mode==='daily'?'daily':'every-other-available-day')+' plan in Agent HQ Calendar. Saturdays are excluded.';
+   helpers.message('Reading schedule saved. Eleanor can now ask about this specific book and track your four-page goal.');
+  }catch(error){status.textContent='Reading plan not confirmed: '+String(error?.message||error)}
   finally{submit.disabled=false;}
  });
  root.querySelector('[data-eleanor-social-review]')?.addEventListener('click',async event=>{

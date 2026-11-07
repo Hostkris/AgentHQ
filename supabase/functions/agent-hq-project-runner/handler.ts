@@ -13,6 +13,18 @@ export async function handleProjectRunner(req:Request,deps:any){
  if(authorized!==true)return response({error:'Scheduler authorization required'},401);
  const owners=[...new Set(String(deps.allowedOwners||'').split(',').map((id:string)=>id.trim().toLowerCase()).filter((id:string)=>uuid.test(id)))];
  if(!owners.length)return response({error:'No authorized worker owner configured'},503);
+ // Owner-designated Saturday rest applies to unattended team runs, not an explicit owner session.
+ if(deps.respectSaturday){
+  const {data:preferences,error:preferencesError}=await deps.db.from('agent_secretary_settings')
+   .select('owner_id,timezone').in('owner_id',owners);
+  if(preferencesError)return response({error:'Could not verify Agent HQ rest-day preferences'},503);
+  const rested=new Set((preferences||[]).filter((p:any)=>
+   new Intl.DateTimeFormat('en-US',{timeZone:p.timezone||'America/New_York',weekday:'short'})
+    .format(new Date())==='Sat').map((p:any)=>p.owner_id));
+  const workingOwners=owners.filter(id=>!rested.has(id));
+  if(!workingOwners.length)return response({state:'saturday_rest',processed:0,results:[]});
+  owners.splice(0,owners.length,...workingOwners);
+ }
  const {data:work,error}=await deps.db.rpc('get_agent_project_runner_work',{p_owners:owners});
  if(error||!Array.isArray(work))return response({error:'Saved project queue unavailable'},503);
  const results=[];

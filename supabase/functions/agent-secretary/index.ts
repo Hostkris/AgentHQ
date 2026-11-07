@@ -15,4 +15,4 @@ async function readMeetingEmail(owner:string,addresses:string[],start:string){
   messages.push({subject:String(subject).slice(0,180),text:textParts(item.payload).slice(0,700),id:m.id});
  }return messages;
 }
-Deno.serve(secretaryHandler(db,owners,{readMeetingEmail,deliverPush:sendSecretaryPush,deliverAgentPush:sendAgentWorkPush,preparePush:pushKeys}));
+Deno.serve(secretaryHandler(db,owners,{readMeetingEmail,deliverPush:sendSecretaryPush,deliverAgentPush:sendAgentWorkPush,preparePush:pushKeys,respectSaturday:true}));

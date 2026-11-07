@@ -1,8 +1,12 @@
 import {agentCloud} from './agent-cloud-auth.js';
+import {condition as weatherCondition} from './agent-weather-conditions.js?v=20261107-conditions-1';
+import {routineDue} from './agent-reading-schedule.js?v=20261107-eligible-days-1';
 import './agent-hq-notes-cloud.js?v=20261107-native-notes-2';
 // Agent HQ Home: iPhone-like swipe navigation and uninterrupted long-press dragging.
 // Preferences are local; no external account data is stored here.
 const KEY="agenthq-home-layout-v1";
+const DOCK_KEY='agenthq-home-dock-v2';
+const DEFAULT_DOCK=['messages','email','assignments','camera'];
 const APPS=[
  ["office","Office","🏢"],["messages","Messages","💬"],["email","Email Center","✉️"],
  ["contacts","Contacts","👥"],["accounts","My Accounts","🔐"],["studio","Worker Studio","🧬"],
@@ -38,6 +42,20 @@ function load(){
   for(const p of pages){const available=[...p.apps,...p.widgets.map(k=>'widget:'+k)];p.order=[...new Set(p.order.filter(x=>available.includes(x)).concat(available))]}
   return {pages:rebalancePages(pages),current:Math.min(pages.length-1,Math.max(0,Number(data.current)||0))};
  }catch{return defaultLayout()}
+}
+function readDock(){
+ try{const a=JSON.parse(localStorage.getItem(DOCK_KEY)||'null');
+  if(Array.isArray(a)&&a.length===4&&a.every(id=>valid.has(id))&&new Set(a).size===4)return a;
+ }catch{}
+ return DEFAULT_DOCK.slice();
+}
+let dock=readDock();
+function saveDock(){try{localStorage.setItem(DOCK_KEY,JSON.stringify(dock))}catch{}}
+function replaceDock(slot,id){
+ if(!Number.isInteger(slot)||slot<0||slot>3||!valid.has(id))return false;
+ const current=dock.indexOf(id);if(current>=0){[dock[slot],dock[current]]=[dock[current],dock[slot]];}
+ else dock[slot]=id;
+ saveDock();return true;
 }
 let state=load(),editing=false,menu=false,change=()=>{};
 const widgetKey='agenthq-home-personal-widgets-v1';
@@ -93,7 +111,7 @@ function calendarEntries(){
  const tasks=secretaryCalendarItems.filter(i=>i.kind==='task').slice(0,12);
  const weekday=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(new Intl.DateTimeFormat('en-US',{timeZone:secretaryCalendarZone,weekday:'short'}).format(new Date()));
  const today=new Intl.DateTimeFormat('en-CA',{timeZone:secretaryCalendarZone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
- const routines=secretaryReminders.filter(i=>i.data?.repeat==='none'?Boolean(i.next_due_at)&&new Intl.DateTimeFormat('en-CA',{timeZone:secretaryCalendarZone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(i.next_due_at))===today:Array.isArray(i.weekdays)&&i.weekdays.includes(weekday)).slice(0,12);
+ const routines=secretaryReminders.filter(i=>routineDue(i,today)&&(i.data?.repeat==='none'?Boolean(i.next_due_at)&&new Intl.DateTimeFormat('en-CA',{timeZone:secretaryCalendarZone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(i.next_due_at))===today:true)).slice(0,12);
  const proposals=window.agentHQNotesCloud?.list?.().filter(n=>n.review_status==='pending').length||0;
  const fmt=when=>new Intl.DateTimeFormat('en-US',{timeZone:secretaryCalendarZone,month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}).format(new Date(when));
  const appointments=upcoming.length?'<div class="widget-secretary-events"><h3>Upcoming on Agent HQ Calendar</h3>'+
@@ -142,7 +160,8 @@ window.addEventListener('agenthq-secretary-state',event=>{
 });
 agentCloud.auth.onAuthStateChange(()=>{secretaryCalendarItems=[];secretaryReminders=[];secretaryCalendarNote='Open Calendar to load Eleanor’s saved appointments.';if(activeWidget==='calendar')change();});
 function monthView(){const today=new Date(),first=new Date(today.getFullYear(),today.getMonth()+calendarOffset,1),offset=first.getDay(),days=new Date(first.getFullYear(),first.getMonth()+1,0).getDate();return `<div class="widget-month-head"><button type="button" data-widget-month="-1" aria-label="Previous month">‹</button><strong>${esc(new Intl.DateTimeFormat(undefined,{month:'long',year:'numeric'}).format(first))}</strong><button type="button" data-widget-month="1" aria-label="Next month">›</button></div><div class="widget-month-grid">${['S','M','T','W','T','F','S'].map(d=>`<small>${d}</small>`).join('')}${Array.from({length:offset},()=>'<span></span>').join('')}${Array.from({length:days},(_,i)=>`<span class="${calendarOffset===0&&i+1===today.getDate()?'today':''}">${i+1}</span>`).join('')}</div>`}
-function weatherLabel(){const w=personal().weather;return w?.temperature!==undefined?`${Math.round(w.temperature)}° · ${w.city}`:'Choose a city';}
+function weatherLabel(){const w=personal().weather;if(!Number.isFinite(w?.temperature))return 'Choose a city';const c=weatherCondition(w.code,w.isDay);return c.icon+' '+Math.round(w.temperature)+'° · '+c.label+' · '+w.city;}
+function weatherForecast(days){return (days||[]).map(d=>'<div class="home-forecast-day"><span>'+esc(d.day)+'</span><span class="home-forecast-symbol" role="img" aria-label="'+esc(weatherCondition(d.code).label)+'">'+weatherCondition(d.code).icon+'</span><strong>'+Math.round(d.high)+'°</strong><small>'+Math.round(d.low)+'° low'+(Number.isFinite(d.rainChance)?' · '+Math.round(d.rainChance)+'% rain':'')+'</small></div>').join('')}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(state))}catch{}};
 const update=()=>{rebalancePages(state.pages);save();change()};
 function tile(id,renderButton){
@@ -157,7 +176,7 @@ function widget(kind,values){
  if(['notes','calendar','weather','clock','status'].includes(kind)){
   const titles={notes:'Notes',calendar:'Calendar',weather:'Weather',clock:'Clock',status:'Status'};
   const bodies={notes:p.notes?.length?esc(p.notes[0].text.slice(0,90)):'Tap to write a note',calendar:dateLabel(),weather:esc(weatherLabel()),clock:p.analog?clockFace():timeLabel(),status:`${Number(values.assignments||0)} assignments · ${Number(values.messages||0)} messages`};
-  const forecast=kind==='weather'&&p.weather?.days?.length?'<span class="home-weather-days">'+p.weather.days.slice(0,4).map(d=>`<span>${esc(d.day)}<br>${Math.round(d.high)}°</span>`).join('')+'</span>':'';
+  const forecast=kind==='weather'&&p.weather?.days?.length?'<span class="home-weather-days">'+p.weather.days.slice(0,4).map(d=>`<span>'+weatherCondition(d.code).icon+' '+esc(d.day)+'<br>'+Math.round(d.high)+'°</span>`).join('')+'</span>':'';
   return `<div class="home-widget home-widget--${kind}">${editing?`<button class="home-widget-remove" type="button" data-home-remove-widget="${kind}" aria-label="Remove ${titles[kind]} widget">×</button>`:''}<button type="button" class="home-widget-open" data-home-widget-open="${kind}" data-home-widget-tile="${kind}"><span class="home-widget-name">${titles[kind]}</span><strong class="home-widget-summary" data-widget-summary="${kind}">${bodies[kind]}</strong>${forecast}<small>${kind==='weather'?'Weather: Open-Meteo':kind==='notes'?`${p.notes?.length||0} saved notes`:kind==='calendar'?'Tap for assignments':kind==='clock'?'Tap to change clock':'Tap for current work'}</small></button></div>`;
  }
  const c={
@@ -185,13 +204,14 @@ export function renderHomeScreen(renderButton,values={}){
  (menu?'<div class="home-widget-choices">'+kinds.map(k=>'<button type="button" data-home-add-widget="'+k+'">'+esc(({work:'Assignments',inbox:'Messages',research:'Research',approvals:'Approvals',notes:'Notes',calendar:'Calendar',weather:'Weather',clock:'Clock',status:'Status'})[k])+'</button>').join("")+'</div>':"")+
  (state.pages.length<6?'<button type="button" data-home-add-page>+ Add Home Page</button>':"")+
  (state.pages.length>1?'<button type="button" data-home-remove-page>Remove Empty Page</button>':"")+'</div>':"")+
- '<div class="home-page-navigation"><div class="home-page-dots">'+paging+'</div></div><nav class="home-dock" aria-label="Favorite apps">'+['messages','email','assignments','camera'].map(id=>'<button type="button" data-nav="'+id+'" aria-label="'+esc(LABELS[id])+'"><span class="app-icon app-icon--'+id+'">'+(window.AgentHQIcons?.svg(id)||APPS.find(a=>a[0]===id)?.[2]||'')+'</span></button>').join('')+'</nav>'+widgetPanel()+'</section>';
+ '<div class="home-page-navigation"><div class="home-page-dots">'+paging+'</div></div><nav class="home-dock" aria-label="Favorite apps">'+dock.map(id=>'<button type="button" data-nav="'+id+'" aria-label="'+esc(LABELS[id])+'"><span class="app-icon app-icon--'+id+'">'+(window.AgentHQIcons?.svg(id)||APPS.find(a=>a[0]===id)?.[2]||'')+'</span></button>').join('')+'</nav>'+
+ (editing?'<div class="home-dock-editor"><strong>Customize bottom apps</strong><p>Choose any app for each position. Choosing one already on the dock swaps its position.</p>'+dock.map((id,slot)=>'<label>Position '+(slot+1)+' <select data-home-dock-slot="'+slot+'">'+APPS.map(a=>'<option value="'+a[0]+'"'+(id===a[0]?' selected':'')+'>'+esc(a[1])+'</option>').join('')+'</select></label><div class="home-dock-move">'+(slot>0?'<button type="button" data-home-dock-move="'+slot+'" data-home-dock-direction="-1" aria-label="Move app left">←</button>':'')+(slot<3?'<button type="button" data-home-dock-move="'+slot+'" data-home-dock-direction="1" aria-label="Move app right">→</button>':'')+'</div>').join('')+'</div>':'')+widgetPanel()+'</section>';
 }
 function widgetPanel(){if(!activeWidget)return '';
  const p=personal(),kind=activeWidget,heading=esc(kind[0].toUpperCase()+kind.slice(1));let body='';
  if(kind==='notes')body=`<form data-widget-note-form><label for="home-note">New Agent HQ note</label><textarea id="home-note" maxlength="2000" required placeholder="What do you want Eleanor to help you remember or work on?"></textarea><button type="submit">Save note</button></form><p class="personal-muted">Private Agent HQ Notes sync across your signed-in devices. Eleanor proposes tasks, calendar entries or projects when a note suggests work.</p>${editingNoteId?(()=>{const n=(p.notes||[]).find(x=>x.id===editingNoteId);return n?'<form data-widget-edit-note-form="'+esc(n.id)+'"><label>Edit saved note<textarea name="text" maxlength="2000" required>'+esc(n.text)+'</textarea></label><button type="submit">Save changes</button><button type="button" data-widget-edit-cancel>Cancel</button></form>':''})():''}<div class="widget-note-list">${(p.notes||[]).map((n,i)=>`<div class="widget-note"><p>${esc(n.text)}</p><small>${esc(n.date)}${n.review_status==='pending'?' · Eleanor has a proposal':''}</small><button type="button" data-widget-edit-note="${esc(n.id||'')}" aria-label="Edit note">Edit</button><button type="button" data-widget-delete-note="${i}" aria-label="Delete note">×</button></div>`).join('')}</div><button type="button" data-home-internal-notes-review>Review Eleanor’s notes proposals</button>`;
  if(kind==='calendar')body=`<div class="widget-date">Today: ${esc(new Intl.DateTimeFormat(undefined,{weekday:'long',month:'long',day:'numeric'}).format(new Date()))}</div>${monthView()}${calendarEntries()}<button type="button" data-home-widget-nav="assignments">View assignments (${Number(lastValues.assignments||0)})</button><button type="button" data-home-internal-calendar>Open Agent HQ Calendar</button>`;
- if(kind==='weather')body=`<form data-widget-weather-form><label for="home-weather-city">City or ZIP code</label><input id="home-weather-city" name="city" autocomplete="address-level2" required value="${esc(p.city||'')}" placeholder="Columbus, Ohio"><button type="submit">Get weather</button></form><button type="button" data-widget-location>Use my location</button><p data-weather-result>${esc(weatherLabel())}</p><div class="widget-forecast">${(p.weather?.days||[]).map(d=>`<div><span>${esc(d.day)}</span><strong>${Math.round(d.high)}°</strong><small>${Math.round(d.low)}° low</small></div>`).join('')}</div><small>Forecast by Open-Meteo · updates when you ask.</small>`;
+ if(kind==='weather')body=`<form data-widget-weather-form><label for="home-weather-city">City or ZIP code</label><input id="home-weather-city" name="city" autocomplete="address-level2" required value="${esc(p.city||'Columbus, Ohio')}" placeholder="Columbus, Ohio"><button type="submit">Update weather</button></form><button type="button" data-widget-location>Use my location</button><div class="home-weather-conditions" data-weather-result role="status"><span class="home-weather-large" role="img" aria-label="${esc(weatherCondition(p.weather?.code,p.weather?.isDay).label)}">${p.weather?weatherCondition(p.weather.code,p.weather.isDay).icon:'🌤️'}</span><strong>${p.weather?Math.round(p.weather.temperature)+'°F':'Weather'}</strong><span>${esc(p.weather?weatherCondition(p.weather.code,p.weather.isDay).label+' · '+p.weather.city:'Choose a city for current weather')}</span>${Number.isFinite(p.weather?.wind)?'<small>Wind '+Math.round(p.weather.wind)+' mph</small>':''}</div><div class="widget-forecast">${weatherForecast(p.weather?.days)}</div><small>Open-Meteo forecast · condition symbols follow its weather codes. Refresh for current conditions.</small>`;
  if(kind==='clock')body=`<div class="widget-clock-face" data-widget-clock-face>${p.analog?clockFace():timeLabel()}</div><button type="button" data-widget-clock-toggle>Switch to ${p.analog?'digital':'analog'}</button>`;
  if(kind==='status')body=`<p>${Number(lastValues.assignments||0)} assignments need attention</p><p>${Number(lastValues.messages||0)} unread messages</p><p>${Number(lastValues.approvals||0)} approvals waiting</p><button type="button" data-home-widget-nav="operations">Open Operations</button>`;
  return `<div class="widget-sheet-backdrop" data-widget-close><section class="widget-sheet" role="dialog" aria-modal="true" aria-label="${heading}"><header><h2>${heading}</h2><button type="button" data-widget-close aria-label="Close ${heading}">Done</button></header>${body}</section></div>`;
@@ -238,7 +258,7 @@ function action(target){
  const removeWidget=target.closest('[data-home-remove-widget]');
  if(removeWidget){const p=state.pages[state.current],kind=removeWidget.dataset.homeRemoveWidget;p.widgets=p.widgets.filter(k=>k!==kind);p.order=(p.order||[]).filter(x=>x!=='widget:'+kind);update();return true}
  const openWidget=target.closest('[data-home-widget-open]');
- if(openWidget){if(!editing){activeWidget=openWidget.dataset.homeWidgetOpen;change();if(activeWidget==='calendar')void refreshSecretaryCalendar()}return true}
+ if(openWidget){if(!editing){activeWidget=openWidget.dataset.homeWidgetOpen;change();if(activeWidget==='calendar')void refreshSecretaryCalendar();if(activeWidget==='weather'){const p=personal(),w=p.weather;if(!w?.updatedAt||Date.now()-w.updatedAt>45*60000){if(w?.lat!==undefined&&w?.lon!==undefined)void fetchWeather(w.lat,w.lon,w.city);else void findWeather(p.city||'Columbus, Ohio')}}}return true}
  if(target.matches('[data-widget-close]')){activeWidget=null;change();return true}
  if(target.closest('[data-widget-edit-note]')){editingNoteId=target.closest('[data-widget-edit-note]').dataset.widgetEditNote;change();return true}
  if(target.closest('[data-widget-edit-cancel]')){editingNoteId=null;change();return true}
@@ -248,6 +268,8 @@ function action(target){
   window.agentHQNotesCloud?.remove(note.id).catch(error=>window.alert(String(error?.message||error)));
   return true;
  }
+ const dockMove=target.closest('[data-home-dock-move]');
+ if(dockMove&&editing){const slot=Number(dockMove.dataset.homeDockMove),next=slot+Number(dockMove.dataset.homeDockDirection);if(next>=0&&next<4){[dock[slot],dock[next]]=[dock[next],dock[slot]];saveDock();change()}return true;}
  if(target.closest('[data-widget-clock-toggle]')){putPersonal({analog:!personal().analog});change();return true}
  const finished=target.closest('[data-calendar-task-complete]');
  if(finished){void completeCalendarTask(finished.dataset.calendarTaskComplete).catch(error=>window.alert(String(error?.message||error)));return true;}
@@ -272,7 +294,27 @@ function action(target){
  if(widgetLink){if(!editing){activeWidget=null;const button=document.createElement('button');button.dataset.nav=widgetLink.dataset.homeWidgetNav;document.querySelector('#app')?.append(button);button.click();button.remove()}return true}
  return Boolean(editing&&target.closest('[data-home-tile]'));
 }
-async function fetchWeather(lat,lon,city){if(weatherPending)return;weatherPending=true;const result=root()?.querySelector('[data-weather-result]');if(result)result.textContent='Loading weather…';try{const response=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min&forecast_days=5&timezone=auto&temperature_unit=fahrenheit`);if(!response.ok)throw Error('Weather unavailable');const data=await response.json();if(!Number.isFinite(data.current?.temperature_2m))throw Error('Weather unavailable');const days=(data.daily?.time||[]).map((date,i)=>({day:new Intl.DateTimeFormat(undefined,{weekday:'short',timeZone:'UTC'}).format(new Date(date+'T12:00:00Z')),high:Number(data.daily.temperature_2m_max?.[i]),low:Number(data.daily.temperature_2m_min?.[i])})).filter(d=>Number.isFinite(d.high)&&Number.isFinite(d.low));putPersonal({weather:{temperature:data.current.temperature_2m,code:data.current.weather_code,city,days}});change()}catch{const el=root()?.querySelector('[data-weather-result]');if(el)el.textContent='Could not load weather. Try again.'}finally{weatherPending=false}}
+let lastWeatherRefresh=0;
+async function fetchWeather(lat,lon,city){
+ if(weatherPending)return;weatherPending=true;
+ const el=root()?.querySelector('[data-weather-result]');if(el)el.textContent='Updating actual conditions…';
+ try{
+  const response=await fetch('https://api.open-meteo.com/v1/forecast?latitude='+encodeURIComponent(lat)+'&longitude='+encodeURIComponent(lon)+
+   '&current=temperature_2m,weather_code,is_day,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max'+
+   '&forecast_days=5&timezone=auto&temperature_unit=fahrenheit&wind_speed_unit=mph');
+  if(!response.ok)throw Error('Weather service unavailable');
+  const data=await response.json();if(!Number.isFinite(data.current?.temperature_2m))throw Error('Weather data not returned.');
+  const days=(data.daily?.time||[]).map((date,i)=>({day:new Intl.DateTimeFormat('en-US',{weekday:'short',timeZone:'UTC'}).format(new Date(date+'T12:00:00Z')),
+   high:Number(data.daily.temperature_2m_max?.[i]),low:Number(data.daily.temperature_2m_min?.[i]),
+   code:data.daily.weather_code?.[i],rainChance:Number(data.daily.precipitation_probability_max?.[i])}))
+   .filter(d=>Number.isFinite(d.high)&&Number.isFinite(d.low));
+  lastWeatherRefresh=Date.now();
+  putPersonal({weather:{temperature:data.current.temperature_2m,code:data.current.weather_code,
+   isDay:data.current.is_day,wind:Number(data.current.wind_speed_10m),city,lat,lon,days,updatedAt:lastWeatherRefresh}});
+  change();
+ }catch(error){const target=root()?.querySelector('[data-weather-result]');if(target)target.textContent=String(error.message||'Weather could not load.')}
+ finally{weatherPending=false}
+}
 async function findWeather(city){const result=root()?.querySelector('[data-weather-result]');if(result)result.textContent='Finding city…';try{const response=await fetch('https://geocoding-api.open-meteo.com/v1/search?count=1&name='+encodeURIComponent(city));if(!response.ok)throw Error();const place=(await response.json()).results?.[0];if(!place)throw Error();putPersonal({city});await fetchWeather(place.latitude,place.longitude,place.name)}catch{const el=root()?.querySelector('[data-weather-result]');if(el)el.textContent='City not found. Try a city and state.'}}
 function sourceTile(){return drag?.source||null}
 function animateReflow(grid,before){
@@ -448,6 +490,7 @@ function init(){
   if(event.target.matches('[data-widget-weather-form]')){event.preventDefault();const city=event.target.querySelector('input')?.value.trim();if(city)findWeather(city)}
  },true);
  setInterval(()=>{if(!root())return;const p=personal();for(const el of root().querySelectorAll('[data-widget-summary="clock"], [data-widget-clock-face]')){if(p.analog)el.innerHTML=clockFace();else el.textContent=timeLabel()}for(const el of root().querySelectorAll('[data-widget-summary="calendar"]'))el.textContent=dateLabel()},30000);
+ document.addEventListener('change',event=>{const selector=event.target.closest?.('[data-home-dock-slot]');if(selector&&editing){if(replaceDock(Number(selector.dataset.homeDockSlot),selector.value))change();event.stopPropagation();}},true);
  document.addEventListener('click',event=>{
   if(!event.target.closest?.('.home-pages'))return;
   if(clock()<ignoreClicksUntil&&!event.target.closest?.('[data-home-edit]')){event.preventDefault();event.stopImmediatePropagation();return}
