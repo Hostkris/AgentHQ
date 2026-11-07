@@ -82,7 +82,7 @@ create trigger agent_hq_goal_calendar_completed
 
 -- Seed meaningful zero-completion roadmaps. An unverified sale never starts at 100%.
 do $$
-declare o record; g uuid; m uuid; task uuid; steps jsonb; rec record; target_time time; due timestamptz;
+declare o record; g uuid; m uuid; task uuid; steps jsonb; rec record; target_time time; due timestamptz; goal_label text;
 begin
  for o in select owner_id,timezone,bot_id from public.agent_secretary_settings loop
   for rec in select * from (values
@@ -98,6 +98,7 @@ begin
     values(o.owner_id,rec.slug,rec.kind,rec.title,rec.description,rec.target_outcome)
     on conflict(owner_id,slug) do nothing;
    select id into g from public.agent_hq_goals where owner_id=o.owner_id and slug=rec.slug;
+   goal_label:=rec.title;
    if rec.kind='skincare' then
     steps:=jsonb_build_array(
      jsonb_build_object('title','Audit live Shopify store and checkout','details','Check mobile storefront, product pages, navigation, working checkout and shipping claims with actual access. Do not invent analytics.'),
@@ -123,7 +124,7 @@ begin
     );
     target_time:='16:30';
    end if;
-   for m in select null::uuid loop exit;end loop;
+   
    for rec in select value,ordinality from jsonb_array_elements(steps) with ordinality loop
     insert into public.agent_hq_goal_milestones(owner_id,goal_id,position,title,details,requires_evidence)
      values(o.owner_id,g,rec.ordinality,rec.value->>'title',rec.value->>'details',coalesce((rec.value->>'requires_evidence')::boolean,false))
@@ -134,7 +135,7 @@ begin
    if task is null then
     due:=public.next_secretary_local(now(),o.timezone,target_time,array[0,1,2,3,4,5]);
     insert into public.agent_secretary_items(owner_id,kind,title,details,status,timezone,weekdays,due_at,next_due_at,data)
-     select o.owner_id,'task',left(rec.title||' · '||s.title,180),s.details,'active',o.timezone,array[0,1,2,3,4,5],due,due,
+     select o.owner_id,'task',left(goal_label||' · '||s.title,180),s.details,'active',o.timezone,array[0,1,2,3,4,5],due,due,
       jsonb_build_object('goal_id',g,'goal_milestone_id',m,'auto_rollover',true,'plan_only',true)
       from public.agent_hq_goal_milestones s where s.id=m returning id into task;
    end if;
