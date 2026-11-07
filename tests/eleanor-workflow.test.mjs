@@ -86,7 +86,7 @@ test('Cloud-confirmed reports and internal calendar agenda are reflected in toda
 test('Authenticated load provisions one repeating reminder, respecting stopped records',()=>{
  const source=readFileSync(resolve(here,'../agent-secretary.js'),'utf8');
  assert.match(source,/title:'Eleanor daily check-in'/);
- assert.match(source,/weekdays:\[0,1,2,3,4,5,6\]/);
+ assert.match(source,/weekdays:\[0,1,2,3,4,5\]/);
  assert.match(source,/i\.kind==='reminder'&&i\.title\.toLowerCase\(\)==='eleanor daily check-in'/);
  assert.match(source,/if\(next\)void load\(\)/);
 });
