@@ -66,7 +66,8 @@ export function renderEleanorTodaySummary(state,day,E){
  return '<section class="secretary-card eleanor-workflow-summary"><h3>Eleanor’s daily coordination</h3><p>'+E(r?(r.sent_at?'Today’s check-in is saved in Agent HQ and sent to Eleanor.':'Today’s check-in is saved as a draft; Eleanor is waiting for your report.'):'Eleanor is ready for today’s check-in. Nothing is marked complete without your report.')+'</p>'+
   '<p><strong>Agent HQ Calendar:</strong> '+meetings.length+' upcoming appointment(s) · '+tasks.length+' active task(s) · '+pending+' Note proposal(s) awaiting your decision.</p>'+
   '<ul class="eleanor-agenda-list">'+agenda+'</ul>'+
-  '<div class="secretary-actions"><button type="button" data-secretary-tab="checkin">Answer today’s check-in</button><button type="button" data-secretary-tab="meetings">Open Calendar</button><button type="button" data-secretary-tab="tasks">Open Tasks</button><button type="button" data-secretary-tab="notes">Review Notes ('+count+')</button></div>'+
+  '<p><strong>Household check:</strong> Is there any repair, maintenance, cleaning or improvement you need to get done around the house? What is the most you want to spend? Eleanor can schedule the plan inside Agent HQ.</p>'+
+  '<div class="secretary-actions"><button type="button" data-secretary-tab="checkin">Answer today’s check-in</button><button type="button" data-secretary-tab="meetings">Open Calendar</button><button type="button" data-secretary-tab="tasks">Open Tasks</button><button type="button" data-secretary-tab="notes">Review Notes ('+count+')</button><button type="button" data-secretary-tab="goals">Home and business goals</button></div>'+
   '<p class="secretary-subtle">The Calendar and Notes are inside Agent HQ. Daily reports sync privately; reports about your body and social activity are never guessed. Notifications require your device alert permission.</p></section>';
 }
 export function renderEleanorCoordination(tab,state,day,E){
