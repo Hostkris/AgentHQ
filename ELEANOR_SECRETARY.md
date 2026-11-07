@@ -32,3 +32,10 @@ The service worker displays only a generic private-update notice, never medicati
 ## Verification
 
 Transactional SQL fixtures cover daily-brief preferences, daylight-saving transitions, duplicate requests, occurrence/recurrence separation, early acknowledgement, stop, stale edits, owner isolation, processing leases and the shared AI allowance. Unit tests cover source-grounded intake changes, workout fidelity, factual meeting briefs, permission-gated email, deterministic scheduling, scoped authentication and real Web Push payload encryption. WebKit fixtures cover iPhone and larger-screen desk forms, completion controls, meeting fields, settings and the Messages link. Actual device receipt remains unverified until the owner enables alerts and a due notice reaches that device.
+
+
+### Reminder startup validation (2026-11-07)
+
+The dedicated startup browser fixture holds both the auth module and authenticated API response. It verifies that all previously loaded notices appear before either is released, fresh results preserve the reply and caret, completed/dismissed work does not replay, account changes remove private previews, and overdue processing does not delay already saved notices.
+
+The baseline main revision c1649c244f6310d1f02510de2d024857ec4f1584 already has ten failing Node tests: eight older app-version expectations, an Eleanor profile instruction-length limit, and an older reminder-confirmation expectation. The full suite returns the same ten failures with this change, plus six passing snapshot tests (299/309 passing versus 293/303 on baseline). The existing desk browser fixture also waits for the older “Secretary settings saved.” message. These baseline failures were verified separately and are not represented as passing; the focused secretary-startup job tests the new behavior independently.

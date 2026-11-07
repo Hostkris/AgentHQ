@@ -53,6 +53,16 @@ function paintPopup(alert){
  panel.querySelector('[data-eleanor-pop-desk]').textContent=alert.notices.some(n=>n.agent)?'Review agent alerts':'Open secretary desk';
  activeKey=alert.total?alert.key:null;
 }
+async function appAction(getAction,account,panel){
+ await cloudReady;
+ const until=Date.now()+5000;
+ while(account===owner&&panel.isConnected){
+  const action=getAction();if(typeof action==='function')return action;
+  if(Date.now()>=until)break;
+  await new Promise(resolve=>setTimeout(resolve,25));
+ }
+ throw Error('Agent HQ is still connecting. Please try again; your reply is kept.');
+}
 function popup(alert){
  if(!owner||document.hidden||node()||document.querySelector('dialog[open]'))return;
  const el=document.createElement('div');
@@ -73,10 +83,16 @@ function popup(alert){
  el.querySelector('.eleanor-pop-close').onclick=()=>closePopup();
  el.addEventListener('click',event=>{if(event.target===el)closePopup();});
  el.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();closePopup();}});
- el.querySelector('[data-eleanor-pop-desk]').onclick=()=>{
-  const agent=latestSnapshot?.notices.some(n=>n.agent);
-  closePopup();window.agentHQOpenSecretary?.();
-  if(agent)window.dispatchEvent(new Event('agenthq-secretary-show-alerts'));
+ el.querySelector('[data-eleanor-pop-desk]').onclick=async event=>{
+  const account=owner,button=event.currentTarget,status=el.querySelector('.eleanor-pop-status');
+  button.disabled=true;status.textContent='Opening your secretary desk…';
+  try{
+   const open=await appAction(()=>window.agentHQOpenSecretary,account,el);
+   if(account!==owner||!el.isConnected)return;
+   const agent=latestSnapshot?.notices.some(n=>n.agent);closePopup();open();
+   if(agent)window.dispatchEvent(new Event('agenthq-secretary-show-alerts'));
+  }catch(error){if(account===owner&&el.isConnected)status.textContent=String(error?.message||error);}
+  finally{if(el.isConnected)button.disabled=false;}
  };
  const form=el.querySelector('form');
  form.onsubmit=async event=>{
@@ -88,10 +104,9 @@ function popup(alert){
   const status=el.querySelector('.eleanor-pop-status'),send=el.querySelector('.eleanor-pop-send');
   send.disabled=true;send.textContent='Sending…';status.textContent='Sending to Eleanor…';
   try{
-   await cloudReady;
+   const sendMessage=await appAction(()=>window.agentHQBotStudioCloud?.send,ticket.owner,el);
    if(ticket.owner!==owner||!el.isConnected)return;
-   if(!window.agentHQBotStudioCloud?.send)throw Error('Eleanor’s chat is not ready; please open her conversation.');
-   const result=await window.agentHQBotStudioCloud.send(botId,message);
+   const result=await sendMessage(botId,message);
    if(ticket.owner!==owner||!el.isConnected)return;
    const log=el.querySelector('[data-eleanor-pop-history]');
    const reply=result?.result?.reply||result?.history?.filter(x=>x.sender==='worker').at(-1)?.body;

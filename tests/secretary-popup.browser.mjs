@@ -120,4 +120,13 @@ try{
   await d.page.evaluate(()=>{__popupFixture.data.items=[];__popupFixture.releaseDue();});assert.deepEqual(d.errors,[]);
   console.log('PASS: first-load notices appear as soon as the server returns, without waiting for overdue processing or inventing a card');
  }finally{await d.close();}
+
+ const e=await fixture();
+ try{
+  await e.page.goto(base+'/index.html',{waitUntil:'commit'});await popup(e.page).waitFor({timeout:1500});
+  await e.page.locator('[data-eleanor-pop-desk]').click();assert.equal(await popup(e.page).count(),1);
+  await e.page.evaluate(()=>window.agentHQOpenSecretary=()=>{window.__openedDesk=true;});e.releaseAuth();
+  await e.page.waitForFunction(()=>window.__openedDesk===true);await popup(e.page).waitFor({state:'detached'});assert.deepEqual(e.errors,[]);
+  console.log('PASS: a desk click made before the main app is ready is kept and opens the desk when ready');
+ }finally{await e.close();}
 }finally{await browser.close();await new Promise(r=>server.close(r));clearTimeout(deadline);}
