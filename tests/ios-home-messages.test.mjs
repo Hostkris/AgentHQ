@@ -84,11 +84,11 @@ test('New home files are linked and iPhone touch styles are present',()=>{
 });
 
 test('Home starts with swipeable pages and editing chrome remains hidden until requested',()=>{
- const source=src('agent-home-layout.js');
+ const source=src('agent-home-layout.js').replace(/^import .*;\s*$/gm,'');
  const renderButton=(label,id,emoji)=>'<button class="tile" aria-label="'+label+'"><span class="app-icon">'+emoji+'</span><span class="tile-label">'+label+'</span></button>';
  const scope={
   innerWidth:390,localStorage:{getItem:()=>null,setItem:()=>{}},navigator:{},
-  document:{addEventListener:()=>{}},window:{alert:()=>{}},
+  document:{addEventListener:()=>{}},window:{alert:()=>{},addEventListener:()=>{}},agentCloud:{auth:{getUser:async()=>({data:{user:null}}),onAuthStateChange:()=>{}}},
   setTimeout:()=>1,clearTimeout:()=>{}
  };
  runInNewContext(source.replace(/^export /gm,'')+';globalThis.renderHomeScreenTest=renderHomeScreen;',scope);
