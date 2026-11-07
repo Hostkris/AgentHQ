@@ -142,7 +142,7 @@ async function delegateGoal(goal,steps,helpers){
  return created.project_id;
 }
 export function bindEleanorGoals(root,state,helpers,E){
- const cloud=window.agentHQGoalsCloud;if(!cloud?.loaded?.())return;
+ const cloud=window.agentHQGoalsCloud;if(!cloud)return;
  const notice=text=>helpers.message(String(text));
  const run=async(button,action)=>{
   if(button.disabled)return;button.disabled=true;
@@ -150,6 +150,7 @@ export function bindEleanorGoals(root,state,helpers,E){
   finally{button.disabled=false}
  };
  root.querySelectorAll('[data-goal-refresh]').forEach(button=>button.addEventListener('click',()=>void run(button,async()=>{await cloud.refresh();await helpers.load();notice('Goal stages and Calendar records refreshed.')})));
+ if(!cloud.loaded?.())return;
  const house=root.querySelector('[data-goal-new-home]');
  house?.addEventListener('submit',event=>{
   event.preventDefault();
