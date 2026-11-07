@@ -118,6 +118,23 @@ Agent HQ Notes, Calendar, Reminders, Messages, pop-ups, agent approvals, and pro
 
 **Pop-ups and updates:** A saved Eleanor notice introduces the goal board and asks what house work is needed. Her pop-up can open the Goals tab, and the morning briefing reports actual percentages, next milestones and budget-ceiling status. Owner-private goal records are refreshed across signed-in Agent HQ clients.
 
-**Reference screenshots limitation:** New visual schedule examples provided in the chat are not ingested or parsed by the deployed app. Never claim that their exact times, colors, activity labels or layouts have been imported unless the screenshot content is explicitly received and checked; do not invent calendar entries from inaccessible images.
+**Private reference boards:** The five November 2026 boards are now transcribed into private structured `agent_hq_board_snapshots` rows: Monthly Financial, Side Money Flip, Saved Money Investment, Cleaning Schedule and Weekly Organization. The key sections, schedules and historical amounts live in owner-scoped database records, not public JavaScript. Agent HQ reproduces their black/gold finance and blue organization themes. Exact visual pixel fidelity has not been independently verified. The user marks dated cleaning and organization checkboxes manually; schedules never mark themselves complete.
 
 **Verification:** SQL migration and owner RLS checks; rollback-only tests for linked task-to-goal completion; JS unit tests for weighted progress, budget ceilings, and Saturday-free scheduling; Safari browser tests for the actual Goals tab and zero-start thermometer. Edge Function `agent-secretary` requires deployment with updated `state.ts` and `eleanor-secretary-core.js`; frontend GitHub Pages deployment is a separate step.
+
+
+### Exact owner-board schedule and items needing a decision
+
+- Weekday blocks: 6:30–8:15 AM morning and commute; 8:15 AM–2:30 PM work (sometimes 3:00); 2:30–3:00 recovery; 3:00–4:00 business rotation; 4:00–4:20 cleaning; 5:00–6:30 LA Fitness; 6:30–7:20 shower and dinner; 7:20–7:40 math; 7:40–8:05 reading; 8:05–8:20 optional ChatGPT wrap-up; 8:20 onward family and sleep preparation. These are planned times, never proof of completion.
+
+- Business rotation: Monday and Thursday arbitrage; Tuesday and Friday Elysian Noir/Shopify; Wednesday ChatGPT content and projects. No purchases, advertising campaigns, posts or messages without proper authorization.
+
+- Cleaning: Monday bathrooms/sinks; Tuesday floors; Wednesday bedrooms/linens; Thursday decluttering; Friday kitchen/final reset; Sunday light extras; Saturday entirely off. Dated daily-reset and specific day-focus checklist entries require manual owner confirmation.
+
+- LA Fitness screenshot: Monday walking/push-ups/leg press; Tuesday racquetball and back machines; Wednesday easy recovery; Thursday walking, back and leg press; Friday racquetball, machine circuit and stretching. Friday is in the new screenshot but conflicts with an older Mon–Thu-only preference; do not cancel or modify it without asking.
+
+- Finance boards: historical paycheck, bills, saved money, investment and flipping scenarios are not live provider data, verified cash or authorization to invest/spend. Preserve the proposed $1,000 liquidity floor as a decision goal; never double-count the same surplus for both investing and arbitrage. First eligible day of each month gets a 10:30 AM review.
+
+- Important differences: screenshot dinner is after 6:30 PM but previous requested eating cutoff was 5 PM. One board has optional 2:30–3 PM cleanup while weekly plan protects recovery and schedules main cleaning for 4–4:20 PM. Ask the owner before changing either, and retain Saturday rest.
+
+- Source board records and dated checkmarks are protected by owner-specific forced RLS. No owner financial figures are hardcoded into public app scripts. Personal checkmarks are reports, not independent evidence of gym attendance, purchases or earnings.
