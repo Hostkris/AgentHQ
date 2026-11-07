@@ -13,9 +13,9 @@ const APPS=[
  ["assignments","Assignments","📋"],["operations","Operations","📈"],
  ["projects","Projects","🗂️"],["creative","Creative Desk","🎨"],["hq","Company HQ","🧑‍💼"],
  ["approvals","Approvals","🔐"],["research","Research","🔎"],
- ["chatgpt","ChatGPT","✦"],["browser","Browser","🌐"],["reminders","Reminders","📅"],["camera","Camera","📷"],["settings","Settings","⚙️"]
+ ["chatgpt","ChatGPT","✦"],["ventureflow","VentureFlow","📈"],["browser","Browser","🌐"],["reminders","Reminders","📅"],["camera","Camera","📷"],["settings","Settings","⚙️"]
 ];
-const LABELS={office:"Office",messages:"Messages",email:"Email",contacts:"Contacts",accounts:"Accounts",studio:"Studio",assignments:"Assignments",projects:"Projects",operations:"Operations",creative:"Creative",hq:"Company HQ",approvals:"Approvals",research:"Research",chatgpt:"ChatGPT",browser:"Browser",reminders:"Reminders",camera:"Camera",settings:"Settings"};
+const LABELS={office:"Office",messages:"Messages",email:"Email",contacts:"Contacts",accounts:"Accounts",studio:"Studio",assignments:"Assignments",projects:"Projects",operations:"Operations",creative:"Creative",hq:"Company HQ",approvals:"Approvals",research:"Research",chatgpt:"ChatGPT",ventureflow:"VentureFlow",browser:"Browser",reminders:"Reminders",camera:"Camera",settings:"Settings"};
 const valid=new Set(APPS.map(p=>p[0])),kinds=["inbox","approvals","work","research","notes","calendar","weather","clock","status"];
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const empty=()=>({apps:[],widgets:[],order:[]});
@@ -31,7 +31,11 @@ function load(){
    widgets:(Array.isArray(p.widgets)?p.widgets:[]).filter(k=>kinds.includes(k)).slice(0,9),
    order:Array.isArray(p.order)?p.order.filter(x=>typeof x==='string'):[]
   }));
-  for(const [id] of APPS)if(!seen.has(id))pages[0].apps.push(id);
+  for(const [id] of APPS)if(!seen.has(id)){
+   // New standalone apps launch on the second page, leaving saved icon positions intact.
+   if(id==='ventureflow'){if(!pages[1])pages.push(empty());pages[1].apps.push(id)}
+   else pages[0].apps.push(id);
+  }
   // One-screen legacy installations could not swipe; migrate overfilled layouts.
   if(pages.length===1&&pages[0].apps.length>12)pages.push({apps:pages[0].apps.splice(12),widgets:[]});
   if(!localStorage.getItem('agenthq-home-widgets-seeded-v1')){
