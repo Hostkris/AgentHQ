@@ -135,6 +135,11 @@ Agent HQ Notes, Calendar, Reminders, Messages, pop-ups, agent approvals, and pro
 
 - Finance boards: historical paycheck, bills, saved money, investment and flipping scenarios are not live provider data, verified cash or authorization to invest/spend. Preserve the proposed $1,000 liquidity floor as a decision goal; never double-count the same surplus for both investing and arbitrage. First eligible day of each month gets a 10:30 AM review.
 
-- Important differences: screenshot dinner is after 6:30 PM but previous requested eating cutoff was 5 PM. One board has optional 2:30–3 PM cleanup while weekly plan protects recovery and schedules main cleaning for 4–4:20 PM. Ask the owner before changing either, and retain Saturday rest.
+- Resolved by the owner: no eating after 5 PM. Weekday dinner has moved to 4:20–4:50 PM; the 6:30–7:20 PM block is now recovery only. The 4:45 PM cutoff notice remains. Outstanding choices concern optional early cleaning versus protected recovery and the Friday gym session. Saturday stays fully off.
 
 - Source board records and dated checkmarks are protected by owner-specific forced RLS. No owner financial figures are hardcoded into public app scripts. Personal checkmarks are reports, not independent evidence of gym attendance, purchases or earnings.
+
+
+### Confirmed owner correction: no eating after 5:00 PM
+
+The owner explicitly confirmed the personal schedule: **no food after 5:00 PM**. The private Weekly Organization Board and cleaning guidance now place dinner at 4:20–4:50 PM, preserve the existing 4:45 PM eating-cutoff reminder, keep 5:00–6:30 PM gym, and reserve 6:30–7:20 PM for shower/optional sauna/recovery without food. Do not keep asking about a resolved dinner conflict. If work runs late, help adjust flexible blocks while preserving the confirmed cutoff. This is an owner-chosen routine, not clinical nutrition guidance. The revised snapshot is available via the owner-scoped `agent_hq_board_snapshots` table and day reminders; Saturday remains off.

@@ -1,5 +1,5 @@
 import {agentCloud} from './agent-cloud-auth.js';
-import {BOARD_KEYS,BOARD_LABELS,BOARD_COLOR,BOARD_CONFLICT_LABELS} from './agent-eleanor-boards-data.js?v=20261107-private-boards-1';
+import {BOARD_KEYS,BOARD_LABELS,BOARD_COLOR,BOARD_CONFLICT_LABELS,BOARD_CONFIRMED_EATING_RULE} from './agent-eleanor-boards-data.js?v=20261107-confirmed-5pm-cutoff-1';
 let selected='weekly';
 const usd=v=>'$'+(Number(v)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 const today=(zone='America/New_York')=>{
@@ -138,6 +138,7 @@ export function renderEleanorBoards(state,E){
   '<p>These private reference boards have not been loaded for this account.</p>';
  return '<section class="hq-board-desk"><h3>Five saved personal planning boards</h3>'+
  '<p class="secretary-subtle">Your uploaded reference numbers and schedule are private Agent HQ records, not live financial account data. Saturday remains free of ordinary work.</p>'+
+ '<p class="secretary-subtle"><strong>Confirmed eating schedule:</strong> '+E(BOARD_CONFIRMED_EATING_RULE)+'</p>'+
  '<nav class="hq-board-navigation">'+nav+'</nav>'+
  '<div data-hq-board-sheet class="hq-board-sheet hq-board-sheet-'+(BOARD_COLOR[key]||'home')+'">'+
  '<header class="hq-board-heading"><span>📈</span><div><h2>'+E(p?.title||BOARD_LABELS[key])+'</h2><p>'+E(p?.subtitle||'Owner-provided planning board')+'</p></div><span>🌱</span></header>'+

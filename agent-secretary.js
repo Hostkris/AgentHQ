@@ -3,7 +3,7 @@ import {renderEleanorTodaySummary,renderEleanorCoordination,bindEleanorCoordinat
 import './agent-hq-checkin-cloud.js?v=20261107-checkin-cloud-1';
 import './agent-hq-goals-cloud.js?v=20261107-goal-1';
 import {renderEleanorGoals,bindEleanorGoals} from './agent-eleanor-goals.js?v=20261107-goal-1';
-import {renderEleanorBoards,bindEleanorBoards} from './agent-eleanor-boards.js?v=20261107-private-boards-1';
+import {renderEleanorBoards,bindEleanorBoards} from './agent-eleanor-boards.js?v=20261107-confirmed-5pm-1';
 import {ELEANOR_ETHICS,secretaryDate} from './eleanor-secretary-core.js?v=20261107-chatgpt-desk-1';
 import {saveSecretarySnapshot,clearSecretarySnapshot} from './agent-secretary-snapshot.js?v=20261107-chatgpt-desk-1';
 let snapshotStorage;try{snapshotStorage=window.localStorage;}catch{}
