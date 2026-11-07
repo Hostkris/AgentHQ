@@ -222,6 +222,7 @@ function bind(){
 }
 window.addEventListener('agenthq-home-notes-changed',()=>{if(root&&state&&(tab==='notes'||tab==='today'))render()});
 window.addEventListener('agenthq-secretary-show-alerts',()=>{tab='alerts';render();});
+window.addEventListener('agenthq-notes-decision',()=>{if(owner)void load();});
 window.addEventListener('agenthq-secretary-show-notes',()=>{tab='notes';render();});
 window.addEventListener('agenthq-secretary-show-meetings',()=>{tab='meetings';render();});
 function mount(){if(pendingOpen&&window.agentHQOpenSecretary){pendingOpen=false;window.agentHQOpenSecretary();}const next=host();if(next===root)return;root=next;if(root){render();if(owner)void load();}}
