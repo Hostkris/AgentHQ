@@ -3,6 +3,7 @@ import {chatGPTStatusLabel,chatGPTPrompt} from './agent-chatgpt-app-core.js?v=20
 import {openChatGPTConnection} from './agent-chatgpt-handoff.js?v=20261102-auto-handoff-sync-1';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let root=null,owner=null,epoch=0,data=null,busy=false,loading=false,notice='',draft={worker:'eleanor',project:'',question:'',reason:''};
+const feedbackDrafts=new Map();
 const host=()=>document.getElementById('agent-chatgpt-app-root');
 async function api(action,extra={}){
  const ticket=epoch,{data:auth,error:ae}=await agentCloud.auth.getUser();if(ae||!auth.user)throw Error('Sign in under Settings → Account to open ChatGPT requests.');
@@ -17,7 +18,7 @@ async function load(){
  if(loading)return;loading=true;const ticket=epoch;
  try{const next=await api('chatgpt_desk');if(ticket!==epoch)return;data=next;notice='';}
  catch(e){if(ticket===epoch)notice=e.message;}
- finally{if(ticket===epoch){loading=false;if(!document.activeElement?.closest('#agent-chatgpt-app-root form'))render();}}
+ finally{if(ticket===epoch){loading=false;const focused=document.activeElement;if(!focused?.closest('#agent-chatgpt-app-root form')&&!(root?.contains(focused)&&focused.matches('textarea,input,select')))render();}}
 }
 function requestCard(r){
  const active=['ready','in_progress','blocked'].includes(r.status),review=r.status==='review';
@@ -31,7 +32,7 @@ function requestCard(r){
  (active?'<button type="button" data-chatgpt-decision="cancel" data-id="'+esc(r.id)+'">Cancel request</button>':'')+
  '<button type="button" data-chatgpt-project="'+esc(r.project_id)+'">Open project and files</button>'+
  (review?'<button type="button" data-chatgpt-review="approve" data-id="'+esc(r.id)+'">Approve final result</button><button type="button" data-chatgpt-review="changes" data-id="'+esc(r.id)+'">Request changes</button>':'')+'</div>'+
- (review?'<label>Changes for this returned version<textarea data-chatgpt-feedback="'+esc(r.id)+'" maxlength="10000" placeholder="Tell ChatGPT what to change"></textarea></label>':'')+'</article>';
+ (review?'<label>Changes for this returned version<textarea data-chatgpt-feedback="'+esc(r.id)+'" maxlength="10000" placeholder="Tell ChatGPT what to change">'+esc(feedbackDrafts.get(r.id+':'+r.output_version)||'')+'</textarea></label>':'')+'</article>';
 }
 function render(){
  if(!root||root!==host())return;
@@ -66,11 +67,12 @@ function bind(){
  root.querySelectorAll('[data-chatgpt-project]').forEach(b=>b.onclick=()=>window.agentHQOpenProjects?.(b.dataset.chatgptProject));
  root.querySelectorAll('[data-chatgpt-copy]').forEach(b=>b.onclick=async()=>{const r=data.requests.find(r=>r.id===b.dataset.chatgptCopy);try{await navigator.clipboard.writeText(chatGPTPrompt(r.handoff_id));root.querySelector('[data-chatgpt-notice]').textContent='Copied. Open ChatGPT with Agent HQ selected and send this prompt.';}catch{root.querySelector('[data-chatgpt-notice]').textContent='Select and copy the prompt above.';}});
  root.querySelectorAll('[data-chatgpt-decision]').forEach(b=>b.onclick=()=>{const r=data.requests.find(r=>r.id===b.dataset.id);void mutate(()=>api('decide_chatgpt_request',{request_id:r.id,revision:r.project_revision,decision:b.dataset.chatgptDecision}));});
+ root.querySelectorAll('[data-chatgpt-feedback]').forEach(input=>input.oninput=()=>{const r=data.requests.find(r=>r.id===input.dataset.chatgptFeedback);feedbackDrafts.set(r.id+':'+r.output_version,input.value);});
  root.querySelectorAll('[data-chatgpt-review]').forEach(b=>b.onclick=()=>{const r=data.requests.find(r=>r.id===b.dataset.id),feedback=root.querySelector('[data-chatgpt-feedback="'+r.id+'"]').value;if(b.dataset.chatgptReview==='changes'&&feedback.trim().length<5){root.querySelector('[data-chatgpt-notice]').textContent='Describe what to change in this returned version.';return;}void mutate(()=>api('review_chatgpt_result',{request_id:r.id,output_version:r.output_version,decision:b.dataset.chatgptReview,feedback}));});
 }
 function mount(){const next=host();if(next===root)return;root=next;if(root){render();void load();}}
 new MutationObserver(mount).observe(document.getElementById('app')||document.body,{childList:true,subtree:false});
-agentCloud.auth.onAuthStateChange((_event,session)=>{const next=session?.user?.id||null;if(next===owner)return;owner=next;epoch++;data=null;busy=false;loading=false;draft={worker:'eleanor',project:'',question:'',reason:''};notice=next?'':'Sign in under Settings → Account to open ChatGPT requests.';render();if(next&&root)void load();});
+agentCloud.auth.onAuthStateChange((_event,session)=>{const next=session?.user?.id||null;if(next===owner)return;owner=next;epoch++;data=null;busy=false;loading=false;draft={worker:'eleanor',project:'',question:'',reason:''};feedbackDrafts.clear();notice=next?'':'Sign in under Settings → Account to open ChatGPT requests.';render();if(next&&root)void load();});
 setInterval(()=>{if(root&&!document.hidden&&!busy)void load();},12000);
 mount();
 
