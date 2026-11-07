@@ -1,5 +1,5 @@
 import {agentCloud} from './agent-cloud-auth.js';
-import {renderEleanorTodaySummary,renderEleanorCoordination,bindEleanorCoordination} from './agent-eleanor-workflow.js?v=20261107-eleanor-workflow-1';
+import {renderEleanorTodaySummary,renderEleanorCoordination,bindEleanorCoordination} from './agent-eleanor-workflow.js?v=20261107-native-notes-1';
 import {ELEANOR_ETHICS,secretaryDate} from './eleanor-secretary-core.js?v=20261107-chatgpt-desk-1';
 import {saveSecretarySnapshot,clearSecretarySnapshot} from './agent-secretary-snapshot.js?v=20261107-chatgpt-desk-1';
 let snapshotStorage;try{snapshotStorage=window.localStorage;}catch{}
