@@ -515,3 +515,22 @@ button:disabled{cursor:default}
 .ios-thread .ios-chat-list .ios-message-row[data-chat-kind] .chat-delete-bar{display:flex}
 .ios-thread .ios-chat-list .ios-message-row[data-chat-kind] .ios-message-bubble:has(.chat-delete-bar){padding-right:56px}
 
+
+/* First-party weather conditions and editable, persistent four-app dock. */
+.home-weather-conditions{display:flex;flex-direction:column;gap:.3rem;align-items:center;text-align:center;min-height:130px;padding:1rem .5rem;background:rgba(135,180,210,.12);border-radius:18px}
+.home-weather-conditions strong{font-size:34px;font-weight:750;line-height:1.05}
+.home-weather-large{font-size:58px;line-height:1.2}
+.home-weather-conditions small{font-size:12px;color:var(--muted,#66717d)}
+.home-forecast-day{display:grid;grid-template-columns:2.2rem 2.8rem 1fr;align-items:center;column-gap:.5rem;padding:.55rem .3rem;border-bottom:1px solid rgba(140,150,160,.25)}
+.home-forecast-day .home-forecast-symbol{font-size:26px;grid-column:2;grid-row:1 / span 2;text-align:center}
+.home-forecast-day>span:first-child{grid-column:1;grid-row:1 / span 2}
+.home-forecast-day strong{grid-column:3;font-size:17px}
+.home-forecast-day small{grid-column:3;font-size:11px;color:var(--muted,#65717b)}
+.home-dock-editor{width:min(100%,680px);margin:12px auto;padding:14px;box-sizing:border-box;border:1px solid rgba(120,130,140,.3);border-radius:18px;background:var(--card,rgba(255,255,255,.94));color:var(--text,#273141);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px}
+.home-dock-editor>strong,.home-dock-editor>p{grid-column:1/-1;margin:0}
+.home-dock-editor>p{font-size:12px;line-height:1.45}
+.home-dock-editor label{display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:650;min-width:0}
+.home-dock-editor select{width:100%;min-width:0;max-width:100%;min-height:40px;padding:7px;border-radius:9px;font:inherit;color:inherit;background:var(--card,#fff);border:1px solid rgba(100,110,120,.4)}
+.home-dock-move{display:flex;align-items:center;gap:8px}
+.home-dock-move button{min-width:39px;min-height:39px;border:1px solid rgba(110,120,130,.3);border-radius:10px;color:inherit;background:var(--card,white)}
+@media (prefers-color-scheme:dark){.home-dock-editor{background:#1d2430;color:#f0f3f7}.home-dock-editor select,.home-dock-move button{background:#18202b;color:#f0f3f7;border-color:#586271}}
