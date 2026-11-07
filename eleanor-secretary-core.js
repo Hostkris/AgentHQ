@@ -39,7 +39,7 @@ export function dailyCoordinationBrief(state,local,clock=new Date()){
  const daily=['Daily check-in',report?.submitted_at?'Your check-in is on record.':'Your daily check-in is waiting for your answers.',
   '• Heart rate: '+hr,'• Water: '+water,status('multivitamin','Multivitamin drink'),
   status('apple_cider_vinegar','Apple cider vinegar'),status('tiktok_live','TikTok Live'),
-  status('posts','Checked posts'),status('messages','Checked messages'),
+  status('posts','Checked posts'),status('messages','Checked messages'),status('reading','Read four pages'),status('eating_cutoff','Finished eating by 5 PM'),
   'What remains, and how can I help with the Calendar, Notes, TikTok posts or messages today?'].join('\n');
  const pending=(state.pending_note_proposals||[]).length;
  const overdue=(state.items||[]).filter(i=>i.kind==='task'&&i.status==='active'&&i.due_at&&Date.parse(i.due_at)<clock.getTime()).length;
