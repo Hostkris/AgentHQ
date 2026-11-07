@@ -1,5 +1,6 @@
 import {agentCloud} from './agent-cloud-auth.js';
-import {renderEleanorTodaySummary,renderEleanorCoordination,bindEleanorCoordination} from './agent-eleanor-workflow.js?v=20261107-native-notes-1';
+import {renderEleanorTodaySummary,renderEleanorCoordination,bindEleanorCoordination} from './agent-eleanor-workflow.js?v=20261107-checkin-cloud-1';
+import './agent-hq-checkin-cloud.js?v=20261107-checkin-cloud-1';
 import {ELEANOR_ETHICS,secretaryDate} from './eleanor-secretary-core.js?v=20261107-chatgpt-desk-1';
 import {saveSecretarySnapshot,clearSecretarySnapshot} from './agent-secretary-snapshot.js?v=20261107-chatgpt-desk-1';
 let snapshotStorage;try{snapshotStorage=window.localStorage;}catch{}
@@ -22,7 +23,7 @@ async function ensureDailyCheckinReminder(){
   const at=current.settings.brief_time.slice(0,5);
   await api('apply',{request_id:crypto.randomUUID(),version:current.settings.version,operations:[{op:'save_item',item:{
    kind:'reminder',title:'Eleanor daily check-in',
-   details:'Please report your heart rate if measured, multivitamin drink, apple cider vinegar, water intake, TikTok Live, post and message reviews, and which comments need a suggested reply. Report only actual outcomes; no dosing or water goals are assumed. Open Eleanor’s Daily check-in screen to record your answers.',
+   details:'Good morning. How is your heart rate if you measured it? Have you had your multivitamin drink or apple cider vinegar, and how is your water intake? Have you gone live on TikTok, reviewed posts or messages, or noticed any comments that need a reply? I can draft replies and help with your approved tasks in Agent HQ. Open Daily check-in and tell me what is done, what remains and what assistance you need. I will not assume completion or doses.',
    timezone:current.settings.timezone,local_time:at,weekdays:[0,1,2,3,4,5,6],data:{intake_type:'routine'}
   }}]});
   if(generation===epoch)await load();
@@ -221,6 +222,7 @@ function bind(){
  root.querySelector('[data-secretary-check-due]')?.addEventListener('click',async()=>{try{await api('check_due');await load();await window.agentHQBotStudioCloud?.refresh?.();message('Due notices checked.');}catch(e){message(e.message);}});
 }
 window.addEventListener('agenthq-home-notes-changed',()=>{if(root&&state&&(tab==='notes'||tab==='today'))render()});
+window.addEventListener('agenthq-checkins-changed',()=>{if(root&&state&&(tab==='checkin'||tab==='today'))render()});
 window.addEventListener('agenthq-secretary-show-alerts',()=>{tab='alerts';render();});
 window.addEventListener('agenthq-notes-decision',()=>{if(owner)void load();});
 window.addEventListener('agenthq-secretary-show-notes',()=>{tab='notes';render();});
