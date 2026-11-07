@@ -84,7 +84,7 @@ test('trusted initiative service does not claim model research or create work wi
 test('no AI service or absent sources cannot fabricate a launched project',async()=>{
  const owner='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',calls=[];
  const db={rpc:async name=>{calls.push(name);return {data:{owner_id:owner,worker:'maya',local_date:'2026-11-08'},error:null}},
-  from:()=>({select(){return this},eq(){return this},in(){return this},order(){return this},limit(){return Promise.resolve({data:[],error:null})}})};
+  from:()=>({select(){return this},update(){return this},eq(){return this},in(){return this},order(){return this},limit(){return Promise.resolve({data:[],error:null})}})};
  const x=await considerWorkerInitiative(db,[owner],{makeRuntime:()=>{throw Error('No live provider')}});
  assert.equal(x.state,'no_recorded_needs');
  assert.equal(calls.filter(x=>x==='agent_hq_launch_autonomy').length,0);
