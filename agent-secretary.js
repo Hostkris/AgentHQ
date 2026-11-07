@@ -24,7 +24,7 @@ async function ensureDailyCheckinReminder(){
   await api('apply',{request_id:crypto.randomUUID(),version:current.settings.version,operations:[{op:'save_item',item:{
    kind:'reminder',title:'Eleanor daily check-in',
    details:'Good morning. How is your heart rate if you measured it? Have you had your multivitamin drink or apple cider vinegar, and how is your water intake? Have you gone live on TikTok, reviewed posts or messages, or noticed any comments that need a reply? I can draft replies and help with your approved tasks in Agent HQ. Open Daily check-in and tell me what is done, what remains and what assistance you need. I will not assume completion or doses.',
-   timezone:current.settings.timezone,local_time:at,weekdays:[0,1,2,3,4,5,6],data:{intake_type:'routine'}
+   timezone:current.settings.timezone,local_time:at,weekdays:[0,1,2,3,4,5],data:{intake_type:'routine'}
   }}]});
   if(generation===epoch)await load();
  }catch(error){if(generation===epoch)message('The daily check-in reminder was not confirmed: '+String(error?.message||error));}
