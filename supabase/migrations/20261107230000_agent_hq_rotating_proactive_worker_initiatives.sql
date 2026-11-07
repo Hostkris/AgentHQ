@@ -170,7 +170,7 @@ begin
   'Alex coordinates relevant specialists. Save real source-dated public findings, comparisons, ideas, frameworks and an implementable plan. Ask teammates for ordinary answers. Avoid duplicates of existing projects; identify the smallest next work item and plausible Sunday–Friday schedule for Eleanor. Saturday is totally off. No spending, outreach, public publishing, purchases, accounts, paid services, private-data access, promises of future work, fabricated outcomes or claiming research without real source evidence. Deliver work and documented blockers to Eleanor for owner review.';
  if length(brief)>10000 then raise exception 'Project brief too long';end if;
  project_result:=public.create_agent_workspace_project(p_owner,p_worker,brief,
-    jsonb_build_object('project_kind','internal_initiative','output_format','markdown',
+    jsonb_build_object('project_kind','general','output_format','markdown',
      'completion_criteria','An actionable, sourced, specialist-reviewed plan, with verified constraints, calendar suggestions, risk notes, a concrete next step and honest outstanding owner decisions.'));
  linked:=(project_result->>'id')::uuid;
  if linked is null then raise exception 'Project could not be created';end if;
