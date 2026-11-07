@@ -21,6 +21,16 @@ on:
       - 'tests/chatgpt-app*'
       - 'agent-secretary*'
       - 'agent-eleanor-workflow.js'
+      - 'agent-eleanor-goals.js'
+      - 'agent-eleanor-boards.js'
+      - 'agent-eleanor-boards-data.js'
+      - 'agent-hq-boards-cloud.js'
+      - 'agent-eleanor-boards.css'
+      - 'tests/eleanor-boards.test.mjs'
+      - 'agent-hq-goals-cloud.js'
+      - 'agent-goal-math.js'
+      - 'agent-eleanor-goals.css'
+      - 'tests/eleanor-goals.test.mjs'
       - 'agent-hq-notes-cloud.js'
       - 'agent-weather-conditions.js'
       - 'agent-reading-schedule.js'
@@ -172,7 +182,7 @@ jobs:
       - name: Test camera, photo messages and private access
         run: node --check agent-camera-cloud.js && node --test tests/camera-messages.test.mjs
       - name: Verify Home Screen JavaScript syntax
-        run: node --check agent-home-layout.js && node --check app.js && node --check agent-secretary.js && node --check agent-eleanor-workflow.js && node --check agent-weather-conditions.js && node --check agent-reading-schedule.js && node --check agent-hq-notes-cloud.js && node --check agent-hq-checkin-cloud.js && node --test tests/eleanor-workflow.test.mjs tests/eleanor-reading-weather-dock.test.mjs
+        run: node --check agent-home-layout.js && node --check app.js && node --check agent-secretary.js && node --check agent-eleanor-goals.js && node --check agent-hq-goals-cloud.js && node --check agent-goal-math.js && node --check agent-eleanor-boards.js && node --check agent-eleanor-boards-data.js && node --check agent-hq-boards-cloud.js && node --check agent-eleanor-workflow.js && node --check agent-weather-conditions.js && node --check agent-reading-schedule.js && node --check agent-hq-notes-cloud.js && node --check agent-hq-checkin-cloud.js && node --test tests/eleanor-workflow.test.mjs tests/eleanor-reading-weather-dock.test.mjs tests/eleanor-goals.test.mjs tests/eleanor-boards.test.mjs
       - name: Test Creative Desk owner approvals and draft escaping
         run: node --test tests/creative-desk.test.mjs
       - name: Test account Settings and publishing opt-in

@@ -66,7 +66,8 @@ export function renderEleanorTodaySummary(state,day,E){
  return '<section class="secretary-card eleanor-workflow-summary"><h3>Eleanor’s daily coordination</h3><p>'+E(r?(r.sent_at?'Today’s check-in is saved in Agent HQ and sent to Eleanor.':'Today’s check-in is saved as a draft; Eleanor is waiting for your report.'):'Eleanor is ready for today’s check-in. Nothing is marked complete without your report.')+'</p>'+
   '<p><strong>Agent HQ Calendar:</strong> '+meetings.length+' upcoming appointment(s) · '+tasks.length+' active task(s) · '+pending+' Note proposal(s) awaiting your decision.</p>'+
   '<ul class="eleanor-agenda-list">'+agenda+'</ul>'+
-  '<div class="secretary-actions"><button type="button" data-secretary-tab="checkin">Answer today’s check-in</button><button type="button" data-secretary-tab="meetings">Open Calendar</button><button type="button" data-secretary-tab="tasks">Open Tasks</button><button type="button" data-secretary-tab="notes">Review Notes ('+count+')</button></div>'+
+  '<p><strong>Household check:</strong> Is there any repair, maintenance, cleaning or improvement you need to get done around the house? What is the most you want to spend? Eleanor can schedule the plan inside Agent HQ.</p>'+
+  '<div class="secretary-actions"><button type="button" data-secretary-tab="checkin">Answer today’s check-in</button><button type="button" data-secretary-tab="meetings">Open Calendar</button><button type="button" data-secretary-tab="tasks">Open Tasks</button><button type="button" data-secretary-tab="notes">Review Notes ('+count+')</button><button type="button" data-secretary-tab="goals">Home and business goals</button></div>'+
   '<p class="secretary-subtle">The Calendar and Notes are inside Agent HQ. Daily reports sync privately; reports about your body and social activity are never guessed. Notifications require your device alert permission.</p></section>';
 }
 export function renderEleanorCoordination(tab,state,day,E){
@@ -87,6 +88,9 @@ export function renderEleanorCoordination(tab,state,day,E){
    '<label>Body weight, pounds (monthly, if measured)<input type="number" name="weight_lb" min="40" max="1000" step="0.1" inputmode="decimal" value="'+E(f.weight_lb??'')+'" placeholder="Only enter a real measurement"></label>'+
    '<p><strong>Book:</strong> '+E(savedBook||'Not selected yet')+' · '+(readingToday?'Four pages scheduled today.':'No new reading session scheduled today.')+' Saturday is protected as your rest day.</p>'+
    '<label>Posts, comments or messages that need a reply (paste only what you choose to share)<textarea name="reply_context" rows="4" maxlength="2000" placeholder="Paste the message and context. Eleanor can suggest a reply but will not post it.">'+E(f.reply_context||'')+'</textarea></label>'+
+   '<label>Any household work you need to get done?<textarea name="house_work" maxlength="1200" rows="3" placeholder="Repairs, cleaning, painting, flooring, yard work, maintenance...">'+E(f.house_work||'')+'</textarea></label>'+
+   '<label>Maximum you would want to spend on the household work (USD; optional)<input type="number" name="house_budget_usd" min="0" max="100000000" step=".01" value="'+E(f.house_budget_usd??'')+'" placeholder="Leave blank if not decided"></label>'+
+   '<button type="button" data-secretary-tab="goals">Open household projects and goal thermometers</button>'+
    '<label>What would you like Eleanor to help with today?<textarea name="request" rows="3" maxlength="1000" placeholder="Planning, follow-ups, replies, reminders, projects...">'+E(f.request||'')+'</textarea></label>'+
    '<button type="submit">Save in Agent HQ and report to Eleanor</button><button type="button" data-eleanor-social-review>Ask Eleanor to review authorized social activity</button><p class="secretary-subtle">Your answers sync privately inside Agent HQ before Eleanor receives your report. She can suggest replies but cannot assume TikTok inbox access or publish messages without permission.</p>'+
    '<p role="status" data-eleanor-checkin-status>'+E(record.sent_at?'Last sent: '+new Date(record.sent_at).toLocaleString():'Not sent yet')+'</p></form>'+
@@ -171,6 +175,8 @@ export function bindEleanorCoordination(root,state,day,helpers,E){
   if(weight)fields.weight_lb=Number(weight);
   fields.reply_context=String(f.get('reply_context')||'').trim().slice(0,2000);
   fields.request=String(f.get('request')||'').trim().slice(0,1000);
+  fields.house_work=String(f.get('house_work')||'').trim().slice(0,1200);
+  const houseBudget=String(f.get('house_budget_usd')||'').trim();if(houseBudget)fields.house_budget_usd=Number(houseBudget);
   const owner=state.settings.owner_id,prior=todayRecord(owner,day);
   const signature=JSON.stringify(fields);
   const record={fields,saved_at:new Date().toISOString(),sent_at:prior?.sent_signature===signature?prior.sent_at:null,sent_signature:prior?.sent_signature===signature?signature:null};
@@ -191,6 +197,8 @@ export function bindEleanorCoordination(root,state,day,helpers,E){
     'Water: '+(fields.water_oz===undefined?'not measured/reported':fields.water_oz+' fluid oz'),
     ...FIELDS.map(([key,label])=>label+': '+(OPTIONS.find(x=>x[0]===fields[key])?.[1]||'Not reported')),
     'Messages needing a drafted reply (not permission to send): '+(fields.reply_context||'none supplied'),
+    'Household work needing a plan: '+(fields.house_work||'Eleanor should ask me what work needs to be done around the house.'),
+    'Household budget ceiling (not authorization to spend): '+(fields.house_budget_usd===undefined?'Not set':'$'+fields.house_budget_usd),
     'My requested assistance: '+(fields.request||'Please ask what I need help with.')];
    await sendToEleanor(state,summary.join('\n'));
    await cloud.markSent(day,fields);

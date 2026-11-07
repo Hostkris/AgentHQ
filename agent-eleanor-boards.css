@@ -1,0 +1,79 @@
+/* The five owner-uploaded planning boards: black/gold finance, navy/pastel organization. */
+.hq-board-desk{max-width:1100px;margin-inline:auto;min-width:0}
+.hq-board-navigation{display:flex;flex-wrap:wrap;gap:8px;margin:15px 0}
+.hq-board-navigation button{font-size:12px;min-height:40px;flex:1 1 155px}
+.hq-board-navigation button[aria-pressed=true]{background:#263f5b!important;color:#fff!important;border-color:#263f5b!important}
+.hq-board-sheet{border:2px solid #c7a253;border-radius:14px;min-width:0;overflow:hidden;margin:12px 0 22px;padding:12px;box-sizing:border-box}
+.hq-board-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:center;padding:10px 12px 15px;margin:-12px -12px 12px}
+.hq-board-heading>span{font-size:30px;flex:0 0 36px}
+.hq-board-heading>div{min-width:0}
+.hq-board-heading h2{margin:0;font-size:clamp(20px,3.6vw,42px);line-height:1.14;letter-spacing:-.02em}
+.hq-board-heading p{margin:5px 0 0;font-size:clamp(12px,2vw,19px);line-height:1.3}
+.hq-board-sheet-financial{color:#f7f5ec;background:radial-gradient(ellipse at bottom right,#25352d 0%,transparent 48%),linear-gradient(125deg,#151a1d,#070c0f 70%);border-color:#cfae61}
+.hq-board-sheet-financial .hq-board-heading{background:linear-gradient(90deg,#080e11,#192124 55%,#080d10);border-bottom:1px solid #c9a14a}
+.hq-board-sheet-financial .hq-board-heading h2{font-family:Georgia,serif;color:#f6d987;text-shadow:0 2px 4px #080b0c}
+.hq-board-sheet-financial .hq-board-heading p{font-family:Georgia,serif;color:#f8f4e8}
+.hq-board-sheet-home{color:#1d2c41;background:linear-gradient(160deg,#f2f7fb,#fff 45%,#f3f8f9);border-color:#c6ddec}
+.hq-board-sheet-home .hq-board-heading{background:linear-gradient(115deg,#0e2750,#18375a,#071b3d);color:#fff;border-radius:12px}
+.hq-board-sheet-home .hq-board-heading h2{font-family:system-ui,sans-serif;font-weight:850;letter-spacing:.01em}
+.hq-board-main{display:grid;gap:12px}
+.hq-board-grid{display:grid;gap:12px;grid-template-columns:repeat(2,minmax(0,1fr));min-width:0}
+.hq-board-grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.hq-board-grid>div,.hq-board-grid>section{min-width:0}
+.hq-board-panel{border:1px solid #cfb26f;border-radius:12px;padding:14px;min-width:0;margin:0;background:linear-gradient(150deg,#fff2,transparent 60%);box-sizing:border-box}
+.hq-board-panel h3{font-size:clamp(17px,2.5vw,26px);line-height:1.25;margin:0 0 10px;padding-bottom:9px;border-bottom:1px solid currentColor;font-family:Georgia,serif}
+.hq-board-panel h4{font-size:14px;margin:7px 0}
+.hq-board-panel p{font-size:14px;line-height:1.55;margin:7px 0}
+.hq-board-sheet-financial .hq-board-panel h3{color:#f7e4b9;border-bottom-color:#8f763f}
+.hq-board-sheet-financial .hq-board-panel{border-color:#c4a158;box-shadow:0 3px 20px #0006}
+.hq-board-sheet-home .hq-board-panel{border-color:#d1e1ef;background:#fff;box-shadow:0 1px 4px #122a5311}
+.hq-board-sheet-home .hq-board-panel h3{font-family:system-ui,sans-serif;font-size:17px;font-weight:800;border-bottom:0;background:linear-gradient(90deg,#dceafa,#f9fbfc);padding:9px;border-radius:8px}
+.hq-board-table{display:grid;gap:0;min-width:0}
+.hq-board-table>div{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;padding:9px 3px;border-bottom:1px solid #afb1b129;font-size:14px;line-height:1.4}
+.hq-board-table>div>span{min-width:0;overflow-wrap:anywhere}
+.hq-board-table>div>strong{font-size:14px;text-align:right;flex:0 0 auto}
+.hq-board-sheet-home .hq-board-table>div>strong{text-align:left;font-size:13px}
+.hq-board-sheet-home .hq-board-table>div:nth-child(even){background:#f3f7fb}
+.hq-board-total{display:flex;gap:12px;justify-content:space-between;align-items:center;padding:10px;border:1px solid #c9a64c;border-radius:8px;color:#ffe5a1;margin:14px 0 0!important;font-size:17px!important;font-family:Georgia,serif;font-weight:700}
+.hq-board-total strong{font-size:clamp(18px,3vw,28px)}
+.hq-board-green{color:#8be7a4!important;font-weight:800}
+.hq-board-large{font-size:clamp(17px,2.8vw,30px)!important;line-height:1.3}
+.hq-board-list{margin:5px 0;padding-left:19px;display:grid;gap:6px;font-size:13px;line-height:1.45}
+.hq-board-muted{font-size:11px!important;line-height:1.55;opacity:.86;margin:10px 0 0!important}
+.hq-board-allocation{display:grid;grid-template-columns:repeat(auto-fit,minmax(75px,1fr));gap:4px;margin:10px 0}
+.hq-board-allocation>div{text-align:center;padding:7px 4px;border-right:1px solid #aa9d6e63;display:flex;flex-direction:column;gap:5px}
+.hq-board-allocation>div:last-child{border-right:0}
+.hq-board-allocation strong{color:#f5d77e;font-size:22px}
+.hq-board-allocation span{font-size:12px;line-height:1.3}
+.hq-board-allocation b{font-size:12px;color:#9aeaa7}
+.hq-board-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.hq-board-stats>div{border:1px solid #ab985c99;padding:7px 3px;text-align:center;border-radius:7px;min-width:0}
+.hq-board-stats small{display:block;font-size:10px}
+.hq-board-stats strong{display:block;color:#89edac;font-size:15px;overflow-wrap:anywhere}
+.hq-board-scenario,.hq-board-chart{display:grid;grid-template-columns:minmax(100px,38%) minmax(0,1fr);align-items:center;gap:12px;margin:13px 0}
+.hq-board-donut{width:min(100%,180px);aspect-ratio:1;border-radius:50%;background:conic-gradient(#f2c75b 0 var(--board-share),#65c881 var(--board-share) 100%);display:grid;place-items:center;padding:15%;box-sizing:border-box;min-width:90px;margin:0 auto}
+.hq-board-donut>div{width:100%;height:100%;border-radius:50%;background:#0d171a;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-weight:750;font-size:13px;color:#fff;padding:9px;box-sizing:border-box}
+.hq-board-donut small{display:block;font-size:10px;font-weight:450}
+.hq-board-green{overflow-wrap:anywhere}
+.hq-board-seven-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+.hq-board-day{border:1px solid #d5e5f3;border-radius:12px;background:#fff;padding:9px 7px;min-width:0}
+.hq-board-day h4{border-radius:9px;background:#dceafb;margin:0 0 8px;padding:7px 5px;text-transform:uppercase;font-size:11px;text-align:center}
+.hq-board-day:nth-child(2) h4{background:#fbe0ea}.hq-board-day:nth-child(3) h4{background:#e7e3ff}
+.hq-board-day:nth-child(4) h4{background:#fff1c9}.hq-board-day:nth-child(5) h4{background:#dcf1e6}
+.hq-board-day:nth-child(6) h4{background:#f8dee8}.hq-board-day:nth-child(7) h4{background:#d9ecfa}
+.hq-board-day>strong{display:block;font-size:12px;margin-bottom:9px;text-align:center;min-height:28px}
+.hq-board-check{display:flex;align-items:flex-start;gap:7px;font-size:12px;line-height:1.35;margin:9px 0;color:inherit;cursor:pointer;overflow-wrap:anywhere}
+.hq-board-check input{flex:0 0 17px;width:17px;height:17px;margin:0;accent-color:#247c64}
+.hq-board-check input:disabled{cursor:default;opacity:.65}
+.hq-board-check input:checked+span{text-decoration:line-through;opacity:.68}
+.hq-board-rest{text-align:center;color:#a23d68;font-size:12px;line-height:1.9;margin:20px 0;font-weight:750}
+.hq-board-weekend{display:grid;gap:12px}
+.hq-board-weekend>div{padding:12px;border-radius:12px;background:#fdebf0}
+.hq-board-weekend>div+div{background:#e9f7f2}
+.hq-board-weekend h4{margin:0 0 7px;font-size:15px}
+.hq-board-report{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:5px 12px}
+.hq-board-conflicts{font-size:13px}
+.hq-board-conflicts summary{cursor:pointer;font-weight:700}
+@media(max-width:850px){.hq-board-seven-days{grid-template-columns:repeat(3,minmax(0,1fr))}.hq-board-grid-3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:580px){.hq-board-sheet{padding:8px}.hq-board-heading{margin:-8px -8px 10px;padding:9px 4px}.hq-board-heading>span{font-size:19px;flex-basis:18px}.hq-board-grid,.hq-board-grid-3{grid-template-columns:1fr}.hq-board-panel{padding:11px}.hq-board-panel h3{font-size:17px}.hq-board-seven-days{grid-template-columns:repeat(2,minmax(0,1fr))}.hq-board-scenario,.hq-board-chart{grid-template-columns:minmax(90px,36%) minmax(0,1fr);gap:8px}.hq-board-allocation{grid-template-columns:repeat(2,minmax(0,1fr))}.hq-board-table>div{font-size:12px}}
+@media(prefers-reduced-motion:reduce){.hq-board-sheet *{scroll-behavior:auto}}
