@@ -1,5 +1,6 @@
 import {agentCloud} from './agent-cloud-auth.js';
 import {condition as weatherCondition} from './agent-weather-conditions.js?v=20261107-conditions-1';
+import {routineDue} from './agent-reading-schedule.js?v=20261107-eligible-days-1';
 import './agent-hq-notes-cloud.js?v=20261107-native-notes-2';
 // Agent HQ Home: iPhone-like swipe navigation and uninterrupted long-press dragging.
 // Preferences are local; no external account data is stored here.
@@ -110,7 +111,7 @@ function calendarEntries(){
  const tasks=secretaryCalendarItems.filter(i=>i.kind==='task').slice(0,12);
  const weekday=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(new Intl.DateTimeFormat('en-US',{timeZone:secretaryCalendarZone,weekday:'short'}).format(new Date()));
  const today=new Intl.DateTimeFormat('en-CA',{timeZone:secretaryCalendarZone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
- const routines=secretaryReminders.filter(i=>i.data?.repeat==='none'?Boolean(i.next_due_at)&&new Intl.DateTimeFormat('en-CA',{timeZone:secretaryCalendarZone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(i.next_due_at))===today:Array.isArray(i.weekdays)&&i.weekdays.includes(weekday)).slice(0,12);
+ const routines=secretaryReminders.filter(i=>routineDue(i,today)&&(i.data?.repeat==='none'?Boolean(i.next_due_at)&&new Intl.DateTimeFormat('en-CA',{timeZone:secretaryCalendarZone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(i.next_due_at))===today:true)).slice(0,12);
  const proposals=window.agentHQNotesCloud?.list?.().filter(n=>n.review_status==='pending').length||0;
  const fmt=when=>new Intl.DateTimeFormat('en-US',{timeZone:secretaryCalendarZone,month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}).format(new Date(when));
  const appointments=upcoming.length?'<div class="widget-secretary-events"><h3>Upcoming on Agent HQ Calendar</h3>'+
