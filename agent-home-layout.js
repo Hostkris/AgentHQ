@@ -1,4 +1,5 @@
 import {agentCloud} from './agent-cloud-auth.js';
+import './agent-hq-notes-cloud.js?v=20261107-native-notes-1';
 // Agent HQ Home: iPhone-like swipe navigation and uninterrupted long-press dragging.
 // Preferences are local; no external account data is stored here.
 const KEY="agenthq-home-layout-v1";
@@ -80,7 +81,7 @@ agentCloud.auth.getUser().then(({data})=>setHomeNoteOwner(data?.user?.id||null))
 const dateLabel=()=>new Intl.DateTimeFormat(undefined,{weekday:'short',month:'short',day:'numeric'}).format(new Date());
 const timeLabel=()=>new Intl.DateTimeFormat(undefined,{hour:'numeric',minute:'2-digit'}).format(new Date());
 function clockFace(){const now=new Date(),hour=(now.getHours()%12+now.getMinutes()/60)*30,minute=now.getMinutes()*6;return `<span class="widget-analog" role="img" aria-label="${esc(timeLabel())}"><i class="widget-hour" style="transform:translateX(-50%) rotate(${hour}deg)"></i><i class="widget-minute" style="transform:translateX(-50%) rotate(${minute}deg)"></i><b></b></span>`}
-let activeWidget=null,weatherPending=false,calendarOffset=0;
+let activeWidget=null,editingNoteId=null,weatherPending=false,calendarOffset=0;
 let secretaryCalendarItems=[],secretaryCalendarZone='America/New_York',secretaryCalendarNote='Open Calendar to load Eleanor’s saved appointments.';
 function calendarWhen(item){const v=item.kind==='meeting'?item.scheduled_at:item.due_at;return new Date(v).getTime();}
 function calendarEntries(){
@@ -157,7 +158,7 @@ export function renderHomeScreen(renderButton,values={}){
 }
 function widgetPanel(){if(!activeWidget)return '';
  const p=personal(),kind=activeWidget,heading=esc(kind[0].toUpperCase()+kind.slice(1));let body='';
- if(kind==='notes')body=`<form data-widget-note-form><label for="home-note">New note</label><textarea id="home-note" maxlength="2000" required placeholder="Something to remember or ask later"></textarea><button type="submit">Save note</button></form><div class="widget-note-list">${(p.notes||[]).map((n,i)=>`<div class="widget-note"><p>${esc(n.text)}</p><small>${esc(n.date)}</small><button type="button" data-widget-delete-note="${i}" aria-label="Delete note">×</button></div>`).join('')}</div>`;
+ if(kind==='notes')body=`<form data-widget-note-form><label for="home-note">New Agent HQ note</label><textarea id="home-note" maxlength="2000" required placeholder="What do you want Eleanor to help you remember or work on?"></textarea><button type="submit">Save note</button></form><p class="personal-muted">Private Agent HQ Notes sync across your signed-in devices. Eleanor proposes tasks, calendar entries or projects when a note suggests work.</p>${editingNoteId?(()=>{const n=(p.notes||[]).find(x=>x.id===editingNoteId);return n?'<form data-widget-edit-note-form="'+esc(n.id)+'"><label>Edit saved note<textarea name="text" maxlength="2000" required>'+esc(n.text)+'</textarea></label><button type="submit">Save changes</button><button type="button" data-widget-edit-cancel>Cancel</button></form>':''})():''}<div class="widget-note-list">${(p.notes||[]).map((n,i)=>`<div class="widget-note"><p>${esc(n.text)}</p><small>${esc(n.date)}${n.review_status==='pending'?' · Eleanor has a proposal':''}</small><button type="button" data-widget-edit-note="${esc(n.id||'')}" aria-label="Edit note">Edit</button><button type="button" data-widget-delete-note="${i}" aria-label="Delete note">×</button></div>`).join('')}</div><button type="button" data-home-widget-nav="reminders">Review Eleanor’s notes proposals</button>`;
  if(kind==='calendar')body=`<div class="widget-date">Today: ${esc(new Intl.DateTimeFormat(undefined,{weekday:'long',month:'long',day:'numeric'}).format(new Date()))}</div>${monthView()}${calendarEntries()}<button type="button" data-home-widget-nav="assignments">View assignments (${Number(lastValues.assignments||0)})</button><button type="button" data-home-internal-calendar>Open Agent HQ Calendar</button>`;
  if(kind==='weather')body=`<form data-widget-weather-form><label for="home-weather-city">City or ZIP code</label><input id="home-weather-city" name="city" autocomplete="address-level2" required value="${esc(p.city||'')}" placeholder="Columbus, Ohio"><button type="submit">Get weather</button></form><button type="button" data-widget-location>Use my location</button><p data-weather-result>${esc(weatherLabel())}</p><div class="widget-forecast">${(p.weather?.days||[]).map(d=>`<div><span>${esc(d.day)}</span><strong>${Math.round(d.high)}°</strong><small>${Math.round(d.low)}° low</small></div>`).join('')}</div><small>Forecast by Open-Meteo · updates when you ask.</small>`;
  if(kind==='clock')body=`<div class="widget-clock-face" data-widget-clock-face>${p.analog?clockFace():timeLabel()}</div><button type="button" data-widget-clock-toggle>Switch to ${p.analog?'digital':'analog'}</button>`;
@@ -208,6 +209,8 @@ function action(target){
  const openWidget=target.closest('[data-home-widget-open]');
  if(openWidget){if(!editing){activeWidget=openWidget.dataset.homeWidgetOpen;change();if(activeWidget==='calendar')void refreshSecretaryCalendar()}return true}
  if(target.matches('[data-widget-close]')){activeWidget=null;change();return true}
+ if(target.closest('[data-widget-edit-note]')){editingNoteId=target.closest('[data-widget-edit-note]').dataset.widgetEditNote;change();return true}
+ if(target.closest('[data-widget-edit-cancel]')){editingNoteId=null;change();return true}
  if(target.closest('[data-widget-delete-note]')){
   const i=Number(target.closest('[data-widget-delete-note]').dataset.widgetDeleteNote),note=personal().notes?.[i];
   if(!note?.id){window.alert('This note is still syncing. Try again after it has saved to Agent HQ.');return true}
@@ -392,6 +395,13 @@ function init(){
   }catch(error){let status=form.querySelector('[data-note-error]');if(!status){status=document.createElement('p');status.dataset.noteError='';form.append(status)}status.textContent=String(error?.message||error);}
   finally{button.disabled=false}
  }
+  if(event.target.matches('[data-widget-edit-note-form]')){
+   event.preventDefault();const form=event.target,button=form.querySelector('[type=submit]'),text=form.querySelector('textarea')?.value.trim();
+   if(!text||button.disabled)return;button.disabled=true;
+   try{await window.agentHQNotesCloud.update(form.dataset.widgetEditNoteForm,text);editingNoteId=null;change()}
+   catch(error){let p=form.querySelector('[data-note-error]');if(!p){p=document.createElement('p');p.dataset.noteError='';form.append(p)}p.textContent=String(error?.message||error)}
+   finally{button.disabled=false}
+  }
   if(event.target.matches('[data-widget-weather-form]')){event.preventDefault();const city=event.target.querySelector('input')?.value.trim();if(city)findWeather(city)}
  },true);
  setInterval(()=>{if(!root())return;const p=personal();for(const el of root().querySelectorAll('[data-widget-summary="clock"], [data-widget-clock-face]')){if(p.analog)el.innerHTML=clockFace();else el.textContent=timeLabel()}for(const el of root().querySelectorAll('[data-widget-summary="calendar"]'))el.textContent=dateLabel()},30000);
