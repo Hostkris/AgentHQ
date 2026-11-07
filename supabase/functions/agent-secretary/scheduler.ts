@@ -16,6 +16,8 @@ export async function processSecretaryDue(db:any,owners:string[],deps:any,schedu
   const allowed=new Set((settings||[]).filter((x:any)=>dow(localDay(clock,x.timezone))!==6).map((x:any)=>x.owner_id));
   owners=owners.filter(id=>allowed.has(id));
   if(!owners.length)return {saved:0,state:'saturday_rest',agent_alerts:null};
+  const {error:readingError}=await db.rpc('agent_hq_capture_unfinished_reading',{p_owners:owners,p_clock:clock.toISOString()});
+  if(readingError)throw Error('Could not review missed Agent HQ reading sessions.');
   const {error:rolloverError}=await db.rpc('agent_hq_rollover_missed_tasks',{p_owners:owners,p_clock:clock.toISOString()});
   if(rolloverError)throw Error('Could not safely move missed Agent HQ tasks.');
  }
