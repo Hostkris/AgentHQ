@@ -1,3 +1,4 @@
+import {agentCloud} from './agent-cloud-auth.js';
 // Agent HQ Home: iPhone-like swipe navigation and uninterrupted long-press dragging.
 // Preferences are local; no external account data is stored here.
 const KEY="agenthq-home-layout-v1";
@@ -40,11 +41,39 @@ function load(){
 let state=load(),editing=false,menu=false,change=()=>{};
 const widgetKey='agenthq-home-personal-widgets-v1';
 function personal(){try{return JSON.parse(localStorage.getItem(widgetKey)||'{}')||{}}catch{return {}}}
-function putPersonal(part){try{localStorage.setItem(widgetKey,JSON.stringify({...personal(),...part}))}catch{}}
+function putPersonal(part){try{localStorage.setItem(widgetKey,JSON.stringify({...personal(),...part}));if(Array.isArray(part.notes))window.dispatchEvent(new Event('agenthq-home-notes-changed'))}catch{}}
 const dateLabel=()=>new Intl.DateTimeFormat(undefined,{weekday:'short',month:'short',day:'numeric'}).format(new Date());
 const timeLabel=()=>new Intl.DateTimeFormat(undefined,{hour:'numeric',minute:'2-digit'}).format(new Date());
 function clockFace(){const now=new Date(),hour=(now.getHours()%12+now.getMinutes()/60)*30,minute=now.getMinutes()*6;return `<span class="widget-analog" role="img" aria-label="${esc(timeLabel())}"><i class="widget-hour" style="transform:translateX(-50%) rotate(${hour}deg)"></i><i class="widget-minute" style="transform:translateX(-50%) rotate(${minute}deg)"></i><b></b></span>`}
 let activeWidget=null,weatherPending=false,calendarOffset=0;
+let secretaryCalendarItems=[],secretaryCalendarZone='America/New_York',secretaryCalendarNote='Open Calendar to load Eleanor’s saved appointments.';
+function calendarWhen(item){const v=item.kind==='meeting'?item.scheduled_at:item.due_at;return new Date(v).getTime();}
+function calendarEntries(){
+ const now=Date.now()-3600000;
+ const upcoming=secretaryCalendarItems.filter(i=>calendarWhen(i)>=now).slice(0,12);
+ return upcoming.length?'<div class="widget-secretary-events"><h3>Eleanor’s saved calendar</h3>'+upcoming.map(i=>'<p><strong>'+esc(i.title)+'</strong><small>'+esc(new Intl.DateTimeFormat('en-US',{timeZone:secretaryCalendarZone,month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}).format(new Date(calendarWhen(i))))+' · '+esc(i.kind==='meeting'?'Appointment':'Task deadline')+'</small></p>').join('')+'</div>':'<p class="widget-secretary-events">'+esc(secretaryCalendarNote)+'</p>';
+}
+async function refreshSecretaryCalendar(){
+ try{
+  const {data:auth,error:authError}=await agentCloud.auth.getUser();
+  if(authError||!auth?.user)throw Error('Sign in to see your private calendar entries.');
+  const {data,error}=await agentCloud.functions.invoke('agent-secretary',{body:{action:'state'}});
+  if(error||data?.error||!data?.settings||data.settings.owner_id!==auth.user.id)throw Error('Could not verify Eleanor’s saved calendar.');
+  secretaryCalendarZone=data.settings.timezone||'America/New_York';
+  secretaryCalendarItems=(data.items||[]).filter(i=>i.status==='active'&&(i.kind==='meeting'||i.kind==='task'&&i.due_at)).sort((a,b)=>calendarWhen(a)-calendarWhen(b)).slice(0,40);
+  secretaryCalendarNote='No upcoming saved appointments or task deadlines.';
+ }catch(error){secretaryCalendarItems=[];secretaryCalendarNote=String(error?.message||'Calendar could not load.');}
+ if(activeWidget==='calendar')change();
+}
+window.addEventListener('agenthq-secretary-state',event=>{
+ const data=event.detail?.state;
+ if(!data?.settings?.owner_id)return;
+ secretaryCalendarZone=data.settings.timezone||'America/New_York';
+ secretaryCalendarItems=(data.items||[]).filter(i=>i.status==='active'&&(i.kind==='meeting'||i.kind==='task'&&i.due_at)).sort((a,b)=>calendarWhen(a)-calendarWhen(b)).slice(0,40);
+ secretaryCalendarNote='No upcoming saved appointments or task deadlines.';
+ if(activeWidget==='calendar')change();
+});
+agentCloud.auth.onAuthStateChange(()=>{secretaryCalendarItems=[];secretaryCalendarNote='Open Calendar to load Eleanor’s saved appointments.';if(activeWidget==='calendar')change();});
 function monthView(){const today=new Date(),first=new Date(today.getFullYear(),today.getMonth()+calendarOffset,1),offset=first.getDay(),days=new Date(first.getFullYear(),first.getMonth()+1,0).getDate();return `<div class="widget-month-head"><button type="button" data-widget-month="-1" aria-label="Previous month">‹</button><strong>${esc(new Intl.DateTimeFormat(undefined,{month:'long',year:'numeric'}).format(first))}</strong><button type="button" data-widget-month="1" aria-label="Next month">›</button></div><div class="widget-month-grid">${['S','M','T','W','T','F','S'].map(d=>`<small>${d}</small>`).join('')}${Array.from({length:offset},()=>'<span></span>').join('')}${Array.from({length:days},(_,i)=>`<span class="${calendarOffset===0&&i+1===today.getDate()?'today':''}">${i+1}</span>`).join('')}</div>`}
 function weatherLabel(){const w=personal().weather;return w?.temperature!==undefined?`${Math.round(w.temperature)}° · ${w.city}`:'Choose a city';}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(state))}catch{}};
@@ -94,7 +123,7 @@ export function renderHomeScreen(renderButton,values={}){
 function widgetPanel(){if(!activeWidget)return '';
  const p=personal(),kind=activeWidget,heading=esc(kind[0].toUpperCase()+kind.slice(1));let body='';
  if(kind==='notes')body=`<form data-widget-note-form><label for="home-note">New note</label><textarea id="home-note" maxlength="2000" required placeholder="Something to remember or ask later"></textarea><button type="submit">Save note</button></form><div class="widget-note-list">${(p.notes||[]).map((n,i)=>`<div class="widget-note"><p>${esc(n.text)}</p><small>${esc(n.date)}</small><button type="button" data-widget-delete-note="${i}" aria-label="Delete note">×</button></div>`).join('')}</div>`;
- if(kind==='calendar')body=`<div class="widget-date">Today: ${esc(new Intl.DateTimeFormat(undefined,{weekday:'long',month:'long',day:'numeric'}).format(new Date()))}</div>${monthView()}<button type="button" data-home-widget-nav="assignments">View assignments (${Number(lastValues.assignments||0)})</button><button type="button" data-home-widget-nav="reminders">Open reminders</button>`;
+ if(kind==='calendar')body=`<div class="widget-date">Today: ${esc(new Intl.DateTimeFormat(undefined,{weekday:'long',month:'long',day:'numeric'}).format(new Date()))}</div>${monthView()}${calendarEntries()}<button type="button" data-home-widget-nav="assignments">View assignments (${Number(lastValues.assignments||0)})</button><button type="button" data-home-widget-nav="reminders">Open Eleanor’s calendar and reminders</button>`;
  if(kind==='weather')body=`<form data-widget-weather-form><label for="home-weather-city">City or ZIP code</label><input id="home-weather-city" name="city" autocomplete="address-level2" required value="${esc(p.city||'')}" placeholder="Columbus, Ohio"><button type="submit">Get weather</button></form><button type="button" data-widget-location>Use my location</button><p data-weather-result>${esc(weatherLabel())}</p><div class="widget-forecast">${(p.weather?.days||[]).map(d=>`<div><span>${esc(d.day)}</span><strong>${Math.round(d.high)}°</strong><small>${Math.round(d.low)}° low</small></div>`).join('')}</div><small>Forecast by Open-Meteo · updates when you ask.</small>`;
  if(kind==='clock')body=`<div class="widget-clock-face" data-widget-clock-face>${p.analog?clockFace():timeLabel()}</div><button type="button" data-widget-clock-toggle>Switch to ${p.analog?'digital':'analog'}</button>`;
  if(kind==='status')body=`<p>${Number(lastValues.assignments||0)} assignments need attention</p><p>${Number(lastValues.messages||0)} unread messages</p><p>${Number(lastValues.approvals||0)} approvals waiting</p><button type="button" data-home-widget-nav="operations">Open Operations</button>`;
@@ -142,7 +171,7 @@ function action(target){
  const removeWidget=target.closest('[data-home-remove-widget]');
  if(removeWidget){const p=state.pages[state.current],kind=removeWidget.dataset.homeRemoveWidget;p.widgets=p.widgets.filter(k=>k!==kind);p.order=(p.order||[]).filter(x=>x!=='widget:'+kind);update();return true}
  const openWidget=target.closest('[data-home-widget-open]');
- if(openWidget){if(!editing){activeWidget=openWidget.dataset.homeWidgetOpen;change()}return true}
+ if(openWidget){if(!editing){activeWidget=openWidget.dataset.homeWidgetOpen;change();if(activeWidget==='calendar')void refreshSecretaryCalendar()}return true}
  if(target.matches('[data-widget-close]')){activeWidget=null;change();return true}
  if(target.closest('[data-widget-delete-note]')){const p=personal(),i=Number(target.closest('[data-widget-delete-note]').dataset.widgetDeleteNote);p.notes=(p.notes||[]).filter((_,n)=>n!==i);putPersonal({notes:p.notes});change();return true}
  if(target.closest('[data-widget-clock-toggle]')){putPersonal({analog:!personal().analog});change();return true}
