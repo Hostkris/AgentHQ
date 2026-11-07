@@ -57,8 +57,24 @@ export function dailyCoordinationBrief(state,local,clock=new Date()){
   return '• '+g.title+': '+progress+'% ('+finished.length+'/'+stages.length+' stages) · '+cap+' · next: '+(next?.title||'Review evidence of completion');
  });
  const home=fields.house_work?'Owner-reported household work: '+quote(fields.house_work,350)+'. Spending ceiling: '+(Number.isFinite(fields.house_budget_usd)?'$'+fields.house_budget_usd:'not decided'):'Ask the owner what repair, maintenance, cleanup or improvement needs doing around the house, the urgency, and the maximum budget. A home goal and Calendar plan can be created inside Agent HQ.';
+ const board=(state.board_snapshots||[]).find(x=>x.board_key==='weekly')?.payload||{};
+ const clean=(state.board_snapshots||[]).find(x=>x.board_key==='cleaning')?.payload||{};
+ const currentDow=new Date(local+'T12:00:00Z').getUTCDay();
+ const business=(board.business_days||[]).find(x=>x.dow===currentDow);
+ const gym=(board.gym_days||[]).find(x=>x.dow===currentDow);
+ const cleaning=(clean.days||[]).find(x=>x.dow===currentDow);
+ const rhythm=currentDow===6?[]:(board.rhythm||[]).filter(x=>x[0]&&x[2]).map(x=>x[0]+'–'+(x[1]||'later')+' '+quote(x[2],55));
+ const schedule=currentDow===6?'Saturday: total rest; no routine or new work notifications.':
+  ['Owner Weekly Organization Board:',
+   ...rhythm.slice(0,12),
+   business?'3–4 PM business focus ('+business.day+'): '+business.title+' — '+quote(business.description,130):'',
+   gym?'5–6:30 PM LA Fitness: '+quote(gym.details,100):'',
+   cleaning?'Cleaning day ('+cleaning.day+'): '+cleaning.title+'; use the saved daily reset and specific tasks.':''].filter(Boolean).join('\n');
+ const restConflicts='Please clarify the conflict between the weekly-board dinner after 6:30 PM and the existing 5 PM eating-cutoff reminder before changing either one. The weekly screenshot also includes Friday gym, while an earlier schedule said Mon–Thu only; preserve the board plan until the owner decides.';
+
  return [daily,'Agent HQ Notes and Calendar\n• '+pending+' Notes proposal(s) awaiting approval.\n• '+overdue+' overdue task(s).',
   'Household work and budgets\n'+home,
+  'Board schedule today\n'+schedule+'\n'+restConflicts,
   'Goal thermometers\n'+(summaries.length?summaries.join('\n'):'No tracked goals saved yet.')+'\nA scheduled milestone is not completed work or earnings. Review the next eligible Sunday–Friday task. Ask Alex, Avery, Riley, Maya and others to prepare efficient research and cost-aware plans. Budget-related ChatGPT help needs the owner’s approval.',
   'Social-account check\n'+social+'\nOnly review actually authorized sources. Draft replies for the owner; publishing needs authorization.'].join('\n\n');
 }
