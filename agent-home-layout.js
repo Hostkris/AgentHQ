@@ -388,7 +388,7 @@ function finishSwipe(x,y){
 let connected=false;
 function init(){
  if(connected)return;connected=true;
- document.addEventListener('submit',event=>{
+ document.addEventListener('submit',async event=>{
   if(event.target.matches('[data-widget-note-form]')){
   event.preventDefault();const form=event.target,field=form.querySelector('textarea'),text=field?.value.trim();
   if(!text)return;const button=form.querySelector('[type=submit]');
