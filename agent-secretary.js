@@ -226,6 +226,7 @@ window.addEventListener('agenthq-checkins-changed',()=>{if(root&&state&&(tab==='
 window.addEventListener('agenthq-secretary-show-alerts',()=>{tab='alerts';render();});
 window.addEventListener('agenthq-notes-decision',()=>{if(owner)void load();});
 window.addEventListener('agenthq-secretary-show-notes',()=>{tab='notes';render();});
+window.addEventListener('agenthq-secretary-show-checkin',()=>{tab='checkin';render();});
 window.addEventListener('agenthq-secretary-show-meetings',()=>{tab='meetings';render();});
 function mount(){if(pendingOpen&&window.agentHQOpenSecretary){pendingOpen=false;window.agentHQOpenSecretary();}const next=host();if(next===root)return;root=next;if(root){render();if(owner)void load();}}
 new MutationObserver(mount).observe(document.getElementById('app')||document.body,{childList:true,subtree:true});
