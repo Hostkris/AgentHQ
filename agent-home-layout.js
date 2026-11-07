@@ -40,8 +40,41 @@ function load(){
 }
 let state=load(),editing=false,menu=false,change=()=>{};
 const widgetKey='agenthq-home-personal-widgets-v1';
-function personal(){try{return JSON.parse(localStorage.getItem(widgetKey)||'{}')||{}}catch{return {}}}
-function putPersonal(part){try{localStorage.setItem(widgetKey,JSON.stringify({...personal(),...part}));if(Array.isArray(part.notes))window.dispatchEvent(new Event('agenthq-home-notes-changed'))}catch{}}
+const noteKey=owner=>'agenthq-home-notes-v1:'+owner;
+let homeNoteOwner=null;
+function savedHomeNotes(){
+ if(!homeNoteOwner)return [];
+ try{const list=JSON.parse(localStorage.getItem(noteKey(homeNoteOwner))||'[]');return Array.isArray(list)?list.slice(0,100):[]}catch{return []}
+}
+function personal(){
+ try{const p=JSON.parse(localStorage.getItem(widgetKey)||'{}')||{};return {...p,notes:savedHomeNotes()}}catch{return {notes:savedHomeNotes()}}
+}
+function putPersonal(part){
+ try{
+  if(Object.hasOwn(part,'notes')){
+   if(!homeNoteOwner){window.alert('Sign in to Agent HQ before saving private Notes.');return}
+   localStorage.setItem(noteKey(homeNoteOwner),JSON.stringify(part.notes));
+   window.dispatchEvent(new Event('agenthq-home-notes-changed'));
+  }else localStorage.setItem(widgetKey,JSON.stringify({...personal(),...part,notes:undefined}));
+ }catch{}
+}
+function setHomeNoteOwner(owner){
+ homeNoteOwner=owner||null;
+ if(homeNoteOwner){
+  try{
+   const legacy=JSON.parse(localStorage.getItem(widgetKey)||'{}')||{};
+   if(Array.isArray(legacy.notes)&&legacy.notes.length){
+    const current=JSON.parse(localStorage.getItem(noteKey(homeNoteOwner))||'[]');
+    if(!Array.isArray(current)||!current.length)localStorage.setItem(noteKey(homeNoteOwner),JSON.stringify(legacy.notes.slice(0,100)));
+    delete legacy.notes;
+    localStorage.setItem(widgetKey,JSON.stringify(legacy));
+   }
+  }catch{}
+ }
+ change();
+}
+agentCloud.auth.onAuthStateChange((_event,session)=>setHomeNoteOwner(session?.user?.id||null));
+agentCloud.auth.getUser().then(({data})=>setHomeNoteOwner(data?.user?.id||null)).catch(()=>{});
 const dateLabel=()=>new Intl.DateTimeFormat(undefined,{weekday:'short',month:'short',day:'numeric'}).format(new Date());
 const timeLabel=()=>new Intl.DateTimeFormat(undefined,{hour:'numeric',minute:'2-digit'}).format(new Date());
 function clockFace(){const now=new Date(),hour=(now.getHours()%12+now.getMinutes()/60)*30,minute=now.getMinutes()*6;return `<span class="widget-analog" role="img" aria-label="${esc(timeLabel())}"><i class="widget-hour" style="transform:translateX(-50%) rotate(${hour}deg)"></i><i class="widget-minute" style="transform:translateX(-50%) rotate(${minute}deg)"></i><b></b></span>`}
