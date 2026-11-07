@@ -33,7 +33,7 @@ begin
     v_details:=v_details||' If work extends until 3 PM, keep recovery time and shorten the next business block. Do not claim the work shift ended on time.';
    end if;
    insert into public.agent_secretary_items(owner_id,kind,title,details,timezone,local_time,weekdays,next_due_at,data)
-    values(s.owner_id,'reminder',left(task,180),left(details,4000),s.timezone,t::time,weekly_days,
+    values(s.owner_id,'reminder',left(task,180),left(v_details,4000),s.timezone,t::time,weekly_days,
      public.next_secretary_local(now(),s.timezone,t::time,weekly_days),
      jsonb_build_object('source_board','weekly','board_tag',tag,'end',d,'optional',coalesce((slot->>3)::boolean,false)));
   end loop;
@@ -61,7 +61,7 @@ begin
      (select string_agg(value#>>'{}','; ') from jsonb_array_elements(row->'items'))||
      '. Only do what can reasonably fit; record remaining work. No Saturday cleaning.';
    insert into public.agent_secretary_items(owner_id,kind,title,details,timezone,local_time,weekdays,next_due_at,data)
-    values(s.owner_id,'reminder',left('Home reset · '||(row->>'title'),180),left(details,4000),s.timezone,
+    values(s.owner_id,'reminder',left('Home reset · '||(row->>'title'),180),left(v_details,4000),s.timezone,
       case when iday=0 then '13:00'::time else '16:00'::time end,array[iday],
       public.next_secretary_local(now(),s.timezone,case when iday=0 then '13:00'::time else '16:00'::time end,array[iday]),
       jsonb_build_object('source_board','cleaning','board_tag',tag,'autocatchup',iday between 1 and 5,'end',case when iday=0 then '13:30' else '16:20' end));
