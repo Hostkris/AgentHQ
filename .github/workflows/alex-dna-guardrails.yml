@@ -20,6 +20,8 @@ on:
       - 'agent-chatgpt-app*'
       - 'tests/chatgpt-app*'
       - 'agent-secretary*'
+      - 'agent-eleanor-workflow.js'
+      - 'tests/eleanor-workflow.test.mjs'
       - 'agent-consulting*'
       - 'agent-custom-messages*'
       - 'tests/consulting*'
@@ -164,7 +166,7 @@ jobs:
       - name: Test camera, photo messages and private access
         run: node --check agent-camera-cloud.js && node --test tests/camera-messages.test.mjs
       - name: Verify Home Screen JavaScript syntax
-        run: node --check agent-home-layout.js && node --check app.js
+        run: node --check agent-home-layout.js && node --check app.js && node --check agent-eleanor-workflow.js && node --test tests/eleanor-workflow.test.mjs
       - name: Test Creative Desk owner approvals and draft escaping
         run: node --test tests/creative-desk.test.mjs
       - name: Test account Settings and publishing opt-in
