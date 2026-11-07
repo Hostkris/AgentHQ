@@ -1,5 +1,5 @@
 import {agentCloud} from './agent-cloud-auth.js';
-import './agent-hq-notes-cloud.js?v=20261107-native-notes-1';
+import './agent-hq-notes-cloud.js?v=20261107-native-notes-2';
 // Agent HQ Home: iPhone-like swipe navigation and uninterrupted long-press dragging.
 // Preferences are local; no external account data is stored here.
 const KEY="agenthq-home-layout-v1";
