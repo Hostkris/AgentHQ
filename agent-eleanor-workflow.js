@@ -175,6 +175,8 @@ export function bindEleanorCoordination(root,state,day,helpers,E){
   if(weight)fields.weight_lb=Number(weight);
   fields.reply_context=String(f.get('reply_context')||'').trim().slice(0,2000);
   fields.request=String(f.get('request')||'').trim().slice(0,1000);
+  fields.house_work=String(f.get('house_work')||'').trim().slice(0,1200);
+  const houseBudget=String(f.get('house_budget_usd')||'').trim();if(houseBudget)fields.house_budget_usd=Number(houseBudget);
   const owner=state.settings.owner_id,prior=todayRecord(owner,day);
   const signature=JSON.stringify(fields);
   const record={fields,saved_at:new Date().toISOString(),sent_at:prior?.sent_signature===signature?prior.sent_at:null,sent_signature:prior?.sent_signature===signature?signature:null};
@@ -195,6 +197,8 @@ export function bindEleanorCoordination(root,state,day,helpers,E){
     'Water: '+(fields.water_oz===undefined?'not measured/reported':fields.water_oz+' fluid oz'),
     ...FIELDS.map(([key,label])=>label+': '+(OPTIONS.find(x=>x[0]===fields[key])?.[1]||'Not reported')),
     'Messages needing a drafted reply (not permission to send): '+(fields.reply_context||'none supplied'),
+    'Household work needing a plan: '+(fields.house_work||'Eleanor should ask me what work needs to be done around the house.'),
+    'Household budget ceiling (not authorization to spend): '+(fields.house_budget_usd===undefined?'Not set':'$'+fields.house_budget_usd),
     'My requested assistance: '+(fields.request||'Please ask what I need help with.')];
    await sendToEleanor(state,summary.join('\n'));
    await cloud.markSent(day,fields);
