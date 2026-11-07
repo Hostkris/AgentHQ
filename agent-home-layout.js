@@ -83,11 +83,36 @@ const timeLabel=()=>new Intl.DateTimeFormat(undefined,{hour:'numeric',minute:'2-
 function clockFace(){const now=new Date(),hour=(now.getHours()%12+now.getMinutes()/60)*30,minute=now.getMinutes()*6;return `<span class="widget-analog" role="img" aria-label="${esc(timeLabel())}"><i class="widget-hour" style="transform:translateX(-50%) rotate(${hour}deg)"></i><i class="widget-minute" style="transform:translateX(-50%) rotate(${minute}deg)"></i><b></b></span>`}
 let activeWidget=null,editingNoteId=null,weatherPending=false,calendarOffset=0;
 let secretaryCalendarItems=[],secretaryCalendarZone='America/New_York',secretaryCalendarNote='Open Calendar to load Eleanor’s saved appointments.';
-function calendarWhen(item){const v=item.kind==='meeting'?item.scheduled_at:item.due_at;return new Date(v).getTime();}
+function calendarWhen(item){
+ const v=item.kind==='meeting'?item.scheduled_at:item.due_at;
+ return v?new Date(v).getTime():Infinity;
+}
 function calendarEntries(){
  const now=Date.now()-3600000;
- const upcoming=secretaryCalendarItems.filter(i=>calendarWhen(i)>=now).slice(0,12);
- return upcoming.length?'<div class="widget-secretary-events"><h3>Eleanor’s saved calendar</h3>'+upcoming.map(i=>'<p><strong>'+esc(i.title)+'</strong><small>'+esc(new Intl.DateTimeFormat('en-US',{timeZone:secretaryCalendarZone,month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}).format(new Date(calendarWhen(i))))+' · '+esc(i.kind==='meeting'?'Appointment':'Task deadline')+'</small></p>').join('')+'</div>':'<p class="widget-secretary-events">'+esc(secretaryCalendarNote)+'</p>';
+ const upcoming=secretaryCalendarItems.filter(i=>Number.isFinite(calendarWhen(i))&&calendarWhen(i)>=now).slice(0,12);
+ const tasks=secretaryCalendarItems.filter(i=>i.kind==='task').slice(0,12);
+ const proposals=window.agentHQNotesCloud?.list?.().filter(n=>n.review_status==='pending').length||0;
+ const fmt=when=>new Intl.DateTimeFormat('en-US',{timeZone:secretaryCalendarZone,month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}).format(new Date(when));
+ const appointments=upcoming.length?'<div class="widget-secretary-events"><h3>Upcoming on Agent HQ Calendar</h3>'+
+   upcoming.map(i=>'<p><strong>'+esc(i.title)+'</strong><small>'+esc(fmt(calendarWhen(i)))+' · '+esc(i.kind==='meeting'?'Appointment':'Task deadline')+'</small></p>').join('')+'</div>':
+   '<p class="widget-secretary-events">'+esc(secretaryCalendarNote)+'</p>';
+ const actionList='<div class="widget-secretary-events"><h3>Open work Eleanor can track</h3>'+
+   (tasks.length?tasks.map(i=>'<p><strong>'+esc(i.title)+'</strong><small>'+esc(i.due_at?'Due '+fmt(calendarWhen(i)):'No deadline specified')+'</small><button type="button" data-calendar-task-complete="'+esc(i.id)+'">Mark completed</button></p>').join(''):'<p>No open internal tasks.</p>')+'</div>';
+ return appointments+actionList+(proposals?'<p>'+proposals+' Note proposal(s) need your decision. <button type="button" data-home-internal-notes-review>Review with Eleanor</button></p>':'')+
+ '<p class="personal-muted">These are saved Agent HQ appointments and tasks. Marking completed updates Eleanor’s internal register, not an outside calendar.</p>';
+}
+async function completeCalendarTask(id){
+ if(!confirm('Have you completed this task? Marking it done updates Eleanor’s Agent HQ records.'))return;
+ const {data:auth}=await agentCloud.auth.getUser();
+ if(!auth?.user)throw Error('Sign into Agent HQ before updating the Calendar.');
+ const {data:current,error}=await agentCloud.functions.invoke('agent-secretary',{body:{action:'state'}});
+ if(error||current?.error||current?.settings?.owner_id!==auth.user.id)throw Error('Could not verify the current Agenda.');
+ const task=(current.items||[]).find(i=>i.id===id&&i.kind==='task'&&i.status==='active');
+ if(!task)throw Error('This task is no longer open.');
+ const {data:saved,error:saveError}=await agentCloud.functions.invoke('agent-secretary',{body:{action:'apply',request_id:crypto.randomUUID(),version:current.settings.version,operations:[{op:'control_item',id,status:'completed'}]}});
+ if(saveError||saved?.error)throw Error(saved?.error||'Eleanor could not confirm that task was completed.');
+ window.dispatchEvent(new CustomEvent('agenthq-secretary-state-invalidated',{detail:{owner_id:auth.user.id}}));
+ await refreshSecretaryCalendar();
 }
 async function refreshSecretaryCalendar(){
  try{
@@ -96,7 +121,7 @@ async function refreshSecretaryCalendar(){
   const {data,error}=await agentCloud.functions.invoke('agent-secretary',{body:{action:'state'}});
   if(error||data?.error||!data?.settings||data.settings.owner_id!==auth.user.id)throw Error('Could not verify Eleanor’s saved calendar.');
   secretaryCalendarZone=data.settings.timezone||'America/New_York';
-  secretaryCalendarItems=(data.items||[]).filter(i=>i.status==='active'&&(i.kind==='meeting'||i.kind==='task'&&i.due_at)).sort((a,b)=>calendarWhen(a)-calendarWhen(b)).slice(0,40);
+  secretaryCalendarItems=(data.items||[]).filter(i=>i.status==='active'&&(i.kind==='meeting'||i.kind==='task')).sort((a,b)=>calendarWhen(a)-calendarWhen(b)).slice(0,40);
   secretaryCalendarNote='No upcoming saved appointments or task deadlines.';
  }catch(error){secretaryCalendarItems=[];secretaryCalendarNote=String(error?.message||'Calendar could not load.');}
  if(activeWidget==='calendar')change();
@@ -105,7 +130,7 @@ window.addEventListener('agenthq-secretary-state',event=>{
  const data=event.detail?.state;
  if(!data?.settings?.owner_id)return;
  secretaryCalendarZone=data.settings.timezone||'America/New_York';
- secretaryCalendarItems=(data.items||[]).filter(i=>i.status==='active'&&(i.kind==='meeting'||i.kind==='task'&&i.due_at)).sort((a,b)=>calendarWhen(a)-calendarWhen(b)).slice(0,40);
+ secretaryCalendarItems=(data.items||[]).filter(i=>i.status==='active'&&(i.kind==='meeting'||i.kind==='task')).sort((a,b)=>calendarWhen(a)-calendarWhen(b)).slice(0,40);
  secretaryCalendarNote='No upcoming saved appointments or task deadlines.';
  if(activeWidget==='calendar')change();
 });
@@ -218,6 +243,8 @@ function action(target){
   return true;
  }
  if(target.closest('[data-widget-clock-toggle]')){putPersonal({analog:!personal().analog});change();return true}
+ const finished=target.closest('[data-calendar-task-complete]');
+ if(finished){void completeCalendarTask(finished.dataset.calendarTaskComplete).catch(error=>window.alert(String(error?.message||error)));return true;}
  if(target.closest('[data-widget-month]')){calendarOffset+=Number(target.closest('[data-widget-month]').dataset.widgetMonth);change();return true}
  if(target.closest('[data-widget-location]')){navigator.geolocation?.getCurrentPosition(pos=>fetchWeather(pos.coords.latitude,pos.coords.longitude,'Current location'),()=>{const el=root()?.querySelector('[data-weather-result]');if(el)el.textContent='Location unavailable. Enter a city instead.'},{timeout:10000});return true}
  if(target.closest('[data-home-internal-notes-review]')){
