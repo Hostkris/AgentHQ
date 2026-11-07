@@ -10,7 +10,7 @@ export function consultingRequested(value){
  if(text.length<12||/^(?:stop|cancel|pause|don't|do not|never)\b/i.test(text))return false;
  if(/\b(?:medication|medicine|dosage|dose|take my|take .+ daily at|remind me|reminder|i took|i have taken)\b/i.test(text))return false;
  if(/\b(?:tutorial|walk me through|step[ -]by[ -]step|teach me|guide me|consulting guide)\b/i.test(text))return true;
- return /\b(?:how (?:do|can|should|would) (?:i|we)|how to|what (?:steps|should i|do i need))\b[\s\S]{0,180}\b(?:creat|build|mak|plan|approach|pitch|market|sell|design|launch|advertis|business|media|website|brand|budget|schedul|research|partner|outreach|content)/i.test(text)||
+ return /\b(?:how (?:do|can|should|would) (?:i|we)|how to|what (?:steps|should i|do i need)|help (?:me|us)|i (?:need|want)(?: (?:you )?to)?)\b[\s\S]{0,180}\b(?:creat|build|mak|plan|approach|pitch|market|sell|design|launch|advertis|business|media|website|brand|budget|schedul|research|partner|outreach|content)/i.test(text)||
   /\b(?:create|build|make|plan|prepare|draft|design|develop|improve)\b[\s\S]{0,160}\b(?:campaigns?|business|marketing|advertis\w*|website|landing page|content|social|media|brand|reports?|presentations?|pitch|proposals?|outreach|budgets?|schedul\w*|study plan|projects?|images?|graphics?|artwork|logo|scripts?|videos?|spreadsheets?|emails?|letters?|calendars?|timelines?|partnerships?|ads?|posts?|products?|labels?|stores?|documents?|plans?|calculations?|catalogs?)\b/i.test(text);
 }
 

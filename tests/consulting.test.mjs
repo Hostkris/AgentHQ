@@ -9,7 +9,7 @@ const project='55555555-5555-4555-8555-555555555555';
 const guide='Goal: Prepare a business pitch. Materials: a one-page service sheet and two examples. Steps: 1. Choose a business. 2. Check its public needs. 3. Adapt the sample pitch. Example: We can help with your next launch. Checks: verify names and claims. Next: prepare your first draft.';
 
 test('practical consulting intake covers business and personal projects without capturing reminders or stop commands',()=>{
- for(const text of ['How do I approach businesses about a partnership?','Walk me through creating a media kit.','Create a marketing campaign for my store.','Teach me how to build a study plan.','What should I create to pitch my services?'])assert.equal(consultingRequested(text),true,text);
+ for(const text of ['How do I approach businesses about a partnership?','Walk me through creating a media kit.','Create a marketing campaign for my store.','Teach me how to build a study plan.','What should I create to pitch my services?','Help me approach businesses with a pitch.','I need a media kit for my brand.'])assert.equal(consultingRequested(text),true,text);
  for(const text of ['Hello Eleanor','What are my reminders?','Stop creating this campaign.','Remind me to take Example intake daily at 8 AM.','I took my medicine.'])assert.equal(consultingRequested(text),false,text);
 });
 test('each team role receives teaching, research and Eleanor delivery instructions without changing its specialty',()=>{
