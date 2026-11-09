@@ -25,7 +25,7 @@ export function validateOwnerInterruption(raw){
 }
 
 export function autonomousRecoveryStatus(s,now=Date.now()){
- if(s.assignment?.owner_paused||['waiting_owner','waiting_permission','review','approved'].includes(s.phase))return null;
+ if(s.last_error||s.assignment?.owner_paused||['waiting_owner','waiting_permission','review','approved'].includes(s.phase))return null;
  const state=s.recovery_state;
  if(!['correcting','diagnosing','reconnecting'].includes(state)&&!s.recovery_error)return null;
  const worker=String(s.next_worker||'the worker').replace(/^./,c=>c.toUpperCase());
