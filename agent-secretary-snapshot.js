@@ -18,7 +18,7 @@ export function secretaryPendingNotices(state){
   (!d.item_id||(active.has(d.item_id)&&active.get(d.item_id).version===d.item_version)))
   .map(d=>({id:d.id,kind:d.kind,body:d.body,agent:false}));
  const work=state.settings?.agent_alerts_enabled?(state.agent_alerts||[]).filter(a=>a.status==='open')
-  .map(a=>({id:a.id,kind:'Agent '+a.alert_kind,body:a.actor+': '+a.title+'. '+a.body,agent:true})):[];
+  .map(a=>({id:a.id,kind:'Agent '+a.alert_kind,body:a.actor+': '+a.title+'. '+a.body,agent:true,actor:a.actor,alert_kind:a.alert_kind,project_id:a.project_id})):[];
  const chatgpt=state.settings?.chatgpt_notifications_enabled!==false?(state.chatgpt_requests||[]).filter(r=>['owner_required','ready','in_progress','blocked','review'].includes(r.status)).map(chatGPTNotice):[];
  return [...chatgpt,...work,...reminders];
 }
@@ -28,7 +28,10 @@ function validSnapshot(value,owner,now){
   Number.isSafeInteger(value.version)&&value.version>0&&Number.isFinite(value.saved_at)&&value.saved_at<=now+60000&&now-value.saved_at<=MAX_AGE&&
   Array.isArray(value.notices)&&value.notices.length<=300&&value.notices.every(n=>
    typeof n.id==='string'&&n.id.length>0&&n.id.length<=100&&typeof n.kind==='string'&&n.kind.length<=100&&
-   typeof n.body==='string'&&n.body.length<=6000&&typeof n.agent==='boolean');
+   typeof n.body==='string'&&n.body.length<=6000&&typeof n.agent==='boolean'&&
+   (n.actor===undefined||typeof n.actor==='string'&&n.actor.length<=45)&&
+   (n.alert_kind===undefined||['review','question','approval','blocker'].includes(n.alert_kind))&&
+   (n.project_id===undefined||UUID.test(n.project_id)));
 }
 
 export function readSecretarySnapshot(storage,owner,now=Date.now()){
@@ -44,7 +47,8 @@ export function readSecretarySnapshot(storage,owner,now=Date.now()){
 export function saveSecretarySnapshot(storage,owner,state,now=Date.now()){
  if(!UUID.test(owner||'')||state?.settings?.owner_id!==owner||!UUID.test(state.settings.bot_id||''))return null;
  const value={owner_id:owner,bot_id:state.settings.bot_id,version:state.settings.version,saved_at:now,notices:secretaryPendingNotices(state)
-  .map(n=>({id:String(n.id||''),kind:String(n.kind||'Reminder'),body:String(n.body||''),agent:n.agent===true,...(n.chatgpt?{chatgpt:true}:{})}))};
+  .map(n=>({id:String(n.id||''),kind:String(n.kind||'Reminder'),body:String(n.body||''),agent:n.agent===true,...(n.chatgpt?{chatgpt:true}:{}),
+   ...(n.agent?{actor:String(n.actor||'').slice(0,45),...(['review','question','approval','blocker'].includes(n.alert_kind)?{alert_kind:n.alert_kind}:{}),...(UUID.test(String(n.project_id||''))?{project_id:n.project_id}:{})}:{})}))};
  if(!validSnapshot(value,owner,now))return null;
  try{storage?.setItem(PREFIX+owner,JSON.stringify(value));}catch{}
  return value;

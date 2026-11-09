@@ -7,7 +7,7 @@ import './agent-hq-autonomy-cloud.js?v=20261107-proactive-1';
 import {renderEleanorInitiatives,bindEleanorInitiatives} from './agent-eleanor-initiatives.js?v=20261107-proactive-1';
 import {renderEleanorBoards,bindEleanorBoards} from './agent-eleanor-boards.js?v=20261107-confirmed-5pm-1';
 import {ELEANOR_ETHICS,secretaryDate} from './eleanor-secretary-core.js?v=20261107-chatgpt-desk-1';
-import {saveSecretarySnapshot,clearSecretarySnapshot} from './agent-secretary-snapshot.js?v=20261107-chatgpt-desk-1';
+import {saveSecretarySnapshot,clearSecretarySnapshot} from './agent-secretary-snapshot.js?v=20261109-message-navigation-1';
 let snapshotStorage;try{snapshotStorage=window.localStorage;}catch{}
 const E=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const DAYS=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -211,6 +211,7 @@ function bind(){
  root.querySelectorAll('[data-secretary-open-agent]').forEach(button=>button.addEventListener('click',()=>{
   const row=(state.agent_alerts||[]).find(a=>a.id===button.dataset.secretaryOpenAgent);
   if(!row)return message('This alert has changed. Refresh the inbox.');
+  if(window.agentHQOpenAgentAlert){window.agentHQOpenAgentAlert(row);return;}
   if(row.project_id&&window.agentHQOpenProjects){window.agentHQOpenProjects(row.project_id);return;}
   if(window.agentHQOpenApprovals){window.agentHQOpenApprovals();return;}
   message('Open Approvals from the Agent HQ home screen to review this request.');

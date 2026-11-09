@@ -9,7 +9,12 @@ function paint(){
  for(const root of document.querySelectorAll('[data-agent-activity-thread]')){
   const worker=root.dataset.agentActivityThread;if(root.dataset.agentActivityName)labels[worker]=root.dataset.agentActivityName;
   const html=render(worker);
-  if(root.innerHTML!==html)root.innerHTML=html;
+  // Compare browser-normalized markup on both sides. Quotes and apostrophes
+  // serialize differently from escaped source; comparing them directly makes
+  // this observer repeatedly observe its own identical content replacement.
+  const template=document.createElement('template');template.innerHTML=html;
+  const markup=template.innerHTML;
+  if(root.innerHTML!==markup)root.innerHTML=markup;
   root.hidden=!html;
  }
 }

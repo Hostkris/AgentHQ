@@ -47,3 +47,11 @@ test('Storage restrictions leave normal authenticated reading usable',()=>{
  assert.equal(savedSecretaryOwner(blocked,authKey),null);assert.equal(readSecretarySnapshot(blocked,owner),null);
  assert.equal(saveSecretarySnapshot(blocked,owner,state()).notices.length,2);assert.doesNotThrow(()=>clearSecretarySnapshot(blocked,owner));
 });
+test('Agent popup targets survive saved preview restoration without unrelated fields',()=>{
+ const data=state(),store=memory(),project='44444444-4444-4444-8444-444444444444';
+ Object.assign(data.agent_alerts[0],{actor:'Riley',alert_kind:'question',project_id:project,secret:'do-not-copy'});
+ const saved=saveSecretarySnapshot(store,owner,data);
+ const notice=readSecretarySnapshot(store,owner).notices.find(n=>n.agent);
+ assert.equal(notice.actor,'Riley');assert.equal(notice.alert_kind,'question');assert.equal(notice.project_id,project);
+ assert.equal(JSON.stringify(saved).includes('do-not-copy'),false);
+});
