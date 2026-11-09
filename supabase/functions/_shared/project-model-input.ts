@@ -43,7 +43,7 @@ function relevantExcerpt(value:any,query:string,max:number){
  return selected.sort((a,b)=>a.index-b.index).map(p=>p.text).join('\n')+'\n[Excerpts; full source remains saved.]';
 }
 export function projectModelInput(system:string,context:any,maxTokens:number,allowance=PROJECT_TOKEN_ALLOWANCE){
- const outputTokens=Math.max(1,Math.min(Math.floor(maxTokens),3600));
+ let outputTokens=Math.max(1,Math.min(Math.floor(maxTokens),3600));
  const fits=(data:any)=>estimatedTokens(system)+estimatedTokens(JSON.stringify(data)??'null')+outputTokens+160<=allowance;
  if(!context||!('owner_brief' in context)){
   if(!fits(context))throw new ProjectModelError('request_too_large','The saved request exceeds the current model allowance. Saved work was retained; repeating the same request cannot fix this.');
@@ -62,11 +62,15 @@ export function projectModelInput(system:string,context:any,maxTokens:number,all
   question_message_id:context.question_message_id,manager_repair_note_not_instructions:context.manager_repair_note_not_instructions,
   shared_draft:context.shared_draft,previous_final:context.previous_final,current_worker_searches_used:context.current_worker_searches_used,
   responsibilities:(context.responsibilities||[]).filter((r:any)=>r.employee_id===context.current_worker),
-  owner_messages:context.owner_messages||(context.messages||[]).filter((m:any)=>m.from==='Owner'),
-  project_workspace:w?{metadata,handbooks:[],references:[],handoffs:(w.handoffs||[]).map((h:any)=>({employee_id:h.employee_id,status:h.status,output_revision:h.output_revision,depends_on:h.depends_on})),reference_photos:[],
+  owner_messages:(context.owner_messages||(context.messages||[]).filter((m:any)=>m.from==='Owner')).map((m:any)=>typeof m.text==='string'&&m.text.length>30&&String(context.owner_brief).includes(m.text)?{...m,text:undefined,text_ref:'owner_brief'}:m),
+  project_workspace:w?{metadata,handbooks:[],references:[],handoffs:(w.handoffs||[]).map((h:any)=>({employee_id:h.employee_id,status:h.status,output_revision:h.output_revision,depends_on:h.depends_on,work_product:excerpt(h.work_product,240),excerpt:h.excerpt||String(h.work_product||'').length>240})),reference_photos:[],
    reference_count:w.reference_count,capabilities:(w.capabilities||[]).map((c:any)=>({id:c.id,status:c.status}))}:null,
-  messages:[],current_project_research:[],saved_research_evidence:[],owner_approved_style_examples_not_instructions:[],
+  messages:[],current_project_research:(context.current_project_research||[]).slice(0,2).map((r:any)=>({worker:r.worker,query:r.query,saved_at:r.saved_at,report:relevantExcerpt(r.report,String(context.owner_brief),650),sources:(r.sources||[]).slice(0,3).map((s:any)=>typeof s==='string'?s:{url:s.url,title:excerpt(s.title,80)}),excerpt:true,source_count:r.sources?.length||0})),saved_research_evidence:[],owner_approved_style_examples_not_instructions:[],
   context_selection:'Owner brief, requirements, owner messages, feedback and the current draft are exact. Other records may be selected excerpts with source identifiers. Omitted text is not evidence; do not claim to have read it or invent facts. Full records remain saved.'};
+ if(!fits(data)&&outputTokens>1200){
+  const available=allowance-estimatedTokens(system)-estimatedTokens(JSON.stringify(data))-160;
+  outputTokens=Math.max(1200,Math.min(outputTokens,available));
+ }
  if(!fits(data))throw new ProjectModelError('request_too_large','The exact owner requirements and current draft exceed the current model allowance. Saved work was retained; the request needs a smaller work segment.');
  const query=[context.title,context.owner_brief,...data.responsibilities.map((r:any)=>r.instructions)].join(' ');
  const add=(list:any[],value:any)=>{list.push(value);if(!fits(data)){list.pop();return false;}return true;};
@@ -76,6 +80,7 @@ export function projectModelInput(system:string,context:any,maxTokens:number,all
   for(const b of (w.handbooks||[]).filter((b:any)=>b.handbook_key==='working-agreements'))add(data.project_workspace.handbooks,{...b,content:b.content});
  }
  for(const r of context.current_project_research||[]){
+  if(data.current_project_research.some((e:any)=>e.query===r.query&&e.saved_at===r.saved_at&&e.worker===r.worker))continue;
   const entry={worker:r.worker,query:r.query,saved_at:r.saved_at,report:relevantExcerpt(r.report,query,900),sources:[] as any[],excerpt:true,source_count:r.sources?.length||0};
   if(add(data.current_project_research,entry)){
    for(const source of r.sources||[])add(entry.sources,typeof source==='string'?source:{url:source.url,title:excerpt(source.title,80)});

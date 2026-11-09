@@ -42,6 +42,13 @@ test('oversized exact requirements fail before a provider call instead of silent
  await assert.rejects(()=>projectCompletion(ai,'System',source,2000,async()=>{calls++;return success();}),/\[ai:request_too_large\]/);
  assert.equal(calls,0);assert.equal(source.owner_brief.length,'Exact owner requirement '.length*20000);
 });
+test('completion reservation adapts to exact requirements without raising the total allowance',()=>{
+ const source=context(),before=structuredClone(source);
+ const input=projectModelInput('Preserve the supplied task.',source,3600,4000);
+ assert.ok(input.maxTokens>=1200&&input.maxTokens<3600);
+ assert.ok(estimatedTokens('Preserve the supplied task.')+estimatedTokens(JSON.stringify(input.context))+input.maxTokens+160<=4000);
+ assert.equal(input.context.owner_brief,source.owner_brief);assert.deepEqual(source,before);
+});
 test('413 recovery makes at most one smaller request and never repeats the identical body',async()=>{
  const bodies=[];
  await projectCompletion(ai,'Preserve exact requirements.',context(),1300,async(_url,options)=>{bodies.push(options.body);return bodies.length===1?new Response('{}',{status:413}):success();});
