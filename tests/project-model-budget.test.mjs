@@ -4,7 +4,8 @@ import {estimatedTokens,projectModelInput,terminalModelFailure,PROJECT_TOKEN_ALL
 import {projectCompletion} from '../supabase/functions/_shared/project-runtime.ts';
 import {projectTurnPrompt} from '../supabase/functions/_shared/project-engine.ts';
 import {SPECIALIST_JOBS} from '../supabase/functions/_shared/alex-dna.ts';
-import {autonomousRecoveryStatus} from '../agent-project-autonomy.js';
+import {autonomousRecoveryStatus,routineOwnerQuestion} from '../agent-project-autonomy.js';
+import {normalizeProjectTurn} from '../supabase/functions/_shared/project-engine.ts';
 
 const ai={name:'groq',key:'fixture-secret',url:'https://model.invalid',model:'openai/gpt-oss-120b'};
 const session={phase:'discussion',active_worker:'riley',next_worker:'riley',team_order:['riley','jordan'],peer_exchanges:0};
@@ -67,4 +68,13 @@ test('permanent defects and repeated failures stop, while genuine rate limits an
 });
 test('terminal project errors cannot display an automatic-success recovery notice',()=>{
  assert.equal(autonomousRecoveryStatus({...session,last_error:'[ai:request_too_large] Cannot fit',recovery_state:'idle',recovery_error:'Old reconnect notice'}),null);
+});
+test('public marketplace comparisons proceed before final owner choices while real inventory and budgets stay private',()=>{
+ for(const question of ['Which online marketplaces should be considered in the arbitrage model and product-category research?','Which product category or categories should the pilot arbitrage focus on?']){
+  const raw={kind:'ask_owner',text:'Choose research scope',question,blocking_reason:'owner_only_fact',why_blocking:'I prefer a marketplace or product category before comparing the available public options.'};
+  assert.equal(routineOwnerQuestion(raw),true);assert.throws(()=>normalizeProjectTurn(raw,session),{code:'nonessential_question'});
+  const recovered=normalizeProjectTurn(raw,{...session,revision:1,recovery_error:'Response correction [nonessential_question/discussion/riley/1/ask_owner]. Compare supported options first.'});
+  assert.equal(recovered.kind,'ask_team');assert.equal(recovered.recipient,'jordan');
+ }
+ for(const question of ['Which product categories are already in your actual inventory?','Which marketplaces are you currently selling on?','What is the approved purchase budget?'])assert.equal(routineOwnerQuestion({kind:'ask_owner',question}),false);
 });

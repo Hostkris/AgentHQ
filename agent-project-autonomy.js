@@ -9,7 +9,9 @@ Once the owner supplies the essential fact or decides the specific request, resu
 export const HUMAN_APPROVAL_CATEGORIES=Object.freeze(['account_authorization','private_data','spending','budget_change','account_change','public_release','risky_site','irreversible_commitment']);
 export function routineOwnerQuestion(raw){
  const question=String(raw?.question||'');
- return raw?.kind==='ask_owner'&&/\b(?:tone|writing style|colour|color|font|success metrics?|key metrics?|primary content formats?)\b/i.test(question)&&!/\b(?:actual|recorded|historical|previous|last|account|budget|balance|spend|payment|private|confidential|legal|deadline|consent|authorization)\b/i.test(question);
+ const routine=/\b(?:tone|writing style|colour|color|font|success metrics?|key metrics?|primary content formats?)\b/i.test(question)||
+  /\b(?:which|what)\b[^?]{0,160}\b(?:marketplaces?|product categor(?:y|ies))\b[^?]{0,130}\b(?:consider|research|focus|compare)\b/i.test(question);
+ return raw?.kind==='ask_owner'&&routine&&!/\b(?:actual|recorded|historical|previous|last|already|currently|existing|inventory|preferred|account|budget|balance|spend|payment|private|confidential|legal|deadline|consent|authorization)\b/i.test(question);
 }
 
 export function validateOwnerInterruption(raw){
@@ -18,7 +20,7 @@ export function validateOwnerInterruption(raw){
    throw new ProjectResponseError('unnecessary_approval','Routine drafting, public research and internal corrections are already authorized. Request only a specific sensitive human authorization and explain why it is necessary.');
  }else if(raw.kind==='ask_owner'){
   if(routineOwnerQuestion(raw))
-   throw new ProjectResponseError('nonessential_question','Resolve tone, style, formatting and proposed success metrics within the team. Ask only the single essential owner-only fact that prevents completion.');
+   throw new ProjectResponseError('nonessential_question','Resolve routine drafting and public-research comparisons within the team. Compare supported options before requesting a final owner choice. Ask only the single essential owner-only fact that prevents completion.');
   if(raw.blocking_reason!=='owner_only_fact'||typeof raw.why_blocking!=='string'||raw.why_blocking.trim().length<20)
    throw new ProjectResponseError('nonessential_question','Use saved project information, teammates and available research first. Ask the owner only for a genuinely essential owner-only fact and explain why it blocks completion.');
  }
