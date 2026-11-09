@@ -1,6 +1,7 @@
 import {messageDeleteButton, messageIsDeleted} from './agent-message-controls.js?v=20261024-delete-1';
 import {renderHomeScreen,connectHomeScreen,homeDragInProgress} from './agent-home-layout.js?v=20261107-ventureflow-1';
 import {researchFailureInfo} from './agent-research-status.js?v=20261024-research-recovery-1';
+import {agentAlertDestination} from './agent-message-navigation.js?v=20261109-message-navigation-1';
 const staff=[["alex","👔","Alex","General Manager"],["maya","📣","Maya","Chief Marketing Strategist"],["jordan","🎬","Jordan","Creative Content Director"],["riley","🔎","Riley","Market Research Analyst"],["taylor","📧","Taylor","Communications Director"],["casey","📱","Casey","Social Media Director"],["morgan","🛍️","Morgan","E-Commerce Director"],["avery","📊","Avery","Financial Strategy Analyst"],["jamie","📅","Jamie","Scheduling Director"],["quinn","💡","Quinn","Chief Growth Officer"]];const app=document.querySelector("#app");const oauthReturnWorker=(()=>{
  try{
   const callback=new URLSearchParams(location.search);
@@ -123,6 +124,22 @@ window.agentHQOpenSecretary=({fromMessage=false}={})=>{secretaryReturnBot=fromMe
 window.agentHQOpenApprovals=()=>{screen="approvals";settingsReturn=false;render();};
 window.agentHQOpenChatGPT=id=>{window.agentHQChatGPTSelection=id||null;screen="chatgpt";settingsReturn=false;render()};
 window.agentHQOpenProjects=id=>{screen="projects";settingsReturn=false;render();if(id)document.dispatchEvent(new CustomEvent("agenthq-open-project-app",{detail:{id}}))};
+function openWorkerMessage(worker,projectId=null){
+ if(worker!=="hq"&&!staff.some(s=>s[0]===worker))return false;
+ const service=window.agentHQProjects;
+ const questions=(service?.all?.()||[]).filter(s=>['waiting_owner','waiting_permission'].includes(s.phase)&&s.waiting_worker===worker);
+ const target=projectId|| (questions.length===1?questions[0].assignment_id:null);
+ if(target)service?.selectAnswer?.(target);
+ active=worker;screen="chat";settingsReturn=false;render();return true;
+}
+window.agentHQOpenWorkerMessage=openWorkerMessage;
+window.agentHQOpenAgentAlert=alert=>{
+ const destination=agentAlertDestination(alert,window.agentHQProjects?.all?.()||[]);
+ if(destination.kind==='message')return openWorkerMessage(destination.worker,destination.projectId);
+ if(destination.kind==='project')window.agentHQOpenProjects(destination.projectId);
+ else window.agentHQOpenApprovals();
+ return true;
+};
 window.agentHQProjectsError=message=>{if(screen==="chat"){const el=document.querySelector("#send-feedback");if(el)el.textContent=String(message)}};
 const teamStatusLabel={planned:"Planned",in_progress:"In progress",blocked:"Waiting for information",completed:"Completed"};
 const workerHistory=[];let workerConnection={ready:false,message:"Checking AI connection…",provider:null,model:null},workerBusy=null,workerCheckBusy=false,workerFeedback="";
@@ -997,7 +1014,7 @@ app.addEventListener("click",async e=>{
   }
   if(projectAction.hasAttribute("data-project-answer-thread")||projectAction.hasAttribute("data-project-answer-select")){
    const id=projectAction.dataset.projectAnswerThread||projectAction.dataset.projectAnswerSelect;
-   const worker=service.selectAnswer(id);if(worker){active=worker;screen="chat";render();document.querySelector("#draft")?.focus();}return;
+   const worker=service.selectAnswer(id);if(worker){openWorkerMessage(worker,id);document.querySelector("#draft")?.focus();}return;
   }
   projectAction.disabled=true;
   try{
@@ -1208,7 +1225,7 @@ const check=e.target.closest("[data-worker-check]");if(check){
     &&typeof navigator.setAppBadge==="function"){
   try{Notification.requestPermission().then(()=>syncAppBadge()).catch(()=>{});}catch{}
  }
- settingsReturn=screen==="settings"&&!["home","settings"].includes(next)?true:["home","settings"].includes(next)?false:settingsReturn;screen=next;window.scrollTo(0,0);if(screen==="hq"){active="hq";screen="chat"}render()}if(chat){active=chat.dataset.chat;screen="chat";render()}});
+ settingsReturn=screen==="settings"&&!["home","settings"].includes(next)?true:["home","settings"].includes(next)?false:settingsReturn;screen=next;window.scrollTo(0,0);if(screen==="hq"){active="hq";screen="chat"}render()}if(chat)openWorkerMessage(chat.dataset.chat)});
 connectHomeScreen(()=>{if(screen==="home")render()});
 render();
 
