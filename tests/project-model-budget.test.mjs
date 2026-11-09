@@ -70,7 +70,7 @@ test('terminal project errors cannot display an automatic-success recovery notic
  assert.equal(autonomousRecoveryStatus({...session,last_error:'[ai:request_too_large] Cannot fit',recovery_state:'idle',recovery_error:'Old reconnect notice'}),null);
 });
 test('public marketplace comparisons proceed before final owner choices while real inventory and budgets stay private',()=>{
- for(const question of ['Which online marketplaces should be considered in the arbitrage model and product-category research?','Which product category or categories should the pilot arbitrage focus on?']){
+ for(const question of ['Which online marketplaces should be considered in the arbitrage model and product-category research?','Which product category or categories should the pilot arbitrage focus on?','Which two competitor skincare brands should be included in the competitor case studies for pricing and margin analysis?']){
   const raw={kind:'ask_owner',text:'Choose research scope',question,blocking_reason:'owner_only_fact',why_blocking:'I prefer a marketplace or product category before comparing the available public options.'};
   assert.equal(routineOwnerQuestion(raw),true);assert.throws(()=>normalizeProjectTurn(raw,session),{code:'nonessential_question'});
   const recovered=normalizeProjectTurn(raw,{...session,revision:1,recovery_error:'Response correction [nonessential_question/discussion/riley/1/ask_owner]. Compare supported options first.'});

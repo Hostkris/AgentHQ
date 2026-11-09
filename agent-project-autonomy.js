@@ -10,8 +10,8 @@ export const HUMAN_APPROVAL_CATEGORIES=Object.freeze(['account_authorization','p
 export function routineOwnerQuestion(raw){
  const question=String(raw?.question||'');
  const routine=/\b(?:tone|writing style|colour|color|font|success metrics?|key metrics?|primary content formats?)\b/i.test(question)||
-  /\b(?:which|what)\b[^?]{0,160}\b(?:marketplaces?|product categor(?:y|ies))\b[^?]{0,130}\b(?:consider|research|focus|compare)\b/i.test(question);
- return raw?.kind==='ask_owner'&&routine&&!/\b(?:actual|recorded|historical|previous|last|already|currently|existing|inventory|preferred|account|budget|balance|spend|payment|private|confidential|legal|deadline|consent|authorization)\b/i.test(question);
+  /\b(?:which|what)\b[^?]{0,160}\b(?:marketplaces?|product categor(?:y|ies)|competitors?|brands)\b[^?]{0,200}\b(?:consider|research|focus|compare|included|case studies)\b/i.test(question);
+ return raw?.kind==='ask_owner'&&routine&&!/\b(?:actual|recorded|historical|previous|last|already|currently|existing|inventory|preferred|approved|chosen|selected|account|budget|balance|spend|payment|private|confidential|legal|deadline|consent|authorization)\b/i.test(question);
 }
 
 export function validateOwnerInterruption(raw){
