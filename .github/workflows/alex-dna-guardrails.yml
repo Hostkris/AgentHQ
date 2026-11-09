@@ -155,7 +155,7 @@ jobs:
       - name: Test Alex role and approval boundaries
         run: node --test tests/alex-dna.test.mjs
       - name: Test project response validation and recovery
-        run: node --test tests/company-hq.test.mjs tests/project-response-recovery.test.mjs tests/project-autonomy.test.mjs
+        run: node --test tests/company-hq.test.mjs tests/project-response-recovery.test.mjs tests/project-autonomy.test.mjs tests/project-model-budget.test.mjs
       - name: Test Groq public research and provider recovery
         run: node --test tests/research*.test.mjs tests/role-research.test.mjs
       - name: Test live activity and backend event authenticity

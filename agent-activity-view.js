@@ -1,6 +1,6 @@
 // Activity describes observable requests and saved run state, never hidden reasoning.
 import {projectResponseRecovery} from './agent-project-recovery.js?v=20261024-autonomy-1';
-import {autonomousRecoveryStatus} from './agent-project-autonomy.js?v=20261024-activity-verified-1';
+import {autonomousRecoveryStatus} from './agent-project-autonomy.js?v=20261109-model-recovery-1';
 const LABELS={alex:'Alex',maya:'Maya',jordan:'Jordan',riley:'Riley',taylor:'Taylor',casey:'Casey',morgan:'Morgan',avery:'Avery',jamie:'Jamie',quinn:'Quinn',hq:'Company HQ'};
 export const activityName=(id,labels={})=>labels[id]||LABELS[id]||'Your worker';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

@@ -11,6 +11,7 @@ import {AVERY_TEXT_DRAFT_POLICY} from "../_shared/avery-dna.ts";
 import {JAMIE_TEXT_DRAFT_POLICY} from "../_shared/jamie-dna.ts";
 import {QUINN_TEXT_DRAFT_POLICY} from "../_shared/quinn-dna.ts";
 import {relevantApprovedExamples,draftIssues} from "../_shared/agent-intelligence.js";
+import {projectCompletion} from '../_shared/project-runtime.ts';
 import {runProjectTurn} from "../_shared/project-engine.ts";
 import {ProjectResponseError} from "../../../agent-project-recovery.js";
 
@@ -43,26 +44,9 @@ function parseObject(content:string):Record<string,unknown>{
  return data as Record<string,unknown>;
 }
 async function completion(ai:AI,system:string,user:unknown,maxTokens=1500){
- const controller=new AbortController();
- const timer=setTimeout(()=>controller.abort(),35000);
- try{
-  const response=await fetch(ai.url,{
-   method:"POST",signal:controller.signal,
-   headers:{"Authorization":"Bearer "+ai.key,"Content-Type":"application/json",
-     ...(ai.name==="openrouter"?{"HTTP-Referer":ORIGIN,"X-Title":"Agent HQ"}:{})},
-   body:JSON.stringify({
-    model:ai.model,stream:false,temperature:0.2,max_tokens:maxTokens,
-    ...(ai.name==="groq"&&ai.model.startsWith("openai/gpt-oss")?{reasoning_effort:"low"}:{}),
-    messages:[{role:"system",content:system},{role:"user",content:JSON.stringify(user)}]
-   })
-  });
-  if(!response.ok)throw Error("AI provider HTTP "+response.status);
-  const raw=await response.json();
-  const content=raw?.choices?.[0]?.message?.content;
-  if(typeof content!=="string"||!content.trim())throw new ProjectResponseError('empty_response',"AI provider returned an empty answer");
-  return parseObject(content);
- }finally{clearTimeout(timer)}
+ return await projectCompletion(ai,system,user,maxTokens);
 }
+
 const workerLabelForChat=(id:string)=>id.charAt(0).toUpperCase()+id.slice(1);
 async function saveChatUpdate(admin:any,owner:string,worker:string,text:string){
  // Status is stored under the authenticated owner's existing account.
